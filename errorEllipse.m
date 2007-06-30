@@ -101,6 +101,9 @@ else
 end
 
 hold_state = get(currentAxes,'nextplot');
+if ~strcmp(hold_state,'add')
+    hold on
+end
 
 if r==3 && c==3
     z0=mu(3);
