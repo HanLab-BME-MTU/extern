@@ -36,6 +36,14 @@ default_properties = struct(...
     'style', '', ...  % Plot style
     'clip', inf); % Clipping radius
 
+if length(varargin) >= 1 && isscalar(varargin{1}) && ishandle(varargin{1}) 
+    % first input is axes handle
+    currentAxes = varargin{1};
+    varargin(1) = [];
+else
+    currentAxes = gca;
+end
+
 if length(varargin) >= 1 && isnumeric(varargin{1})
     default_properties.C = varargin{1};
     varargin(1) = [];
@@ -92,7 +100,7 @@ else
     k = sqrt(qchisq(conf,r)); % r is the number of dimensions (degrees of freedom)
 end
 
-hold_state = get(gca,'nextplot');
+hold_state = get(currentAxes,'nextplot');
 
 if r==3 && c==3
     z0=mu(3);
@@ -110,11 +118,11 @@ if r==3 && c==3
     Czx = C([3 1],[3 1]);
 
     [x,y,z] = getpoints(Cxy,prop.clip);
-    h1=plot3(x0+k*x,y0+k*y,z0+k*z,prop.style);hold on
+    h1=plot3(currentAxes,x0+k*x,y0+k*y,z0+k*z,prop.style);hold on
     [y,z,x] = getpoints(Cyz,prop.clip);
-    h2=plot3(x0+k*x,y0+k*y,z0+k*z,prop.style);hold on
+    h2=plot3(currentAxes,x0+k*x,y0+k*y,z0+k*z,prop.style);hold on
     [z,x,y] = getpoints(Czx,prop.clip);
-    h3=plot3(x0+k*x,y0+k*y,z0+k*z,prop.style);hold on
+    h3=plot3(currentAxes,x0+k*x,y0+k*y,z0+k*z,prop.style);hold on
 
 
     [eigvec,eigval] = eig(C);
@@ -144,7 +152,7 @@ elseif r==2 && c==2
     end
 
     [x,y,z] = getpoints(C,prop.clip);
-    h1=plot(scale*(x0+k*x),scale*(y0+k*y),prop.style);
+    h1=plot(currentAxes,scale*(x0+k*x),scale*(y0+k*y),prop.style);
     set(h1,'zdata',z+1)
     % add errorBar-tag to allow turning off the errorEllipse 
     if nargout
@@ -158,7 +166,7 @@ else
 end
 %axis equal
 
-set(gca,'nextplot',hold_state);
+set(currentAxes,'nextplot',hold_state);
 
 %---------------------------------------------------------------
 % getpoints - Generate x and y points that define an ellipse, given a 2x2
