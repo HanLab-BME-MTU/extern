@@ -37,6 +37,8 @@ function s = summary(x, dim, stdflag)
 % SIZE -  For vectors, matrices and N-D arrays, this is a vector of the
 % sizes of each dimension of X. If X is a scalar, which MATLAB regards as a
 % 1-by-1 array, SIZE(X) returns the vector [1 1]. 
+%
+% N -  Number of non-NaN elements
 % 
 % 
 % SUMMARY(X, DIM) calculates summary statistics along the dimension DIM of X.
@@ -87,8 +89,9 @@ end
 
 % Calculate summary statistics.
 s.min = min(x, [], dim);
-s.median = median(x, dim);
-s.mean = mean(x, dim);
+s.median = nanmedian(x, dim);
+s.mean = nanmean(x, dim);
 s.max = max(x, [], dim);
-s.std = std(x, stdflag, dim);
+s.std = nanstd(x, stdflag, dim);
 s.size = size(x);
+s.N = sum(~isnan(x),dim);
