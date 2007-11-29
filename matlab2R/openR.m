@@ -52,9 +52,11 @@ global R_lInK_hANdle
 % Check if a connection exists
 if ~isempty(R_lInK_hANdle)
     msg = 'Already connected to an R server.';
-    if nargout < 2
-        warning(msg);
-    end
+    % don't send warning. It's not really a problem if we're already
+    % connected! Jonas 10/07
+%     if nargout < 2
+%         warning(msg);
+%     end
 else
     % if not, call the StatConnector and initialize an R session
     try
