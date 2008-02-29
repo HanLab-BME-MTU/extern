@@ -43,7 +43,7 @@ function [status ,msg, handle] = openR
 %   Robert Henson, May 2004
 %   Copyright 2004 The MathWorks, Inc.
 
-status = false;
+%status = false; - status will be changed anyway
 msg = '';
 
 % Use a global variable to keep track of the connection handle.
@@ -57,6 +57,7 @@ if ~isempty(R_lInK_hANdle)
 %     if nargout < 2
 %         warning(msg);
 %     end
+    status = true;
 else
     % if not, call the StatConnector and initialize an R session
     try
