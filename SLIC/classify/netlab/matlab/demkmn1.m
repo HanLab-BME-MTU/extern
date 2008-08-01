@@ -13,7 +13,7 @@
 %	corresponding  cluster
 %
 %	See also
-%	DEM2DDAT, DEMGMM1, KNN1, KMEANS
+%	DEM2DDAT, DEMGMM1, KNN1, NETLAB_KMEANS
 %
 
 %	Copyright (c) Ian T Nabney (1996-2001)
@@ -61,7 +61,7 @@ disp('Press any key to continue.')
 pause
 
 % Train the centres from the data
-[centres, options, post] = kmeans(centres, data, options);
+[centres, options, post] = netlab_kmeans(centres, data, options);
 
 % Print out model
 disp(' ')

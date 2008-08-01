@@ -33,7 +33,7 @@ GMM_WIDTH = 1.0;
 
 % Use kmeans algorithm to set centres
 options(5) = 1;	
-[mix.centres, options, post] = kmeans(mix.centres, x, options);
+[mix.centres, options, post] = netlab_kmeans(mix.centres, x, options);
 
 % Set priors depending on number of points in each cluster
 cluster_sizes = max(sum(post, 1), 1);  % Make sure that no prior is zero
