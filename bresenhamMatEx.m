@@ -1,10 +1,10 @@
-function [myline,mycoords,outmat,X,Y] = bresenham(mymat,mycoordinates,dispFlag)
+function [myline,mycoords,outmat,X,Y] = bresenhamMatEx(mymat,mycoordinates,dispFlag)
 
 % BRESENHAM: Generate a line profile of a 2d image 
 %            using Bresenham's algorithm
 % [myline,mycoords] = bresenham(mymat,mycoordinates,dispFlag)
 %
-% - For a demo purpose, try >> bresenham();
+% - For a demo purpose, try >> bresenhamMatEx();
 %
 % - mymat is an input image matrix.
 %
