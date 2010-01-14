@@ -116,10 +116,10 @@ ymax = 0;
 if size(barvalues,1) ~= size(errors,1) || size(barvalues,2) ~= size(errors,2)
 	error('barvalues and errors matrix must be of same dimension');
 else
-	if size(barvalues,2) == 1
-		barvalues = barvalues';
-		errors = errors';
-	end
+% 	if size(barvalues,2) == 1
+% 		barvalues = barvalues';
+% 		errors = errors';
+% 	end
 	if size(barvalues,1) == 1
 		barvalues = [barvalues; zeros(1,length(barvalues))];
 		errors = [errors; zeros(1,size(barvalues,2))];
