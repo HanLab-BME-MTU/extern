@@ -240,10 +240,15 @@ if robust
 	
 	% Compute how far along each line segment the intersections are.
 	if nargout > 2
+        if ~isempty(selected) %Added this to prevent error - HLE
 		sel_index = find(selected);
 		sel = sel_index(index);
 		iout = i(sel) + T(1,sel).';
 		jout = j(sel) + T(2,sel).';
+        else
+            iout = [];
+            jout = [];
+        end
 	end
 else % non-robust option
 	for k = 1:n
