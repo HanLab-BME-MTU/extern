@@ -162,6 +162,8 @@ else
 end
 i(remove) = [];
 j(remove) = [];
+i = i(:);%Force i and j to be column vectors. Not sure why, but occasionally find is returning them as rows. -HLE
+j = j(:);
 
 % Initialize matrices.  We'll put the T's and B's in matrices and use them
 % one column at a time.  AA is a 3-D extension of A where we'll use one
@@ -244,8 +246,13 @@ if robust
 	if nargout > 2
 		sel_index = find(selected);
 		sel = sel_index(index);
-		iout = i(sel) + T(1,sel).';
-		jout = j(sel) + T(2,sel).';
+        if ~isempty(sel) %Check if there are any intersections first to avoid error - HLE
+            iout = i(sel) + T(1,sel).';
+            jout = j(sel) + T(2,sel).';
+        else
+            iout = [];
+            jout = [];
+        end
 	end
 else % non-robust option
 	for k = 1:n
@@ -266,11 +273,13 @@ else % non-robust option
 	end
 end
 
-[tmp, sortI] = sort(iout,'ascend');
-iout = iout(sortI); 
-idx = isnan(iout);  iout(idx) = [];
-jout = jout(sortI); jout(idx) = [];
-x0 = x0(sortI);     x0(idx) = [];
-y0 = y0(sortI);     y0(idx) = [];
+if ~isempty(iout) && ~isempty(jout) %Again, make sure there were intersections first. - HLE
+    [~, sortI] = sort(iout,'ascend');
+    iout = iout(sortI); 
+    idx = isnan(iout);  iout(idx) = [];
+    jout = jout(sortI); jout(idx) = [];
+    x0 = x0(sortI);     x0(idx) = [];
+    y0 = y0(sortI);     y0(idx) = [];
+end
 % Plot the results (useful for debugging).
 %plot(x1,y1,x2,y2,x0,y0,'ok');
