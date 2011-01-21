@@ -222,6 +222,8 @@ if robust
 	if any(overlap)
 		ia = i(overlap);
 		ja = j(overlap);
+        T(1,overlap) = .5;%Return the t1 and t2 as .5 to agree with intersections point - HLE                
+        T(2,overlap) = .5;
 		% set x0 and y0 to middle of overlapping region.
 		T(3,overlap) = (max(min(x1(ia),x1(ia+1)),min(x2(ja),x2(ja+1))) + ...
 			min(max(x1(ia),x1(ia+1)),max(x2(ja),x2(ja+1)))).'/2;
