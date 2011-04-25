@@ -35,11 +35,11 @@ function [x0,y0,iout,jout] = intersections(x1,y1,x2,y2,robust)
 %   [X0,Y0] = intersections(X1,Y1,ROBUST);
 %
 % where, as before, ROBUST is optional.
-%
-% Version: 1.10, 25 February 2008
+
+% Version: 1.12, 27 January 2010
 % Author:  Douglas M. Schwarz
 % Email:   dmschwarz=ieee*org, dmschwarz=urgrad*rochester*edu
-% Modified and Checked in by Shann-Ching Chen, June 12, 2008
+% Real_email = regexprep(Email,{'=','*'},{'@','.'})
 
 
 % Theory of operation:
@@ -148,6 +148,11 @@ dxy2 = diff(xy2);
 	repmat(max(y1(1:end-1),y1(2:end)),1,n2) >= ...
 	repmat(min(y2(1:end-1),y2(2:end)).',n1,1));
 
+% Force i and j to be column vectors, even when their length is zero, i.e.,
+% we want them to be 0-by-1 instead of 0-by-0.
+i = reshape(i,[],1);
+j = reshape(j,[],1);
+
 % Find segments pairs which have at least one vertex = NaN and remove them.
 % This line is a fast way of finding such segment pairs.  We take
 % advantage of the fact that NaNs propagate through calculations, in
@@ -162,8 +167,6 @@ else
 end
 i(remove) = [];
 j(remove) = [];
-i = i(:);%Force i and j to be column vectors. Not sure why, but occasionally find is returning them as rows. -HLE
-j = j(:);
 
 % Initialize matrices.  We'll put the T's and B's in matrices and use them
 % one column at a time.  AA is a 3-D extension of A where we'll use one
@@ -195,7 +198,7 @@ B = -[x1(i) x2(j) y1(i) y2(j)].';
 % pairs.
 
 if robust
-	overlap = false(1,n);
+	overlap = false(n,1);
 	warning_state = warning('off','MATLAB:singularMatrix');
 	% Use try-catch to guarantee original warning state is restored.
 	try
@@ -212,20 +215,18 @@ if robust
 			end
 		end
 		warning(warning_state)
-	catch
+	catch err
 		warning(warning_state)
-		rethrow(lasterror)
+		rethrow(err)
 	end
 	% Find where t1 and t2 are between 0 and 1 and return the corresponding
 	% x0 and y0 values.
-	in_range = T(1,:) >= 0 & T(2,:) >= 0 & T(1,:) <= 1 & T(2,:) <= 1;
+	in_range = (T(1,:) >= 0 & T(2,:) >= 0 & T(1,:) <= 1 & T(2,:) <= 1).';
 	% For overlapping segment pairs the algorithm will return an
 	% intersection point that is at the center of the overlapping region.
 	if any(overlap)
 		ia = i(overlap);
 		ja = j(overlap);
-        T(1,overlap) = .5;%Return the t1 and t2 as .5 to agree with intersections point - HLE                
-        T(2,overlap) = .5;
 		% set x0 and y0 to middle of overlapping region.
 		T(3,overlap) = (max(min(x1(ia),x1(ia+1)),min(x2(ja),x2(ja+1))) + ...
 			min(max(x1(ia),x1(ia+1)),max(x2(ja),x2(ja+1)))).'/2;
@@ -246,13 +247,8 @@ if robust
 	if nargout > 2
 		sel_index = find(selected);
 		sel = sel_index(index);
-        if ~isempty(sel) %Check if there are any intersections first to avoid error - HLE
-            iout = i(sel) + T(1,sel).';
-            jout = j(sel) + T(2,sel).';
-        else
-            iout = [];
-            jout = [];
-        end
+		iout = i(sel) + T(1,sel).';
+		jout = j(sel) + T(2,sel).';
 	end
 else % non-robust option
 	for k = 1:n
@@ -262,7 +258,7 @@ else % non-robust option
 	
 	% Find where t1 and t2 are between 0 and 1 and return the corresponding
 	% x0 and y0 values.
-	in_range = T(1,:) >= 0 & T(2,:) >= 0 & T(1,:) < 1 & T(2,:) < 1;
+	in_range = (T(1,:) >= 0 & T(2,:) >= 0 & T(1,:) < 1 & T(2,:) < 1).';
 	x0 = T(3,in_range).';
 	y0 = T(4,in_range).';
 	
@@ -273,13 +269,5 @@ else % non-robust option
 	end
 end
 
-if ~isempty(iout) && ~isempty(jout) %Again, make sure there were intersections first. - HLE
-    [~, sortI] = sort(iout,'ascend');
-    iout = iout(sortI); 
-    idx = isnan(iout);  iout(idx) = [];
-    jout = jout(sortI); jout(idx) = [];
-    x0 = x0(sortI);     x0(idx) = [];
-    y0 = y0(sortI);     y0(idx) = [];
-end
 % Plot the results (useful for debugging).
-%plot(x1,y1,x2,y2,x0,y0,'ok');
+% plot(x1,y1,x2,y2,x0,y0,'ok');
