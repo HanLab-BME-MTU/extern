@@ -1,0 +1,1207 @@
+# DeltaVision Objective Lens Database
+# ===================================
+#       Please read the following section before modifying 
+#       lens information.
+#       
+#       First, expansion of the database is encouraged.
+#       If you wish to add a lens, though, choose an ID number between
+#       2000 and 3999.  The sequence of the entries is unimportant, so
+#       new lenses may be added anywhere in the database.
+#
+#       While it is unnecessary to specify every field for every lens,
+#       certain DeltaVision programs require specific fields to 
+#       accurately handle images.  For example, the nearest-neighbor
+#       deconvolution program requires the numerical aperture, 
+#       magnification, and focal length.
+#
+#       Currently supported fields:
+#       ---------------------------
+#       id      Lens identification number
+#               00000-01999     Reserved block
+#               02000-03999     Customer definable numbers
+#               04000-09999     Reserved block
+#               10000-32000     APLLC controlled numbers.
+#                               NB: to facilitate image exchange, these
+#                               numbers should remain consistent
+#                               from one DeltaVision system to the next.
+#                               For convenience, a numbering convention
+#                               is observed whenever possible.
+#                               - Digits 1 and 2 indicate the manufacturer:
+#                                       10000-11999     Olympus
+#                                       12000-13999     Nikon
+#                                       14000-15999     Zeiss
+#                                       16000-17999     Leica
+#                                       18000-19999     APLLC
+#                               - Digit 3 indicates the magnification/10.
+#                                       For example, 106xx is an Olympus 60X.
+#                               - Digits 4 and 5 are assigned sequentially.
+#
+#       name    Descriptive text.
+#       magn    Lens magnification with no 'X'
+#       na      Numerical aperture
+#       fl      Focal length in mm
+#       wd      Working distance in mm
+#       type    "oil", "air", "water"
+#       pn      Manufacturer's PN
+#       api#    Applied Precision's PN
+#======================================================================
+id=2001
+na=1.15
+type=water
+name=test
+
+id=10100
+name=Olympus 10X/0.30, S Plan Achromat, phase, IMT2
+na=0.30
+fl=18.98
+magn=10.0
+type=air
+pn=1-LP134
+
+id=10101
+name=Olympus 10X/0.40, DApo/340, IMT2
+na=0.40
+fl=15.69
+magn=10.0
+type=air
+pn=1-LB331
+
+id=10102
+name=Olympus 10X/0.30, SPlan 10, Positive Low, phase, IMT2
+na=0.30
+fl=18.98
+magn=10.0
+type=air
+pn=1-LP134
+
+id=10103
+name=Olympus 4X/0.13, SPlan 4, Positive Low, phase, IMT2
+na=0.13
+magn=4.0
+type=air
+pn=1-LP124
+
+id=10104
+name=Olympus 10X/0.40, D Plan Apo UV, IMT2
+na=0.40
+fl=15.69
+magn=10.0
+type=air
+pn=1-LB331
+
+id=10105
+name=Olympus 10X/0.40, D Plan Apo UV, phase, fluor free, IMT2
+na=0.40
+fl=15.69
+wd=3.10
+magn=10.0
+type=air
+pn=1-LP331
+
+id=10106
+name=Olympus 4X/0.16, U Plan Apo, Infinity/-, IX70
+na=0.16
+magn=4.0
+wd=13.0
+type=air
+pn=1-UB822
+
+id=10107
+name=Olympus 10X/0.40, U Plan Apo, IX70
+na=0.40
+magn=10.0
+wd=3.10
+type=air
+pn=1-UB823
+api#=34-018019-059
+
+id=10108
+name=Olympus 10X/0.25,C Plan Achromat, phase, IX70
+na=0.25
+magn=10.0
+wd=9.8
+type=air
+pn=1-UC243
+
+id=10109
+name=Olympus 10X/0.30, UPlanFl, IX70
+na=0.30
+magn=10.0
+wd=0.
+type=air
+pn=1-UB532
+
+id=10110
+name=Olympus 4X/0.13
+na=0.13
+magn=4.0
+wd=0.
+type=air
+pn=?
+
+id=10111
+name=Olympus 2X/0.08, SPlan FL 2
+na=0.08
+magn=2.0
+wd=0.
+type=air
+pn=?
+
+id=10112
+name=Olympus 4X/0.13, UPlanFL, Infinity/170, IX70
+na=0.13
+magn=4.0
+wd=0.
+type=air
+pn=1-UB522
+
+id=10113
+name=Olympus 1.25X/0.04, PlanApo, IX70
+na=0.04
+magn=1.25
+wd=5.1
+type=air
+pn=1-UB920
+
+id=10114
+name=Olympus 2X/0.08, PlanApo, IX70
+na=0.08
+magn=2.0
+wd=6.0
+type=air
+pn=1-UB921
+
+id=10200
+name=Olympus 20X/0.40, LWD, CD Plan Achromat, phase, IMT2
+na=0.40
+wd=3.0
+magn=20.0
+type=air
+
+id=10201
+name=Olympus 20X/0.65, DApo/340, IMT2, 1-LB343
+na=0.65
+magn=20.0
+wd=1.03
+type=air
+pn=1-LB343
+
+id=10202
+name=Olympus 20X/0.40, ULWD, CDPlan 20PL, phase, IMT2, 1-LP146
+na=0.40
+fl=7.93
+magn=20.0
+type=air
+pn=1-LP146
+
+id=10203
+name=Olympus 20X/0.80, D Plan Apo/340, IMT2, 1-LB342
+na=0.80
+fl=7.78
+magn=20.0
+type=oil
+pn=1-LB342
+
+id=10204
+name=Olympus 20X/0.70, D Plan Apo UV, IMT2, 1-LB341
+na=0.70
+fl=7.78
+magn=20.0
+type=air
+pn=1-LB341
+
+id=10205
+name=Olympus 20X/0.75, U Apo 340, IX70, 1-UB765
+na=0.75
+magn=20.0
+wd=0.55
+type=air
+pn=1-UB765
+api#=34-018019-015
+
+id=10206
+name=Olympus 20X/0.50, Phase, UPLFL, IX70, 1-UC525
+na=0.50
+magn=20.0
+wd=0.55
+type=air
+pn=1-UC525
+api#=34-018019-031
+
+id=10207
+name=Olympus 20X/0.40, LWD, C Achromat, phase, IX70
+na=0.40
+magn=20.0
+wd=3.0
+type=air
+pn=1-UC145
+
+id=10208
+name=Olympus 20X/0.50, Phase, UPLFL, IX70, 1-UB525
+na=0.50
+magn=20.0
+wd=0.55
+type=air
+pn=1-UB525
+
+id=10209
+name=Olympus 20X/0.40, LCPLFL, Phase, IX70
+magn=20.0
+na=0.40
+wd=6.9
+type=air
+pn=1-UC345
+
+id=10210
+name=Olympus 20X/0.40, LCPLFL, IX70
+magn=20.0
+na=0.40
+wd=6.9
+type=air
+pn=1-UB345
+
+id=10400
+name=Olympus 40X/0.55, LWD, CDPlan Achromat, phase, IMT2
+na=0.55
+fl=4.04        #approximate
+wd=2.04
+magn=40.0
+type=air
+
+id=10401
+name=Olympus 40X/0.85, IMT2
+na=0.85
+fl=4.04        #approximate
+wd=0.25
+magn=40.0
+type=air
+
+id=10402
+name=Olympus 40X/1.30, DApo/340, IMT2, 1-LB356
+na=1.30
+fl=4.34
+wd=0.12
+magn=40.0
+type=oil
+pn=1-LB356
+
+id=10403
+name=Olympus 40X/1.35, UApo/340, IX70, 1-UB768
+na=1.35
+magn=40.0
+wd=0.10
+type=oil
+pn=1-UB768
+api#=34-018019-016
+
+id=10404
+name=Olympus 40X/0.85, U Plan Apo, IX70, 1-UB827
+na=0.85
+fl=4.04        #approximate
+wd=0.20
+magn=40.0
+type=air
+pn=1-UB827
+api#=34-018019-038
+
+id=10405
+name=Olympus 40X/0.95, Plan Apo, IX70
+na=0.95
+wd=0.14
+magn=40.0
+type=air
+pn=1-UB927
+
+id=10406
+name=Olympus 40X/1.0, U Plan Apo, Iris
+na=1.0
+wd=0.
+fl=0.
+magn=40.
+type=oil
+pn=1-UB828
+api#=34-018019-043
+
+id=10407
+name=Olympus 40X/0.75, UPlanFl, IX70, 1-UB527
+na=0.75
+magn=40
+type=air
+pn=1-UB527
+
+id=10408
+name=Olympus 40X/0.60, LCPLFL, IX70
+magn=40.0
+na=0.60
+wd=2.15
+type=air
+pn=1-UB347
+
+id=10409
+name=Olympus 40X/0.60, LCPLFL, Phase, IX70
+magn=40.0
+na=0.60
+wd=2.15
+type=air
+pn=1-UC347
+
+id=10410
+name=Olympus 40X/1.15, UApo340, IX70
+magn=40.0
+na=1.15
+wd=0.
+type=water
+pn=1-UB769
+api#=34-018015-066
+
+id=10411
+name=Olympus 40X/0.75, UPlanFl, IX70, Ph2
+na=0.75
+magn=40
+type=air
+pn=1-UC527
+api#=34-018019-099
+
+id=10412
+name=Olympus 40X/1.35, UApo/340, PSF, IX70
+na=1.35
+magn=40.0
+wd=0.10
+type=oil
+
+id=10000
+name=Olympus 100X/1.30, DApo/340, IMT2
+na=1.30
+fl=1.88
+magn=100.0
+type=oil
+pn=1-LB393
+
+id=10001
+name=Olympus 100X/1.30, D Plan Apo UV, IMT2
+na=1.30
+fl=1.69
+magn=100.0
+type=oil
+pn=1-LB392
+
+id=10002
+name=Olympus 100X/1.40, Plan Apo, IX70
+na=1.40
+magn=100.0
+wd=0.10
+type=oil
+pn=1-UB935
+api#=34-018019-018
+
+id=10003
+name=Olympus 100X/1.35, U Plan Apo, IX70
+na=1.35
+magn=100.0
+wd=0.10
+type=oil
+pn=1-UB836
+api#=34-018019-033
+
+id=10004
+name=Olympus 100X/1.30, UPLFL
+na=1.30
+magn=100.0
+wd=0
+type=oil
+pn=1-UB535
+api#=34-018019-106
+
+id=10005
+name=Olympus 100X/1.35, U Plan Apo, PSF, IX70
+na=1.35
+magn=100.0
+wd=0.10
+type=oil
+
+id=10006
+name=Olympus 100X/1.40, Plan Apo, PSF, IX70
+na=1.40
+magn=100.0
+wd=0.10
+type=oil
+
+id=10007
+name=Olympus 100X/1.40, UPLS Apo, UIS2, 1-U2B836
+na=1.40
+magn=100.0
+wd=0.13
+type=oil
+pn=1-U2B836
+api#=34-018019-111
+
+id=10600
+name=Olympus 60X/1.40, DApo/340, IMT2
+na=1.40
+magn=60.0
+wd=0.30
+type=oil
+fl=4.18
+
+id=10601
+name=Olympus 60X/1.40, S Plan Apo, UV/340, IMT2
+na=1.40
+magn=60.0
+type=oil
+fl=2.80
+pn=1-LB751
+
+id=10602
+name=Olympus 60X/1.40, Plan Apo, IX70
+na=1.40
+magn=60.0
+wd=0.1
+type=oil
+pn=1-UB932
+api#=34-018019-017
+
+id=10603
+name=Olympus 60X/1.20, U Plan Apo, IX70
+na=1.20
+magn=60.0
+wd=0.25
+type=water
+pn=1-UB891
+api#=34-018019-044
+
+id=10604
+name=Olympus 60X/1.20, IMT2
+na=1.20
+magn=60.0
+wd=0.25
+type=water
+
+id=10605
+name=Olympus 60X/0.70, LCPLPL, IX70
+na=0.70
+magn=60.0
+wd=1.10
+type=air
+pn=1-UB351
+
+id=10606
+name=Olympus 60X/0.70, LCPLPL, Phase, IX70
+na=0.70
+magn=60.0
+wd=1.10
+type=air
+pn=1-UC351
+
+id=10607
+name=Olympus 60X/1.40, Plan Apo, Ph3
+na=1.40
+magn=60.0
+wd=0
+type=oil
+pn=1-UC932
+api#=34-018019-084
+
+id=10608
+name=Olympus 60X/1.25, UPLFL
+na=1.25
+magn=60.0
+wd=0
+type=oil
+pn=1-UB532
+api#=34-018019-105
+
+id=10609
+name=Olympus 60X/1.40, Plan Apo, BFP-1, IX70
+na=1.40
+magn=60.0
+wd=0.15
+type=oil
+pn=1-UB933
+api#=34-018019-109
+
+id=10610
+name=Olympus 60X/1.40, Plan Apo, PSF, IX70
+na=1.40
+magn=60.0
+wd=0.15
+type=oil
+
+id=10611
+name=Olympus 60X/1.20, U Plan Apo, Water, PSF, IX70
+na=1.20
+magn=60.0
+wd=0.25
+type=water
+
+id=10612
+name=Olympus 60X/1.42, Plan Apo N, UIS2, 1-U2B933
+na=1.42
+magn=60.0
+wd=0.15
+type=oil
+pn=1-U2B933
+api#=34-018019-110
+
+id=12201
+name=Nikon 20X/0.75, Plan Apo, CFI/60
+na=0.75
+magn=20.
+type=air
+wd=1.0
+pn=93104
+
+id=12202
+name=Nikon 20X/0.75, Plan Fluor, DIC M, CFI/60
+na=0.75
+magn=20.
+type=multi
+pn=93146
+
+id=12203
+name=Nikon 20X/0.45, Plan Fluor ELWD, CFI/60
+na=0.45
+magn=20.
+fl=10.
+wd=8.1
+type=air
+pn=93150
+
+id=12204
+name=Nikon 20X/0.45, LU Plan EPI P, CFI/60
+na=0.45
+magn=20.
+fl=10.
+wd=4.50
+type=air
+pn=MUE01200/92777
+
+id=12205
+name=Nikon 20X/0.50, Plan Fluor, CFI/60
+na=0.50
+magn=20.
+fl=10.
+wd=2.10
+type=air
+pn=MRH00200/93135
+
+id=12401
+name=Nikon 40X/1.30, PlanFluar, 160mm tube length
+magn=40.0
+na=1.30
+type=oil
+fl=2.84
+wd=0.16
+pn=85028
+
+id=12402
+name=Nikon 40X/1.30, CF Fluor, 160mm tube length
+magn=40.0
+na=1.30
+type=oil
+fl=4.60
+wd=0.22
+pn=85004
+
+id=12403
+name=Nikon 40X/0.75, CF Fluor, 160mm tube length
+magn=40.0
+na=0.75
+type=air
+fl=0.0
+wd=0.0
+pn=140508
+
+id=12404
+name=Nikon 40X/1.30, S Fluor, CFI/60
+magn=40.
+na=1.30
+type=oil
+wd=0.22
+api#= 34-018021-088
+
+id=12405
+name=Nikon 40X/0.95, Plan Apo, DIC M, CFI/60
+magn=40.
+na=0.95
+type=air
+wd=0.
+pn = 93105
+
+id=12406
+name=Nikon 40X/1.00, DIC H, CFI/60
+magn=40.
+na=1.00
+type=oil
+wd=0.16
+pn = 93106
+api#=34-018021-063
+
+id=12600
+name=Nikon 60X/1.40, CF N Plan Apochromat, 160mm tube length
+magn=60.0
+na=1.40
+type=oil
+fl=2.84
+wd=0.17
+pn=85020
+
+id=12601
+name=Nikon 60X/1.40, Plan Apo, DIC H
+magn=60.
+na=1.40
+type=oil
+fl=0.
+wd=0.21
+pn=93108
+
+id=12602
+name=Nikon 60X/1.20, Plan Apo, WI (Water), DIC H, CFI/60
+magn=60.
+na=1.20
+type=water
+wd=0.22
+pn=93109
+
+id=12000
+name=Nikon 100X/1.40, CF N Plan Apochromat, 160mm tube length
+magn=100.0
+na=1.40
+type=oil
+fl=1.88
+wd=0.1
+pn=85025
+
+id=12001
+name=Nikon 100X/1.30, CF Fluor, 160mm tube length
+magn=100.0
+na=1.30
+type=oil
+fl=1.64
+wd=0.14
+pn=85005
+
+id=12002
+name=Nikon 100X/1.30, CF UV F, 160mm tube length
+magn=100.0
+na=1.30
+type=glycerine
+fl=1.73
+wd=0.13
+pn=78821
+
+id=12003
+name=Nikon 100X/1.40, Plan Apo, DIC H, CFI/60
+magn=100.
+na=1.40
+type=oil
+wd=0.13
+pn=93110
+
+id=12004
+name=Nikon 100X/0.5-1.30, S Fluor, Oil Iris, CFI 60
+magn=100.
+na=1.30
+type=oil
+wd=0.20
+pn=93129
+api#= 34-018021-087
+
+id=12101
+name=Nikon 2X/0.10, Plan Apo, 160mm tube length
+magn=2.
+na=0.10
+type=air
+fl=15
+wd=0.
+pn=202294
+
+id=12102
+name=Nikon 4X/0.20, Plan Apo, 160mm tube length
+magn=4.
+na=0.20
+type=air
+fl=19
+wd=0.
+pn=108388
+
+id=12103
+name=Nikon 4X/0.20, Plan Apo, CFI/60
+magn=4.
+na=0.2
+type=air
+wd=15.7
+pn=93102
+
+id=12104
+name=Nikon 10X/0.45, Plan Apo, CFI/60
+magn=10.
+na=0.45
+type=air
+wd=4.0
+fl=20
+pn=93103
+
+id=12105
+name=Nikon 10X/0.30, Plan Fluor, CFI/60
+magn=10.
+na=0.30
+type=air
+wd=16.0
+fl=20
+pn=93134
+
+id=12106
+name=Nikon 10X/0.50, Super Fluor, CFI/60
+magn=10.
+na=0.50
+type=air
+wd=1.20
+fl=20
+pn=93126
+
+id=12107
+name=Nikon 10X/0.25, Plan Achromat, CFI/60
+magn=10.
+na=0.25
+type=air
+wd=10.5
+fl=20
+pn=93183
+
+id=12108
+name=Nikon 10X/0.25, Achromat Flatfield, CFI/60
+magn=10.
+na=0.25
+type=air
+wd=6.10
+fl=20
+pn=93161
+
+id=14001
+name=Zeiss 100X/1.40, Plan - APOCHROMAT
+magn=100.0
+na=1.40
+type=oil
+wd=0.1 
+pn=44 07 08 (02)
+
+id=14002
+name=Zeiss 100X/1.30, Oil Iris (0.8 - 1.30)
+magn=100.0
+na=1.30
+type=oil
+wd=0.1
+pn=44 07 86
+
+id=14003
+name=Zeiss 100X/1.40, Plan - APOCHROMAT
+magn=100
+na=1.40
+type=oil
+wd=0.
+pn=44 07 80 (02)
+api#=34-018016-030
+
+id=14004
+name=Zeiss 100X/1.30, Planapo, 160mm tube length
+magn=100.0
+na=1.30
+type=oil
+wd=0.
+fl=2.49
+pn=46 19 46 - 9903
+
+id=14005
+name=Zeiss 100X/1.40, Oil Iris (0.7 - 1.40)
+magn=100.0
+na=1.40
+type=oil
+wd=0.
+pn=44 07 86 (02)
+
+id=14006
+name=Zeiss 100X/1.30
+magn=100.0
+na=1.30
+type=oil
+wd=0.
+pn=?
+
+id=14601
+name=Zeiss 63X/1.40, Plan - APOCHROMAT
+magn=63.0
+na=1.40
+type=oil
+wd=0.09
+pn=44 07 60 (03)
+api#=34-018016-029
+
+id=14602
+name=Zeiss 63X/1.40, Plan - APOCHROMAT, DIC
+magn=63.0
+na=1.40
+type=oil
+wd=0.09
+pn=44 07 62 (02)
+
+id=14603
+name=Zeiss 63X/0.90, Achroplan, W, Ph3
+magn=63.0
+na=0.90
+type=water
+wd=0.
+pn=44 00 69
+api#=34-018016-004
+
+id=14604
+name=Zeiss 63X/1.20, C - APOCHROMAT, Water
+magn=63.0
+na=1.20
+type=water
+wd=0.09
+pn=44 06 68
+
+id=14401
+name=Zeiss 40X/1.30, FLUAR
+magn=40.0
+na=1.30
+type=oil
+wd=0.14
+pn=44 02 55 (01)
+api#=34-018019-027
+
+id=14402
+name=Zeiss 40X/1.00, Plan - APOCHROMAT, Phase3
+magn=40.0
+na=1.00
+type=oil
+wd=0.
+pn=44 07 51 
+
+id=14403
+name=Zeiss 40X/1.20, Water Immersion, Corr Collar, C - APOCHROMAT
+magn=40.
+na=1.20
+type=water
+wd=0.
+pn=44 00 52 
+
+id=14404
+name=Zeiss 40X/0.75, Plan - NEOFLUAR, Phase2
+magn=40.0
+na=0.75
+type=air
+wd=0.
+pn=44 03 51
+
+id=14405
+name=Zeiss 40X/1.30, Plan - NEOFLUAR
+magn=40.0
+na=1.30
+type=oil
+wd=0.15
+pn=44 04 50
+api#=34-018016-044
+
+id=14406
+name=Zeiss 40X/0.60, LD ACHROPLAN, Phase2
+magn=40.0
+na=0.60
+type=air
+wd=0
+pn=44 08 65
+api#=34-018016-060
+
+id=14407
+name=Zeiss 40X/1.30, Plan - NEOFLUAR, DIC, Strainfree
+magn=40.0
+na=1.30
+type=oil
+api#=34-018016-044
+
+
+id=14301
+name=Zeiss 25X/0.80, Plan - NEOFLUAR
+magn=25.0
+na=0.80
+type=oil/gly/water
+wd=0.80
+pn=44 05 44
+api#=34-018019-028
+
+id=14302
+name=Zeiss 25X/0.80, Plan - NEOFLUAR, DIC
+magn=25.0
+na=0.80
+type=oil/gly/water
+wd=0.80
+pn=44 05 42
+
+id=14303
+name=Zeiss 25X/0.80, Plan - NEOFLUAR, Phase2
+magn=25.0
+na=0.80
+type=air
+wd=0.
+pn=44 05 45
+
+id=14201
+name=Zeiss 20X/0.50, Plan - NEOFLUAR, Phase2
+magn=20.0
+na=0.50
+type=air
+wd=0.
+pn=44 03 41 (01)
+
+id=14202
+name=Zeiss 20X/0.60, Plan - APOCHROMAT
+magn=20.0
+na=0.60
+type=air
+wd=0.
+pn=44 06 40
+api#=34-018016-042
+
+id=14203
+name=Zeiss 20X/0.75, PLAN APO
+magn=20.0
+na=0.75
+type=air
+pn=44 06 49
+api#=34-018016-053
+
+id=14204
+name=Zeiss 20X/0.75, Fluar
+magn=20.0
+na=0.75
+type=air
+wd=0.
+pn=44 01 45
+api#=34-018016-070
+
+
+id=14101
+name=Zeiss 10X/0.30, Plan - NEOFLUAR
+magn=10.0
+na=0.30
+type=air
+wd=0.
+pn=44 03 30
+
+
+id=14102
+name=Zeiss 10X/0.25, Acrostigmat
+magn=10.0
+na=0.25
+type=air
+wd=0.
+pn=44 01 31
+
+id=14103
+name=Zeiss 10X/0.25, Achroplan, Phase1
+magn=10.
+na=0.25
+type=air
+wd=0.
+pn=44 00 31
+
+id=14104
+name=Zeiss 10X/0.45, Plan - ApoChromat
+magn=10.0
+na=0.45
+type=air
+pn=44 06 39
+api#=34-018016-059
+
+id=14105
+name=Zeiss 5X/0.16, Plan - ApoChromat
+magn=5.0
+na=0.16
+type=air
+pn=44 06 20
+api#=34-018016-058
+
+id=18101
+name=APLLC 4X, Plan Apo, AWCE
+magn=4.
+na=0.20
+type=air
+wd=3.33
+
+id=18102
+name=APLLC 2.5X, Plan Apo, AWe
+magn=2.46
+na=0.20
+type=air
+wd=2.883
+
+id=18103
+name=APLLC 4X, Plan Apo, AWe
+magn=4.
+na=0.20
+type=air
+wd=2.883
+
+id=18104
+name=APLLC 6X, Plan Apo, AWe
+magn=6.15
+na=0.45
+type=air
+wd=2.883
+
+id=18105
+name=APLLC 10X, Plan Apo, AWe, CW
+magn=10.
+na=0.45
+type=air
+wd=2.883
+
+id=18106
+name=APLLC 1X, DIGE
+magn=1.0
+na=0.1
+type=air
+wd=24.00
+
+id=18201
+name=APLLC 20X, HiRes A, CW
+magn=20.
+na=0.55
+type=air
+wd=13.00
+
+id=18202
+name=APLLC 20X, HiRes B, CW
+magn=20.
+na=0.50
+type=air
+wd=13.00
+
+id=18204
+name=APLLC 20X, HiRes C, CW
+na=0.45
+magn=20.
+fl=10.
+wd=4.50
+type=air
+pn=MUE01200/92777
+
+id=18205
+name=APLLC 20X, HiRes D, CW
+na=0.50
+magn=20.
+fl=10.
+wd=2.10
+type=air
+pn=MRH00200/93135
+
+#UCSF lens
+id=1
+name=Zeiss 10X/.25
+magn=10.0
+na=0.25
+fl=25.2
+type=air
+
+#UCSF lens
+id=2
+name=Zeiss 25X/.50
+magn=25.0
+na=0.50
+fl=10.16
+type=air
+
+#UCSF lens
+id=3
+name=Zeiss 50X/1.00
+magn=50.0
+na=1.00
+type=oil
+fl=5.05
+
+#UCSF lens
+id=4
+name=Zeiss 63X/1.25
+magn=63.0
+na=1.25
+type=oil
+fl=2.80
+
+#UCSF lens
+id=5
+name=Zeiss 100X/1.30
+magn=100.0
+na=1.30
+type=oil
+fl=2.49
+
+#UCSF lens
+id=6
+name=Neofluor 100X/1.30
+magn=100.0
+na=1.30
+type=oil
+fl=1.92
+
+#UCSF lens
+id=7
+name=Leitz Plan Apo Brightfield
+magn=63.0
+na=1.40
+type=oil
+fl=2.90
+
+#UCSF lens
+id=8
+name=Coverslip-less water immersion
+magn=63.0
+na=1.20
+type=water
+fl=2.60
+
+#UCSF lens
+id=9
+name=Olympus 10X/0.40
+magn=10.0
+na=0.40
+wd=0.30
+type=air
+fl=15.68
+
+#UCSF lens
+id=10
+name=Olympus 20X/0.80
+magn=20.0
+na=0.80
+wd=0.30
+type=oil
+fl=7.78
+
+#UCSF lens
+id=11
+name=Olympus 40X/1.30
+magn=40.0
+na=1.30
+wd=0.30
+type=oil
+fl=4.34
+
+#UCSF lens
+id=12
+name=Olympus 60X/1.40
+magn=60.0
+na=1.40
+wd=0.30
+type=oil
+fl=4.18
+
+#UCSF lens
+id=13
+name=Nikon 100X/1.40
+magn=100.0
+na=1.40
+wd=0.30
+type=oil
+fl=1.88
+
+
