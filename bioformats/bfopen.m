@@ -25,51 +25,8 @@ function [result] = bfopen(id)
 % NB: Internet Explorer sometimes erroneously renames the Bio-Formats library
 %     to loci_tools.zip. If this happens, rename it back to loci_tools.jar.
 %
-% Here are some examples of accessing data using the bfopen function:
-%
-%     % read the data using Bio-Formats
-%     data = bfopen('C:/data/experiment.lif');
-%
-%     % unwrap some specific image planes from the result
-%     numSeries = size(data, 1);
-%     series1 = data{1, 1};
-%     series2 = data{2, 1};
-%     series3 = data{3, 1};
-%     metadataList = data{1, 2};
-%     % ...etc.
-%     series1_numPlanes = size(series1, 1);
-%     series1_plane1 = series1{1, 1};
-%     series1_label1 = series1{1, 2};
-%     series1_plane2 = series1{2, 1};
-%     series1_label2 = series1{2, 2};
-%     series1_plane3 = series1{3, 1};
-%     series1_label3 = series1{3, 2};
-%     % ...etc.
-%
-%     % plot the 1st series's 1st image plane in a new figure
-%     series1_colorMaps = data{1, 3};
-%     figure('Name', series1_label1);
-%     if isempty(series1_colorMaps{1})
-%         colormap(gray);
-%     else
-%         colormap(series1_colorMaps{1});
-%     end
-%     imagesc(series1_plane1);
-%
-%     % Or if you have the image processing toolbox, you could use:
-%     % imshow(series1_plane1, []);
-%
-%     % Or animate as a movie (assumes 8-bit unsigned data)
-%     v = linspace(0, 1, 256)';
-%     cmap = [v v v];
-%     for p = 1:series1_numPlanes
-%         M(p) = im2frame(uint8(series1{p, 1}), cmap);
-%     end
-%     movie(M);
-%
-%     % Query some metadata fields (keys are format-dependent)
-%     subject = metadataList.get('Subject');
-%     title = metadataList.get('Title');
+% For many examples of how to use the bfopen function, please see:
+%     http://trac.openmicroscopy.org.uk/ome/wiki/BioFormats-Matlab
 
 % -- Configuration - customize this section to your liking --
 
@@ -97,58 +54,32 @@ stitchFiles = 0;
 
 % -- Main function - no need to edit anything past this point --
 
-if exist('id') == 0
-  dir = uigetdir;
-  cd(dir);
-  file = uigetfile('*.*', 'Choose a file to open');
-  id = fullfile(dir, file);
-end
-
 % load the Bio-Formats library into the MATLAB environment
-if autoloadBioFormats
-    path = fullfile(fileparts(mfilename('fullpath')), 'loci_tools.jar');
-    javaaddpath(path);
+status = bfCheckJavaPath(autoloadBioFormats);
+assert(status,['Missing Bio-Formats library. Either add loci_tools.jar '...
+    'to the static Java path or add it to the Matlab path.']);
+
+% Prompt for a file if not input
+if nargin==0 || exist(id,'file') == 0
+  [file,path] = uigetfile(bfGetFileExtensions, 'Choose a file to open');
+  id = [path file];
+  if isequal(path,0) || isequal(file,0), return; end
 end
-
-% set LuraWave license code, if available
-if exist('lurawaveLicense')
-    path = fullfile(fileparts(mfilename('fullpath')), 'lwf_jsdk2.6.jar');
-    javaaddpath(path);
-    java.lang.System.setProperty('lurawave.license', lurawaveLicense);
-end
-
-% check MATLAB version, since typecast function requires MATLAB 7.1+
-canTypecast = versionCheck(version, 7, 1);
-
-% check Bio-Formats version, since makeDataArray2D function requires trunk
-bioFormatsVersion = char(loci.formats.FormatTools.VERSION);
-isBioFormatsTrunk = versionCheck(bioFormatsVersion, 5, 0);
 
 % initialize logging
 loci.common.DebugTools.enableLogging('INFO');
 
-r = loci.formats.ChannelFiller();
-r = loci.formats.ChannelSeparator(r);
-if stitchFiles
-    r = loci.formats.FileStitcher(r);
-end
+% Get the channel filler
+r=bfGetReader(id,stitchFiles);
 
-tic
-r.setMetadataStore(loci.formats.MetadataTools.createOMEXMLMetadata());
-r.setId(id);
 numSeries = r.getSeriesCount();
 result = cell(numSeries, 2);
 for s = 1:numSeries
     fprintf('Reading series #%d', s);
     r.setSeries(s - 1);
-    width = r.getSizeX();
-    height = r.getSizeY();
     pixelType = r.getPixelType();
     bpp = loci.formats.FormatTools.getBytesPerPixel(pixelType);
-    fp = loci.formats.FormatTools.isFloatingPoint(pixelType);
-    sgn = loci.formats.FormatTools.isSigned(pixelType);
     bppMax = power(2, bpp * 8);
-    little = r.isLittleEndian();
     numImages = r.getImageCount();
     imageList = cell(numImages, 2);
     colorMaps = cell(numImages);
@@ -157,7 +88,7 @@ for s = 1:numSeries
             fprintf('\n    ');
         end
         fprintf('.');
-        plane = r.openBytes(i - 1);
+        arr=bfGetPlane(r,i);
 
         % retrieve color map data
         if bpp == 1
@@ -165,6 +96,7 @@ for s = 1:numSeries
         else
             colorMaps{s, i} = r.get16BitLookupTable()';
         end
+        
         warning off
         if ~isempty(colorMaps{s, i})
             newMap = colorMaps{s, i};
@@ -174,63 +106,6 @@ for s = 1:numSeries
         end
         warning on
 
-        % convert byte array to MATLAB image
-        if isBioFormatsTrunk && (sgn || ~canTypecast)
-            % can get the data directly to a matrix
-            arr = loci.common.DataTools.makeDataArray2D(plane, ...
-                bpp, fp, little, height);
-        else
-            % get the data as a vector, either because makeDataArray2D
-            % is not available, or we need a vector for typecast
-            arr = loci.common.DataTools.makeDataArray(plane, ...
-                bpp, fp, little);
-        end
-
-        % Java does not have explicitly unsigned data types;
-        % hence, we must inform MATLAB when the data is unsigned
-        if ~sgn
-            if canTypecast
-                % TYPECAST requires at least MATLAB 7.1
-                % NB: arr will always be a vector here
-                switch class(arr)
-                    case 'int8'
-                        arr = typecast(arr, 'uint8');
-                    case 'int16'
-                        arr = typecast(arr, 'uint16');
-                    case 'int32'
-                        arr = typecast(arr, 'uint32');
-                    case 'int64'
-                        arr = typecast(arr, 'uint64');
-                end
-            else
-                % adjust apparent negative values to actual positive ones
-                % NB: arr might be either a vector or a matrix here
-                mask = arr < 0;
-                adjusted = arr(mask) + bppMax / 2;
-                switch class(arr)
-                    case 'int8'
-                        arr = uint8(arr);
-                        adjusted = uint8(adjusted);
-                    case 'int16'
-                        arr = uint16(arr);
-                        adjusted = uint16(adjusted);
-                    case 'int32'
-                        arr = uint32(arr);
-                        adjusted = uint32(adjusted);
-                    case 'int64'
-                        arr = uint64(arr);
-                        adjusted = uint64(adjusted);
-                end
-                adjusted = adjusted + bppMax / 2;
-                arr(mask) = adjusted;
-            end
-        end
-
-        if isvector(arr)
-            % convert results from vector to matrix
-            shape = [width height];
-            arr = reshape(arr, shape)';
-        end
 
         % build an informative title for our figure
         label = id;
@@ -284,15 +159,3 @@ for s = 1:numSeries
     fprintf('\n');
 end
 r.close();
-toc
-
-% -- Helper functions --
-
-function [result] = versionCheck(v, maj, min)
-
-tokens = regexp(v, '[^\d]*(\d+)[^\d]+(\d+).*', 'tokens');
-majToken = tokens{1}(1);
-minToken = tokens{1}(2);
-major = str2num(majToken{1});
-minor = str2num(minToken{1});
-result = major > maj || (major == maj && minor >= min);
