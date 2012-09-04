@@ -1,0 +1,12 @@
+Instructions for building the 64-bit version of the static libraries for Windows
+Adapted from http://gladman.plushost.co.uk/oldsite/computing/gnu_scientific_library.php
+
+1. Download GSL from http://www.gnu.org/software/gsl/
+2. Download the VisualStudio 2010 project files from http://gladman.plushost.co.uk/oldsite/computing/gsl-1.15-vc10.zip
+3. Copy the contents of gsl-1.15-vc10 into the gsl-1.15 directory and accept any merge/overwrite requests
+4. Open gslhdrs.vcxproj (under build.vc10\gslhdrs) and build the Debug/Win32 configuration
+5. Copy the resulting gslhdrs.exe to 'build.vc10\gslhdrs and run it
+5. Open gsl.lib.sln in build.vc10 and build the Release/x64 configuration
+6. The libaries are located in "gsl-1.15\build.vc10\lib\x64\Release"
+
+Francois Aguet (updated on 08/04/2012)
