@@ -4,9 +4,9 @@
 % idxs = kdtree_range_query(tree, range)
 %
 % INPUT PARAMETERS
-%   range: a matrix representing range information for the query.
-%          in the first column, k-th row the inferior value for the 
-%          query (point included) in dimension k is found. Similarly
+%   range: a numDimensions x 2 matrix representing range information for the query.
+%          In the first column of the j-th row the inferior value for the 
+%          query (point included) in dimension j is found. Similarly
 %          the superior limits are contained in the second column
 %
 % OUTPUT PARAMETERS
