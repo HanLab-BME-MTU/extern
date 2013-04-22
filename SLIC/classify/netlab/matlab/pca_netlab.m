@@ -1,4 +1,4 @@
-function [PCcoeff, PCvec] = pca(data, N)
+function [PCcoeff, PCvec] = pca_netlab(data, N)
 %PCA	Principal Components Analysis
 %
 %	Description
