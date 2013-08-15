@@ -368,11 +368,9 @@ int read_problem_sparse(const mxArray *label_vec, const mxArray *instance_mat)
 	return 0;
 }
 
-static void fake_answer(int nlhs, mxArray *plhs[])
+static void fake_answer(mxArray *plhs[])
 {
-	int i;
-	for(i=0;i<nlhs;i++)
-		plhs[i] = mxCreateDoubleMatrix(0, 0, mxREAL);
+	plhs[0] = mxCreateDoubleMatrix(0, 0, mxREAL);
 }
 
 // Interface function of matlab
@@ -386,13 +384,6 @@ void mexFunction( int nlhs, mxArray *plhs[],
 	// (for cross validation and probability estimation)
 	srand(1);
 
-	if(nlhs > 1)
-	{
-		exit_with_help();
-		fake_answer(nlhs, plhs);
-		return;
-	}
-
 	// Transform the input Matrix to libsvm format
 	if(nrhs > 1 && nrhs < 4)
 	{
@@ -400,7 +391,7 @@ void mexFunction( int nlhs, mxArray *plhs[],
 
 		if(!mxIsDouble(prhs[0]) || !mxIsDouble(prhs[1])) {
 			mexPrintf("Error: label vector and instance matrix must be double\n");
-			fake_answer(nlhs, plhs);
+			fake_answer(plhs);
 			return;
 		}
 
@@ -408,7 +399,7 @@ void mexFunction( int nlhs, mxArray *plhs[],
 		{
 			exit_with_help();
 			svm_destroy_param(&param);
-			fake_answer(nlhs, plhs);
+			fake_answer(plhs);
 			return;
 		}
 
@@ -424,7 +415,7 @@ void mexFunction( int nlhs, mxArray *plhs[],
 				{
 					mexPrintf("Error: cannot generate a full training instance matrix\n");
 					svm_destroy_param(&param);
-					fake_answer(nlhs, plhs);
+					fake_answer(plhs);
 					return;
 				}
 				err = read_problem_dense(prhs[0], lhs[0]);
@@ -448,7 +439,7 @@ void mexFunction( int nlhs, mxArray *plhs[],
 			free(prob.y);
 			free(prob.x);
 			free(x_space);
-			fake_answer(nlhs, plhs);
+			fake_answer(plhs);
 			return;
 		}
 
@@ -477,7 +468,7 @@ void mexFunction( int nlhs, mxArray *plhs[],
 	else
 	{
 		exit_with_help();
-		fake_answer(nlhs, plhs);
+		fake_answer(plhs);
 		return;
 	}
 }

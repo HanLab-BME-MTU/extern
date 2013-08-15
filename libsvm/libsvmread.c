@@ -25,11 +25,10 @@ void exit_with_help()
 	);
 }
 
-static void fake_answer(int nlhs, mxArray *plhs[])
+static void fake_answer(mxArray *plhs[])
 {
-	int i;
-	for(i=0;i<nlhs;i++)
-		plhs[i] = mxCreateDoubleMatrix(0, 0, mxREAL);
+	plhs[0] = mxCreateDoubleMatrix(0, 0, mxREAL);
+	plhs[1] = mxCreateDoubleMatrix(0, 0, mxREAL);
 }
 
 static char *line;
@@ -54,7 +53,7 @@ static char* readline(FILE *input)
 }
 
 // read in a problem (in libsvm format)
-void read_problem(const char *filename, int nlhs, mxArray *plhs[])
+void read_problem(const char *filename, mxArray *plhs[])
 {
 	int max_index, min_index, inst_max_index, i;
 	long elements, k;
@@ -67,7 +66,7 @@ void read_problem(const char *filename, int nlhs, mxArray *plhs[])
 	if(fp == NULL)
 	{
 		mexPrintf("can't open input file %s\n",filename);
-		fake_answer(nlhs, plhs);
+		fake_answer(plhs);
 		return;
 	}
 
@@ -97,7 +96,7 @@ void read_problem(const char *filename, int nlhs, mxArray *plhs[])
 			if(endptr == idx || errno != 0 || *endptr != '\0' || index <= inst_max_index)
 			{
 				mexPrintf("Wrong input format at line %d\n",l+1);
-				fake_answer(nlhs, plhs);
+				fake_answer(plhs);
 				return;
 			}
 			else
@@ -136,14 +135,14 @@ void read_problem(const char *filename, int nlhs, mxArray *plhs[])
 		if(label == NULL)
 		{
 			mexPrintf("Empty line at line %d\n",i+1);
-			fake_answer(nlhs, plhs);
+			fake_answer(plhs);
 			return;
 		}
 		labels[i] = strtod(label,&endptr);
 		if(endptr == label || *endptr != '\0')
 		{
 			mexPrintf("Wrong input format at line %d\n",i+1);
-			fake_answer(nlhs, plhs);
+			fake_answer(plhs);
 			return;
 		}
 
@@ -162,7 +161,7 @@ void read_problem(const char *filename, int nlhs, mxArray *plhs[])
 			if (endptr == val || errno != 0 || (*endptr != '\0' && !isspace(*endptr)))
 			{
 				mexPrintf("Wrong input format at line %d\n",i+1);
-				fake_answer(nlhs, plhs);
+				fake_answer(plhs);
 				return;
 			}
 			++k;
@@ -179,7 +178,7 @@ void read_problem(const char *filename, int nlhs, mxArray *plhs[])
 		if(mexCallMATLAB(1, lhs, 1, rhs, "transpose"))
 		{
 			mexPrintf("Error: cannot transpose problem\n");
-			fake_answer(nlhs, plhs);
+			fake_answer(plhs);
 			return;
 		}
 		plhs[1] = lhs[0];
@@ -189,25 +188,25 @@ void read_problem(const char *filename, int nlhs, mxArray *plhs[])
 void mexFunction( int nlhs, mxArray *plhs[],
 		int nrhs, const mxArray *prhs[] )
 {
-	char filename[256];
+	if(nrhs == 1)
+	{
+		char filename[256];
 
-	if(nrhs != 1 || nlhs != 2)
+		mxGetString(prhs[0], filename, mxGetN(prhs[0]) + 1);
+
+		if(filename == NULL)
+		{
+			mexPrintf("Error: filename is NULL\n");
+			return;
+		}
+
+		read_problem(filename, plhs);
+	}
+	else
 	{
 		exit_with_help();
-		fake_answer(nlhs, plhs);
+		fake_answer(plhs);
 		return;
 	}
-
-	mxGetString(prhs[0], filename, mxGetN(prhs[0]) + 1);
-
-	if(filename == NULL)
-	{
-		mexPrintf("Error: filename is NULL\n");
-		return;
-	}
-
-	read_problem(filename, nlhs, plhs);
-
-	return;
 }
 

@@ -16,13 +16,6 @@ void exit_with_help()
 	);
 }
 
-static void fake_answer(int nlhs, mxArray *plhs[])
-{
-	int i;
-	for(i=0;i<nlhs;i++)
-		plhs[i] = mxCreateDoubleMatrix(0, 0, mxREAL);
-}
-
 void libsvmwrite(const char *filename, const mxArray *label_vec, const mxArray *instance_mat)
 {
 	FILE *fp = fopen(filename,"w");
@@ -84,14 +77,7 @@ void libsvmwrite(const char *filename, const mxArray *label_vec, const mxArray *
 
 void mexFunction( int nlhs, mxArray *plhs[],
 		int nrhs, const mxArray *prhs[] )
-{
-	if(nlhs > 0)
-	{
-		exit_with_help();
-		fake_answer(nlhs, plhs);
-		return;
-	}
-	
+{	
 	// Transform the input Matrix to libsvm format
 	if(nrhs == 3)
 	{
