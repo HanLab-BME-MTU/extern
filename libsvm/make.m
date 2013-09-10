@@ -13,8 +13,8 @@ try
 	else
 		mex CFLAGS="\$CFLAGS -std=c99" -largeArrayDims libsvmread.c
 		mex CFLAGS="\$CFLAGS -std=c99" -largeArrayDims libsvmwrite.c
-		mex CFLAGS="\$CFLAGS -std=c99" -largeArrayDims libsvmtrain.c ../svm.cpp svm_model_matlab.c
-		mex CFLAGS="\$CFLAGS -std=c99" -largeArrayDims libsvmpredict.c ../svm.cpp svm_model_matlab.c
+		mex CFLAGS="\$CFLAGS -std=c99" -largeArrayDims libsvmtrain.c svm.cpp svm_model_matlab.c
+		mex CFLAGS="\$CFLAGS -std=c99" -largeArrayDims libsvmpredict.c svm.cpp svm_model_matlab.c
 	end
 catch
 	fprintf('If make.m fails, please check README about detailed instructions.\n');
