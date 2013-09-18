@@ -45,6 +45,8 @@ ip.addOptional('style','-allPairs',@ischar);
 ip.addOptional('exp',0.6,@isscalar);
 ip.addOptional('cv',0.0,@isscalar);
 ip.addOptional('c',15,@isscalar);
+ip.addOptional('norm',false,@isscalar);
+ip.addOptional('prec',5,@(x)(isscalar(x) && isposint(x)));
 
 ip.parse(data,varargin{:});
 style = ip.Results.style;
@@ -52,8 +54,17 @@ exp   = ip.Results.exp;
 cv    = ip.Results.cv;
 c     = ip.Results.c;
 
+%Normalization shouldn't effect correlation scores, and will reduce risk of
+%rounding error when converting to .csv
+if ip.Results.norm
+    for j = 1:size(data,1)
+        data(j,:) = data(j,:) - mean(data(j,:));
+        data(j,:) = data(j,:) ./ std(data(j,:));
+    end
+end
+
 [nVar,~] = size(data);
-precN    = 5;
+precN    = ip.Results.prec;
 dlm      = ',';
 MIC      = eye(nVar);%Maximum Information Coefficent
 NLR      = nan(nVar);%Nonlinear measure
