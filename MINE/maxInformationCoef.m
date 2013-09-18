@@ -63,7 +63,7 @@ MCN      = nan(nVar);%Minimum Cell Number
 
 varName  = repmat('Var',nVar,1);
 varName  = strcat(varName,num2str([1:nVar]'),repmat(dlm,nVar,1));
-fileName = 'fuck.csv';
+fileName = ['tmpFile_' num2str(feature('getpid')) '.csv'];
 fid      = fopen(fileName, 'w');
 format   = sprintf('%%.%dg%s',precN,dlm);
 
