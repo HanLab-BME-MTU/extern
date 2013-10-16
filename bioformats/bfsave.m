@@ -91,9 +91,15 @@ metadata.setPixelsSizeC(toInt(sizeC), 0);
 metadata.setPixelsSizeT(toInt(sizeT), 0);
 
 % Set channels ID and samples per pixel
+acquisitionModeEnumHandler = ome.xml.model.enums.handlers.AcquisitionModeEnumHandler();
+tirf = acquisitionModeEnumHandler.getEnumeration('TotalInternalReflection');
 for i = 1: sizeC
     metadata.setChannelID(['Channel:0:' num2str(i-1)], 0, i-1);
     metadata.setChannelSamplesPerPixel(toInt(1), 0, i-1);
+    lambda = ome.xml.model.primitives.PositiveInteger(java.lang.Integer(563));
+    metadata.setChannelEmissionWavelength(lambda,0,0);
+    metadata.setChannelAcquisitionMode(tirf, 0, 0);
+    metadata.setChannelFluor(java.lang.String('mEos'),0,0);
 end
 
 % Here you can edit the function and pass metadata using the adequate set methods, e.g.
@@ -103,6 +109,13 @@ end
 %
 % For future versions of this function, we plan to support passing metadata as
 % parameter/key value pairs
+pixelsSize = ome.xml.model.primitives.PositiveFloat(java.lang.Double(.111));
+metadata.setPixelsPhysicalSizeX(pixelsSize, 0);
+metadata.setPixelsPhysicalSizeY(pixelsSize, 0);
+
+metadata.setInstrumentID('Instrument:0:0', 0);
+metadata.setObjectiveID('Objective:0:0', 0, 0);
+metadata.setObjectiveLensNA(java.lang.Double(1.45), 0, 0)
 
 % Create ImageWriter
 writer = loci.formats.ImageWriter();
