@@ -25,7 +25,7 @@ function bfsave(I, outputPath, varargin)
 
 % OME Bio-Formats package for reading and converting biological file formats.
 %
-% Copyright (C) 2012 - 2013 Open Microscopy Environment:
+% Copyright (C) 2012 - 2014 Open Microscopy Environment:
 %   - Board of Regents of the University of Wisconsin-Madison
 %   - Glencoe Software, Inc.
 %   - University of Dundee
@@ -44,7 +44,10 @@ function bfsave(I, outputPath, varargin)
 % with this program; if not, write to the Free Software Foundation, Inc.,
 % 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-% Check loci-tools jar is in the Java path
+% verify that enough memory is allocated
+bfCheckJavaMemory();
+
+% Check for required jars in the Java path
 bfCheckJavaPath();
 
 % Not using the inputParser for first argument as it copies data
@@ -60,7 +63,8 @@ ip.parse(outputPath, varargin{:});
 
 % Create metadata
 toInt = @(x) ome.xml.model.primitives.PositiveInteger(java.lang.Integer(x));
-metadata = loci.formats.MetadataTools.createOMEXMLMetadata();
+OMEXMLService = loci.formats.services.OMEXMLServiceImpl();
+metadata = OMEXMLService.createOMEXMLMetadata();
 metadata.createRoot();
 metadata.setImageID('Image:0', 0);
 metadata.setPixelsID('Pixels:0', 0);
