@@ -5,4 +5,4 @@ function F = sdpvar(X)
 % $Id: sdpvar.m,v 1.1 2004-06-17 08:40:03 johanl Exp $
 
 
-F = X.Evaluated{1};
+F = sdpvar(lmi(X));%X.Evaluated{1};

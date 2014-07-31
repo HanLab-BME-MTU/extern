@@ -15,6 +15,8 @@ switch property
         YESNO = any(ismember(depends(X),yalmip('binvariables')));
     case 'integer'
         YESNO = any(ismember(depends(X),yalmip('intvariables')));
+    case 'quantized'              
+        YESNO = all(ismember(depends(X),yalmip('quantvariables')));
     case 'real'
         YESNO = isreal(X);
     case 'complex'
@@ -54,8 +56,8 @@ switch property
         variabletype = variabletype(X.lmi_variables);
         
         linear    = all(variabletype==0);        
-        bilinear  = all(variabletype<=1) & ~linear;        
-        quadratic = all(variabletype<=2) & ~bilinear;
+        bilinear  = all(variabletype<=1) && ~linear;        
+        quadratic = all(variabletype<=2) && ~bilinear;
         sigmonial = any(variabletype==4);
         
         YESNO = full([linear bilinear quadratic sigmonial]);
@@ -66,30 +68,54 @@ switch property
           base = X.basis;
           YESNO = all(base(:,1)==0); % No constant
           base = base(:,2:end);
-          YESNO = YESNO & all(sum(base,2)==1); 
-          YESNO = YESNO & all(sum(base,1)==1);
-          YESNO = YESNO & all(sum(base~=0,2)==1);
-          YESNO = YESNO & all(sum(base~=0,1)==1);
+          YESNO = YESNO && all(sum(base,2)==1); 
+          YESNO = YESNO && all(sum(base,1)==1);
+          YESNO = YESNO && all(sum(base~=0,2)==1);
+          YESNO = YESNO && all(sum(base~=0,1)==1);
           YESNO = full(YESNO);
 
     case 'shiftlpcone'
           base = X.basis;          
           base = base(:,2:end);
           YESNO = all(sum(base,2)==1); 
-          YESNO = YESNO & all(sum(base,1)==1);
-          YESNO = YESNO & all(sum(base~=0,2)==1);
-          YESNO = YESNO & all(sum(base~=0,1)==1);
+          YESNO = YESNO && all(sum(base,1)==1);
+          YESNO = YESNO && all(sum(base~=0,2)==1);
+          YESNO = YESNO && all(sum(base~=0,1)==1);
           YESNO = full(YESNO);
-                    
-    case 'sdpcone'
+
+    case 'complexsdpcone'
+        if isequal(X.conicinfo,[sqrt(-1) 0])
+            YESNO = 1;
+            return
+        else
+            YESNO = 0;
+        end
+        
+    case 'realsdpcone'
         if isequal(X.conicinfo,[1 0])
+            YESNO = 1;
+            return
+        else
+            YESNO = 0;
+        end
+        
+    case 'sdpcone'
+        if isequal(X.conicinfo,[1 0]) || isequal(X.conicinfo,[sqrt(-1) 0])
             YESNO = 1;
             return
         end
         base = X.basis;
         n = X.dim(1);
-        YESNO = full(issymmetric(X) & nnz(base)==n*n & all(sum(base,2)==1) & all(base(:,1)==0)) & length(X.lmi_variables)==n*(n+1)/2 & isreal(base); 
+        YESNO = full(issymmetric(X) && nnz(base)==n*n && all(sum(base,2)==1) && all(base(:,1)==0)) && length(X.lmi_variables)==n*(n+1)/2 && isreal(base); 
         
+        % Fixes bug #15
+        if length(X.lmi_variables)>1
+            if ~all(diff(X.lmi_variables)==1)
+                YESNO=0;
+                return;
+            end
+        end
+                
     case 'shiftsdpcone'
         
         if isequal(X.conicinfo,[1 0])
@@ -98,13 +124,26 @@ switch property
         elseif isequal(X.conicinfo,[1 1])
             YESNO = 1;
             return
+        elseif  isequal(X.conicinfo,[sqrt(-1) 0])
+            YESNO = 1;
+            return
+        elseif isequal(X.conicinfo,[1 1])
+            YESNO = 1;
+            return
         end
         
+        % Fixes bug #15
+        if length(X.lmi_variables)>1
+            if ~all(diff(X.lmi_variables)==1)
+                YESNO=0;
+                return;
+            end
+        end
         
         base = X.basis;
         n = X.dim(1);
         base(:,1)=0;
-        YESNO = full(issymmetric(X) & nnz(base)==n*n & all(sum(base,2)==1)) & length(X.lmi_variables)==n*(n+1)/2 & isreal(X);
+        YESNO = full(issymmetric(X) && nnz(base)==n*n && all(sum(base,2)==1)) && length(X.lmi_variables)==n*(n+1)/2 && isreal(X);
         if YESNO
             % Possible case
             % FIX : Stupidly slow and complex
@@ -113,18 +152,17 @@ switch property
             Y = tril(Y);
             Y = (Y+Y')-diag(sparse(diag(Y)));
             [uu,oo,pp] = unique(Y(:));
-            YESNO = isequal(i,pp+1);
-            %             YESNO = isequal(base,getbase(sdpvar(n,n)));
+            YESNO = isequal(i,pp+1);            
         end
         
     case 'socone'
         base = X.basis;
         n = X.dim(1);
-        YESNO = X.dim(1)>1 & X.dim(2)==1 & length(X.lmi_variables)==n;
+        YESNO = X.dim(1)>1 && X.dim(2)==1 && length(X.lmi_variables)==n;
         if YESNO
             cb = base(:,1);
             vb = base(:,2:end);            
-            YESNO = YESNO & (nnz(cb)==0) & (nnz(vb-speye(n))==0);
+            YESNO = YESNO && (nnz(cb)==0) && (nnz(vb-speye(n))==0);
         end   
         
     case 'sigmonial'
@@ -148,11 +186,11 @@ switch property
             % No linear terms
             YESNO = isempty(LinearTerms);
             % No constant terms
-            YESNO = YESNO & (nnz(getbasematrix(X,0))==0);
+            YESNO = YESNO && (nnz(getbasematrix(X,0))==0);
             % Largest degree+1
             maxdegree = sum(any(CompressedList(find(ismember(CompressedList,NonlinearVariables)),:),1));
             % All same degree
-            YESNO = YESNO & all(all(CompressedList(find(ismember(CompressedList,NonlinearVariables)),2:maxdegree)>0));
+            YESNO = YESNO && all(all(CompressedList(find(ismember(CompressedList,NonlinearVariables)),2:maxdegree)>0));
         end
         
     case 'factorized'
@@ -164,6 +202,9 @@ switch property
     case 'gkyp'
         YESNO = (X.typeflag==40);
         
+    case 'unitary'
+        n = size(X.basis,1);
+        YESNO = isequal(X.basis,[sparse(n,1,0) speye(n)]);
         
     otherwise
         error('Wrong input argument.');

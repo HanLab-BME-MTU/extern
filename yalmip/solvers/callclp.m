@@ -14,7 +14,7 @@ Q       = interfacedata.Q;
 
 n = length(c);
 
-if options.showprogress;showprogress(['Calling ' interfacedata.solver.tag],options.showprogress);end
+if options.showprogress;showprogress(['Calling CLP'],options.showprogress);end
 
 if K.f>0
     Aeq = -F_struc(1:K.f,2:end);

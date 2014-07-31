@@ -1,9 +1,6 @@
 function Z = mtimes(X,Y)
 %MTIMES (overloaded)
 
-% Author Johan Löfberg
-% $Id: mtimes.m,v 1.81 2009-10-21 14:35:10 joloef Exp $
-
 % Check classes
 X_is_spdvar = isa(X,'sdpvar');
 Y_is_spdvar = isa(Y,'sdpvar');
@@ -37,7 +34,7 @@ elseif isempty(Y)
 end
 
 % Optimized calls in different order?
-if X_is_spdvar & Y_is_spdvar
+if X_is_spdvar && Y_is_spdvar
     manytimesfew = length(X.lmi_variables) > 5*length(Y.lmi_variables);
     if manytimesfew
         Z = (Y'*X')'; % Optimized for this order (few variables * many variables)
@@ -82,18 +79,38 @@ switch 2*X_is_spdvar+Y_is_spdvar
             % Requires that the involved variables never have been used
             % before in a nonlinear expression. By exploiting this fact, we
             % can avoid using findhash, which typically is the bottle-neck.
-            if (nx == 1) & (my == 1) & isequal(X.lmi_variables,Y.lmi_variables)
+            if (nx == 1) && (my == 1) && isequal(X.lmi_variables,Y.lmi_variables)
                 % Looks like w'Qw or similiar
                 % Check that no nonlinear have been defined before, and that
                 % the arguments are linear.
-                if all(oldvariabletype(X.lmi_variables)==0) & nnz(mt(find(oldvariabletype),X.lmi_variables)) == 0
+                if all(oldvariabletype(X.lmi_variables)==0) && nnz(mt(find(oldvariabletype),X.lmi_variables)) == 0
                     Z = super_fast_quadratic_multiplication(X,Y,mt,oldvariabletype,mt_hash,hash);
                     return
                 end
             end
 
+            % Are the involved variables disjoint
+            if X.lmi_variables(end) < Y.lmi_variables(1)
+                disconnected = 1;
+            elseif Y.lmi_variables(end) < X.lmi_variables(1)
+                disconnected = 2;
+            elseif isequal(Y.lmi_variables,X.lmi_variables)
+                disconnected = -1; % Same 
+            else
+                disconnected = 0;  % Tangled up
+            end
+            
             % Optimized unique
-            all_lmi_variables = uniquestripped([X.lmi_variables Y.lmi_variables]);
+            switch disconnected
+                case -1
+                    all_lmi_variables = [X.lmi_variables];
+                case 1
+                    all_lmi_variables = [X.lmi_variables Y.lmi_variables];
+                case 2
+                    all_lmi_variables = [Y.lmi_variables X.lmi_variables];
+                otherwise
+                    all_lmi_variables = uniquestripped([X.lmi_variables Y.lmi_variables]);
+            end
 
             % Create clean SDPVAR object
             Z = X;Z.dim(1) = 1;Z.dim(2) = 1;Z.lmi_variables = all_lmi_variables;Z.basis = [];
@@ -107,16 +124,32 @@ switch 2*X_is_spdvar+Y_is_spdvar
             if y_isscalar
                 Ybase = sparse(full(Ybase));
             end
-
-            index_X = double(ismembc(all_lmi_variables,X.lmi_variables));
-            index_Y = double(ismembc(all_lmi_variables,Y.lmi_variables));
+           
+            switch disconnected
+                case -1
+                    index_X = [ones(1,length(X.lmi_variables))];
+                    index_Y = index_X;
+                case 1
+                    index_X = [ones(1,length(X.lmi_variables)) zeros(1,length(Y.lmi_variables))];
+                    index_Y = [zeros(1,length(X.lmi_variables)) ones(1,length(Y.lmi_variables))];
+                case 2
+                    index_X = [zeros(1,length(Y.lmi_variables)) ones(1,length(X.lmi_variables))];
+                    index_Y = [ones(1,length(Y.lmi_variables)) zeros(1,length(X.lmi_variables))];
+                otherwise
+                    index_X = double(ismembcYALMIP(all_lmi_variables,X.lmi_variables));
+                    index_Y = double(ismembcYALMIP(all_lmi_variables,Y.lmi_variables));
+            end
+            
             iX=find(index_X);
             iY=find(index_Y);
             index_X(iX)=1:length(iX);index_X=index_X(:);
             index_Y(iY)=1:length(iY);index_Y=index_Y(:);
 
-            % Pre-allocate sufficiently long
-            Z.lmi_variables = [Z.lmi_variables zeros(1,length(X.lmi_variables)*length(Y.lmi_variables))];
+            % Pre-allocate under assumption that product is fairly sparse
+            % If more is required later, it will be expanded
+            Z.lmi_variables = [Z.lmi_variables zeros(1,length(X.lmi_variables)+length(Y.lmi_variables))];
+            %Z.lmi_variables = [Z.lmi_variables zeros(1,length(X.lmi_variables)*length(Y.lmi_variables))];
+            
 
             % Pre-calc identity (used a lot
             speyemy = sparse(1:my,1:my,1,my,my);
@@ -159,9 +192,10 @@ switch 2*X_is_spdvar+Y_is_spdvar
             % to improve performance significantly...
             bilinearproduct = 0;
             candofastlocation  = 0;
-            if all(oldvariabletype(X.lmi_variables)==0) & all(oldvariabletype(Y.lmi_variables)==0)
-                % if isempty(intersect(X.lmi_variables,Y.lmi_variables))
-                if ~any(ismembc(X.lmi_variables,Y.lmi_variables))
+            if all(oldvariabletype(X.lmi_variables)==0) && all(oldvariabletype(Y.lmi_variables)==0)
+                % if isempty(intersect(X.lmi_variables,Y.lmi_variables))             
+                % members = ismembcYALMIP(X.lmi_variables,Y.lmi_variables);              
+                if disconnected == 1 || disconnected == 2%~any(members)
                     bilinearproduct = 1;
                     try
                         dummy = ismembc2(1,1); % Not available in all versions (needed in ismember)
@@ -187,7 +221,7 @@ switch 2*X_is_spdvar+Y_is_spdvar
                 end
             end
 
-            if bilinearproduct & ~isempty(possibleOld)
+            if bilinearproduct && ~isempty(possibleOld)
                 if length(X.lmi_variables)<=length(Y.lmi_variables)
                     temp = mt(:,X.lmi_variables);
                     temp = temp(possibleOld,:);
@@ -214,7 +248,11 @@ switch 2*X_is_spdvar+Y_is_spdvar
             %    iteration, i.e. those generated when multiplying x(ix) with
             %    all y. These are sorted every iteration
             new_mt_hash = [];
-            new_mt_hash_aux = spalloc(length(X.lmi_variables)*length(Y.lmi_variables),1,0);
+            
+            %new_mt_hash_aux = spalloc(length(X.lmi_variables)*length(Y.lmi_variables),1,0);
+            
+            new_mt_hash_aux = zeros(min(1e3,length(X.lmi_variables)*length(Y.lmi_variables)),1);
+            
             new_mt_hash_counter = 0;
 
             %             % 3. Those that are generated at the current iteration. These
@@ -238,6 +276,12 @@ switch 2*X_is_spdvar+Y_is_spdvar
             possibleOldHashSortedBlockedFull{1} = full(possibleOldHashSorted);
             current_offset = size(mt_hash,1);
 
+            YB = Y.basis(:,1+index_Y(theyvars(:)'));
+            if isequal(YB,speye(size(YB,1)))
+                simpleMultiplicationwithI = 1;
+            else
+                simpleMultiplicationwithI = 0;
+            end
             for ix = thexvars(:)'
 
                 mt_x = local_mt(:,ix);
@@ -248,22 +292,33 @@ switch 2*X_is_spdvar+Y_is_spdvar
                 % in one shot using vectorization and Kronecker tricks
                 % Optimized and treat special case scalar*matrix etc
                 if x_isscalar
-                    Xibase = X.basis(:,1+index_X(ix));
-                    allprodbase = Xibase * Y.basis(:,1+index_Y(testthese));
+                    allprodbase = X.basis(:,1+index_X(ix));
+                    %allprodbase = Xibase * Y.basis(:,1+index_Y(testthese));
+                    allprodbase = allprodbase * YB;
                 elseif y_isscalar
-                    Xibase = X.basis(:,1+index_X(ix));
-                    allprodbase =  Xibase * Y.basis(:,1+index_Y(testthese));
+                    allprodbase = X.basis(:,1+index_X(ix));
+                    %allprodbase =  Xibase * Y.basis(:,1+index_Y(testthese));
+                    allprodbase =  allprodbase * YB;                                            
                 elseif inner_vector_product
-                    Xibase = X.basis(:,1+index_X(ix)).';
-                    allprodbase = Xibase*Y.basis(:,1+index_Y(testthese));
+                    allprodbase = X.basis(:,1+index_X(ix)).';
+                    %allprodbase = Xibase*Y.basis(:,1+index_Y(testthese));
+                    if ~simpleMultiplicationwithI
+                        allprodbase = allprodbase*YB;    
+                    end
                 else
-                    Xibase = reshape(X.basis(:,1+index_X(ix)),nx,mx);
-                    temp = kron(speyemy,Xibase);
-                    allprodbase = temp * Y.basis(:,1+index_Y(testthese));
+                    allprodbase = reshape(X.basis(:,1+index_X(ix)),nx,mx);
+                    allprodbase = kron(speyemy,allprodbase);
+                    %allprodbase = temp * Y.basis(:,1+index_Y(testthese));
+                    allprodbase = allprodbase * YB;
                 end
 
                 % Keep non-zero matrices
-                nonzeromatrices = find(sum(abs(allprodbase),1)>1e-12);
+                if size(allprodbase,1)==1
+                   nonzeromatrices = find(allprodbase);                
+                   nonzeromatrices = nonzeromatrices(find(abs(allprodbase(nonzeromatrices))>1e-12));                    
+                else                    
+                    nonzeromatrices = find(sum(abs(allprodbase),1)>1e-12);
+                end                               
                 testthese = testthese(nonzeromatrices);
                 allprodbase = allprodbase(:,nonzeromatrices);
 
@@ -272,7 +327,8 @@ switch 2*X_is_spdvar+Y_is_spdvar
                 if prod(size(mt_x))==1 % Bug in Solaris and Linux, ML 6.X
                     allmt_xplusy = local_mt(:,testthese) + sparse(repmat(full(mt_x),1,nyvars));
                 else
-                    allmt_xplusy = local_mt(:,testthese) + repmat(mt_x,1,nyvars);
+                    allmt_xplusy = bsxfun(@plus,local_mt(:,testthese),mt_x);
+                 %   allmt_xplusy = local_mt(:,testthese) + repmat(mt_x,1,nyvars);
                 end
                 allhash = allmt_xplusy'*hash;
                 thesewhereactuallyused = zeros(1,nyvars);
@@ -291,28 +347,26 @@ switch 2*X_is_spdvar+Y_is_spdvar
                 indicies = indicies(:)';
 
                 allbefore_in_old = 1;
-                if bilinearproduct & candofastlocation
+                if bilinearproduct && candofastlocation
                     [dummy,allbefore_in_old] = ismember(allhash,possibleOldHash);
                 end
 
-                if bilinearproduct & candofastlocation & (nnz(allbefore_in_old)==0)
+                if bilinearproduct && candofastlocation && (nnz(allbefore_in_old)==0)
                     % All nonlinear variables are new, so we can create them at once
                     changed_mt=1;
                     thesewhereactuallyused = thesewhereactuallyused+1;
+                    Z.lmi_variables = expandAllocation(Z.lmi_variables,(i+length(indicies)-1));
                     Z.lmi_variables(i:(i+length(indicies)-1)) = (nvar+1):(nvar+length(indicies));
                     nvar = nvar + length(indicies);
                     i = i + length(indicies);
-                else
-
-                    %isemptynew_mt_hash = new_mt_hash_counter == 0;
+                else                  
                     for acounter = indicies
-
                         current_hash = allhash(acounter);
 
                         % Ok, braze your self for some horrible special case
                         % treatment etc...
-                        if (new_mt_hash_counter == 0) | bilinearproduct % only search among old monomials
-                            if bilinearproduct & candofastlocation
+                        if (new_mt_hash_counter == 0) || bilinearproduct % only search among old monomials
+                            if bilinearproduct && candofastlocation
                                 before = allbefore_in_old(acounter);
                                 if before==0
                                     before = [];
@@ -322,56 +376,45 @@ switch 2*X_is_spdvar+Y_is_spdvar
                             else
                                 before = possibleOld(sortedHashLocs(findhashsorted(possibleOldHashSorted,current_hash)));
                             end
-                        else
+                        else                   
+                           % length(new_mt_hash_aux)
                             before = findhash(new_mt_hash_aux,current_hash,new_mt_hash_counter); % first among new monomials
                             if before
                                 before=before+current_offset;
-                            else
-                                %before = possibleOld(sortedHashLocs(findhashsorted(possibleOldHashSorted,current_hash)));
+                            else                               
                                 sb = 1;
                                 cth = full(current_hash);
-                                while isempty(before) & sb <= length(possibleOldBlocked)
-                                 %   testit = possibleOldHashSortedBlocked{sb};
+                                while isempty(before) && sb <= length(possibleOldBlocked)
+                                    
                                     testitfull = possibleOldHashSortedBlockedFull{sb};
-                                 %   testit = possibleOldHashSortedBlocked{sb};
-                                 
-                                 %    testit = possibleOldHashSortedBlocked{sb};
-                                 %    testitfull = possibleOldHashSortedBlockedFull{sb};
-                                 %   testitfull = possibleOldHashSortedBlockedFull{sb};
-                                 %   mmm=findhashsorted(testit,cth);
-                                 %   mmm=findhashsorted(testit,cth);
-                                 %   mmm=findhashsorted(testitfull,cth);
-                                 %   mmm=findhashsorted(testitfull,cth);
-                                 %   mmm2=findhashsorted(testitfull,current_hash);
-                                   mmm=findhashsorted(testitfull,cth);
-                                 %   mmm=findhashsorted(testit,current_hash);
-                                   % testit2 = full(possibleOldHashSortedBlocked{sb});
-                                   % mmm2=findhashsorted(testit2,full(current_hash));
-                                %    if ~isequal(mmm,mmm2)
-                                %        1
-                                %    end
+                                    mmm=findhashsorted(testitfull,cth);
                                     if mmm
                                         mmm=sortedHashLocsBlocked{sb}(mmm);
                                         before = possibleOldBlocked{sb}(mmm);
                                     end
                                     sb = sb+1;
                                 end
-                            end
+                            end                                                                                  
                         end
                         if before
+                            Z.lmi_variables = expandAllocation(Z.lmi_variables,i);
                             Z.lmi_variables(i) = before;
                         else
-                            changed_mt=1;
-                            %   isemptynew_mt_hash=0;
+                            changed_mt=1;                            
                             thesewhereactuallyused(acounter) = 1;
                             new_mt_hash_counter = new_mt_hash_counter + 1;
+                            if new_mt_hash_counter>length(new_mt_hash_aux)
+                               new_mt_hash_aux = [new_mt_hash_aux;zeros(length(new_mt_hash_aux),1)];
+                            end
                             new_mt_hash_aux(new_mt_hash_counter) = current_hash;
 
                             nvar = nvar + 1;
+                            Z.lmi_variables = expandAllocation(Z.lmi_variables,i);
                             Z.lmi_variables(i) = nvar;
                         end
                         i = i+1;
                     end
+
                 end % End y-variables
 
                 if all(copytofrom)
@@ -384,22 +427,23 @@ switch 2*X_is_spdvar+Y_is_spdvar
                 else
                     new_mt = [new_mt allmt_xplusy(:,find(thesewhereactuallyused))];
                 end
-
-                bsize = 1000;
-                if new_mt_hash_counter > bsize
+ 
+                bsize = 100; 
+                if new_mt_hash_counter>5
+                    bsize = new_mt_hash_counter-1;
+                end
+                if new_mt_hash_counter > bsize                   
                     ship = new_mt_hash_aux(1:bsize);
                     mt_hash = [mt_hash;ship];
-                    new_mt_hash_aux = new_mt_hash_aux(bsize+1:end);
+                    new_mt_hash_aux = new_mt_hash_aux(bsize+1:new_mt_hash_counter);
                     new_mt_hash_counter = nnz(new_mt_hash_aux);
                     [newHashSorted, sortednewHashLocs] = sort(ship);
                     possibleOldBlocked{end+1}    = (1:bsize)+current_offset;
                     sortedHashLocsBlocked{end+1} = sortednewHashLocs;
                     possibleOldHashSortedBlocked{end+1} = (newHashSorted);
-                    possibleOldHashSortedBlockedFull{end+1} = full(newHashSorted);
-                    %  possibleOldHashSortedOffset{end+1} = current_offset;
+                    possibleOldHashSortedBlockedFull{end+1} = full(newHashSorted);                   
                     current_offset = current_offset + bsize;
                 end
-
 
             end % End x-variables
 
@@ -437,7 +481,7 @@ switch 2*X_is_spdvar+Y_is_spdvar
                 yalmip('setmonomtable',mt,[oldvariabletype newvariabletype],[mt_hash;new_mt_hash_aux(1:new_mt_hash_counter)],oldhash);
             end
 
-            if ~(x_isscalar | y_isscalar)
+            if ~(x_isscalar || y_isscalar)
                 Z.dim(1) = X.dim(1);
                 Z.dim(2) = Y.dim(2);
             else
@@ -464,7 +508,7 @@ switch 2*X_is_spdvar+Y_is_spdvar
         y_isscalar =  (n_Y*m_Y==1);
 
         if ~x_isscalar
-            if ((m_X~= n_Y & ~y_isscalar))
+            if ((m_X~= n_Y && ~y_isscalar))
                 error('Inner matrix dimensions must agree.')
             end
         end
@@ -487,6 +531,9 @@ switch 2*X_is_spdvar+Y_is_spdvar
                     return
                 end
             else
+                if ~isa(Y,'double')
+                    Y = double(Y);
+                end
                 Z.dim(1) = n_Y;
                 Z.dim(2) = m_Y;
                 Z.basis = kron(Z.basis,Y(:));
@@ -498,6 +545,9 @@ switch 2*X_is_spdvar+Y_is_spdvar
                 return
             end
         elseif y_isscalar
+            if ~isa(Y,'double')
+                Y = double(Y);
+            end
             Z.dim(1) = n_X;
             Z.dim(2) = m_X;
             Z.basis = Z.basis*Y;
@@ -511,11 +561,14 @@ switch 2*X_is_spdvar+Y_is_spdvar
 
         Z.dim(1) = n;
         Z.dim(2) = m;
-        if (n_X==1) & is(X,'lpcone') & (n_Y == m_Y) & (size(X.basis,1)==size(X.basis,2-1)) & isequal(X.basis*[0 1:size(X.basis,2)-1]',(1:size(X.basis,2)-1)')
+        if (n_X==1) && is(X,'lpcone') && (n_Y == m_Y) && (size(X.basis,1)==size(X.basis,2-1)) && isequal(X.basis*[0 1:size(X.basis,2)-1]',(1:size(X.basis,2)-1)')
             % special case to speed up x'*Q, Q square. typically
             % encountered in large-scale QPs
             Z.basis = [X.basis(:,1) Y.'];
         else
+            if ~isa(Y,'double')
+                Y = double(Y);
+            end
             Z.basis = kron(Y.',speye(n_X))*X.basis;
         end
         Z.conicinfo = [0 0];
@@ -533,7 +586,7 @@ switch 2*X_is_spdvar+Y_is_spdvar
         y_isscalar =  (n_Y*m_Y==1);
 
         if ~x_isscalar
-            if ((m_X~= n_Y & ~y_isscalar))
+            if ((m_X~= n_Y && ~y_isscalar))
                 error('Inner matrix dimensions must agree.')
             end
         end
@@ -582,16 +635,37 @@ switch 2*X_is_spdvar+Y_is_spdvar
         end
 
         if m_Y==1
-            Z.basis = X*Y.basis;
+            if issparse(X)
+                Z.basis = X*Y.basis;
+            else
+                if (size(X,1) > 100000) && isdiagonal(X)
+                    try
+                        Z.basis = bsxfun(@times,Y.basis,sparse(diag(X)));
+                    catch
+                        Z.basis = sparse(X)*Y.basis;
+                    end
+                else
+                    Z.basis = sparse(X)*Y.basis;
+                end
+            end
         else
             try
+                if ~isa(X,'double')
+                    X = double(X);
+                end
                 speyemy = speye(m_Y);
                 kronX = kron(speyemy,X);
                 Z.basis = kronX*Y.basis;
             catch
+                disp('Multiplication of SDPVAR object caused memory error');
+                disp('Continuing using unvectorized version which is extremely slow');
+                Z.basis = [];
+                if ~isa(X,'double')
+                    X = double(X);
+                end
                 for i = 1:size(Y.basis,2);
                     dummy = X*reshape(Y.basis(:,i),Y.dim(1),Y.dim(2));
-                    Z.basis(:,i) = dummy(:);
+                    Z.basis = [Z.basis dummy(:)];
                 end
             end
         end
@@ -636,7 +710,7 @@ end
 if length(un_Z_vars2) < length(Z.lmi_variables)
     [un_Z_vars,hh,jj] = unique(Z.lmi_variables);
     if length(Z.lmi_variables) ~=length(un_Z_vars)
-        Z.basis = Z.basis*sparse([1 1+jj],[1 1+(1:length(jj))],ones(1,1+length(jj)))';
+        Z.basis = Z.basis*sparse([1 1+jj(:)'],[1 1+(1:length(jj))],ones(1,1+length(jj)))';
         Z.lmi_variables = un_Z_vars;
     end
 end
@@ -645,34 +719,44 @@ function Z = super_fast_quadratic_multiplication(X,Y,mt,oldvariabletype,mt_hash,
 
 Q = X.basis(:,2:end);
 R = Y.basis(:,2:end);
+
 Q = (Q.')*R;
 Q = Q + Q.' - diag(diag(Q));
-indicies = find(tril(ones(length(Q))));
-Q = Q(indicies);
-Q = Q(:).';
-% Q = Q + Q' - diag(diag(Q));
-%  Q = Q(find(tril(ones(length(Q)))));
-%  Q = Q(:)';
 
-n = length(X.lmi_variables);
-V = mt(X.lmi_variables,:);
-if 1
-    m1 = kron((1:n)',ones(n,1));
-    m2 = kron(ones(n,1),(1:n)');
-    r = reshape(1:n^2,n,n);
-    r = r(find(tril(r)));
-    m1 = m1(r);
-    m2 = m2(r);
-    VV = V';
-    VV = VV(:,m1) + VV(:,m2);
-    new_mt = VV';
+
+if nnz(Q-diag(diag(Q)))==0
+    % Special case, only quadratic terms
+    % Exploit this!
+    n = length(X.lmi_variables);
+    new_mt = sparse(1:n,X.lmi_variables,2*ones(n,1),n,size(mt,2));
+    newvariabletype = ones(n,1)*2;
+    Q = diag(Q);Q = Q(:)';
 else
-    new_mt = kron(V,ones(n,1)) + kron(ones(n,1),V);
-    r = reshape(1:n^2,n,n);
-    new_mt = new_mt(r(find(tril(r))),:);
+    
+    indicies = find(tril(ones(length(Q))));
+    Q = Q(indicies);
+    Q = Q(:).';
+    
+    n = length(X.lmi_variables);
+    V = mt(X.lmi_variables,:);
+    if 1
+        m1 = kron((1:n)',ones(n,1));
+        m2 = kron(ones(n,1),(1:n)');
+        r = reshape(1:n^2,n,n);
+        r = r(find(tril(r)));
+        m1 = m1(r);
+        m2 = m2(r);
+        VV = V';
+        VV = VV(:,m1) + VV(:,m2);
+        new_mt = VV';
+    else
+        new_mt = kron(V,ones(n,1)) + kron(ones(n,1),V);
+        r = reshape(1:n^2,n,n);
+        new_mt = new_mt(r(find(tril(r))),:);
+    end
+    newvariabletype = max((new_mt),[],2);
 end
-%newvariabletype = 3 - sum(new_mt | new_mt,2);
-newvariabletype = max((new_mt),[],2);
+
 yalmip('setmonomtable',[mt;new_mt],[oldvariabletype newvariabletype'],[mt_hash;new_mt*hash],hash);
 Z = X;
 varbase = [(X.basis(:,1).')*Y.basis(:,2:end)+(Y.basis(:,1).')*X.basis(:,2:end) Q];
@@ -697,7 +781,7 @@ else
         mt = yalmip('monomtable');
         v = mt(getvariables(args),:);
         vb = v(find(v));
-        if v(getvariables(X))==1 & min(vb)==-1 & max(vb)==1
+        if v(getvariables(X))==1 && min(vb)==-1 && max(vb)==1
             Z = plog([X;recover(find(v==-1))]);
         else
             Z = [];
@@ -706,3 +790,22 @@ else
         Z = [];
     end
 end
+
+function yes = isdiagonal(X)
+
+yes = 0;
+if size(X,1) == size(X,2)
+    [i,j] = find(X);
+    if all(i==j)
+        yes = 1;
+    end
+end
+
+function x = expandAllocation(x,n)
+
+if length(x) < n
+    x = [x zeros(1,2*n-length(x))];
+end
+        
+
+

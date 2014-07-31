@@ -24,6 +24,8 @@ else
     end
     x = p.x0;
     z = evaluate_nonlinear(p,x);
+    z = propagateAuxilliary(p,z);
+    
     residual = constraint_residuals(p,z);
     relaxed_feasible = all(residual(1:p.K.f)>=-p.options.bmibnb.eqtol) & all(residual(1+p.K.f:end)>=p.options.bmibnb.pdtol);
     if relaxed_feasible
@@ -43,6 +45,8 @@ else
     x(isinf(x))=eps;
     x(isnan(x))=eps;
     z = evaluate_nonlinear(p,x);
+    z = propagateAuxilliary(p,z);
+    
     residual = constraint_residuals(p,z);
     relaxed_feasible = all(residual(1:p.K.f)>=-p.options.bmibnb.eqtol) & all(residual(1+p.K.f:end)>=p.options.bmibnb.pdtol);
     if relaxed_feasible & ( p.f+p.c'*z+z'*p.Q*z < upper)
@@ -53,3 +57,27 @@ else
     p.x0 = x0;
 end
 
+
+function z = propagateAuxilliary(p,z)
+
+try
+    % New feature. If we introduce new variables xx = f(x) to be used
+    % in a nonlinear operator, we can derive its value when x is chosen
+    
+    if ~isempty(p.aux_variables)
+        if p.K.f > 1
+            A = p.F_struc(1:p.K.f,2:end);
+            b = p.F_struc(1:p.K.f,1);
+            for i = 1:length(p.aux_variables)
+                j = find(A(:,p.aux_variables(i)));
+                if length(j)==1
+                    if A(j,p.aux_variables(i))==1
+                        z(p.aux_variables(i)) = -b(j)-A(j,:)*z;
+                    end
+                end
+            end
+            z = evaluate_nonlinear(p,z);
+        end
+    end
+catch
+end

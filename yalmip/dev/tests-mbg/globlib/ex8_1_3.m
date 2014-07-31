@@ -15,6 +15,6 @@ objective = -(-(1+sqr(1+x1+x2)*(19+3*sqr(x1)-14*x1+6*x1*x2-14*x2+3*sqr(x2)))*(30
 F = set([]);
 % Solve problem
 x = recover(objective);
-sol = solvesdp(F+[-100<x<100],objective,sdpsettings('solver','bmibnb','allownonconvex',1))
-mbg_assertfalse(sol.problem)
-mbg_asserttolequal(double(objective), 600, 1e-2);
+sol = solvesdp(F+[-100<=x<=100],objective,sdpsettings('solver','bmibnb','allownonconvex',1))
+mbg_asserttrue(sol.problem==0 | sol.problem == 3)
+mbg_asserttolequal(double(objective), 30, 1e-2);

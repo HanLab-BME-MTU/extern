@@ -93,11 +93,11 @@ F = F + set(coefficients(V1+c12*h120-V2,x)==0);
 F = F + set(coefficients(V1+c13*h130-V3,x)==0);
 
 
-F = F + set(eps1>0.1) + set(eps2>0.1) + set(eps3>0.1);
-F = F + set(eps4>0.1) + set(eps5>0.1) + set(eps6>0.1);
+F = F + set(eps1>=0.1) + set(eps2>=0.1) + set(eps3>=0.1);
+F = F + set(eps4>=0.1) + set(eps5>=0.1) + set(eps6>=0.1);
 
-F = F + set(A11>0) + set(A12>0) + set(A21>0) + set(A31>0) + set(B11>0) + ...
-    set(B12>0) + set(B21>0) + set(B31>0); 
+F = F + set(A11>=0) + set(A12>=0) + set(A21>=0) + set(A31>=0) + set(B11>=0) + ...
+    set(B12>=0) + set(B21>=0) + set(B31>=0); 
 
 % Call solver:
 parametric=recover(setdiff(depends(F),depends(x)));

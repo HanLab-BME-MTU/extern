@@ -47,3 +47,4 @@ ind = ns+(ms-1)*n;
 Y.basis = sparse(ind(i1),j1,s1,n*m,1+length(Y.lmi_variables));
 % Reset info about conic terms
 Y.conicinfo = [0 0];
+Y = flush(Y);

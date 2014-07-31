@@ -42,8 +42,17 @@ ObjRow = 1;
 A = [];
 iAfun = [];
 jAvar = [];
-G = ones(size(Fupp,1),length(xupp));
+% Sparsity pattern of jacobian
+if ~isempty(Fupp)
+    G = jacobiansparsityfromnonlinear(model);   
+else
+    G = [];
+end
+% Add a row for objective. No sparsity declared
+G = [ones(1,size(G,2));G];
 [iGfun,jGvar] = find(G);
+model.sparsityElements = find(G);
+
 usrf = 'snopt_callback';
 snopt_callback([],model);
 solvertime = clock;
@@ -52,11 +61,10 @@ if model.options.verbose == 0
 else
     snscreen('on');
 end
-    
-   % evalc('[xout,F,xmul,Fmul,inform, xstate, Fstate, ns, ninf, sinf, mincw, miniw, minrw] = snoptcmex( solveopt, x0, xlow, xupp, xmul, xstate, Flow, Fupp, Fmul, Fstate,ObjAdd, ObjRow, A, iAfun(:), jAvar(:),iGfun(:), jGvar(:), usrf );');    
-%else
-    [xout,F,xmul,Fmul,inform, xstate, Fstate, ns, ninf, sinf, mincw, miniw, minrw] = snoptcmex( solveopt, x0, xlow, xupp, xmul, xstate, Flow, Fupp, Fmul, Fstate,ObjAdd, ObjRow, A, iAfun(:), jAvar(:),iGfun(:), jGvar(:), usrf );
-%end    
+snseti('Minimize',1)  
+
+[xout,F,xmul,Fmul,inform, xstate, Fstate, ns, ninf, sinf, mincw, miniw, minrw] = snoptcmex( solveopt, x0, xlow, xupp, xmul, xstate, Flow, Fupp, Fmul, Fstate,ObjAdd, ObjRow, A, iAfun(:), jAvar(:),iGfun(:), jGvar(:), usrf );
+   
 solvertime = etime(clock,solvertime);
 lambda = Fmul(2:end);   
 
@@ -71,9 +79,9 @@ D_struc = [];
 switch inform
     case {1}
         problem = 0;
-    case {1,11,12,13,14,40,91} % 1 is sent when I test
+    case {1,11,12,13,14,40,43,91} % 1 is sent when I test
         problem = 1;
-    case 2
+    case {2,33}
         problem = 4;
     otherwise        
 end

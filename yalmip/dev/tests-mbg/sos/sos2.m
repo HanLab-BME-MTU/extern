@@ -1,7 +1,7 @@
 function massive
-ops{1} = sdpsettings('sos.cong',0,'sos.model',1,'verbose',0);
-ops{2} = sdpsettings('sos.cong',1,'sos.model',2,'verbose',0);
-ops{3} = sdpsettings('sos.cong',0,'sos.newton',0,'verbose',0,'sos.extlp',0);
+ops{1} = sdpsettings('sos.cong',0,'sos.model',1,'verbose',1);
+ops{2} = sdpsettings('sos.cong',1,'sos.model',2,'verbose',1);
+ops{3} = sdpsettings('sos.cong',0,'sos.newton',0,'verbose',1,'sos.extlp',0);
 
 % Disjoint variables
 x = sdpvar(1,1);

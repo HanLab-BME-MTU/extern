@@ -1,13 +1,12 @@
-function deg=degree(p,y,e)
+function deg=degree(p,y,flag,vector)
 %DEGREE Polynomial degree
 %
-% DEG = DEGREE(p,x,e)
+% DEG = DEGREE(p,x,flag,vector)
 %
-% p : SDPVAR object.
-% x : Degree w.r.t linear SDPVAR objects, can be [].
-
-
-% e : If e=1, returns degree of each element in p
+% p      : SDPVAR object.
+% x      : Degree w.r.t linear SDPVAR objects.
+% flag   : 'max', 'min'. Default 'max'
+% vector : If vector = 1, returns degree of each element in p
 %
 % Examples
 % x1 = sdpvar(1,1);x2 = sdpvar(1,1);
@@ -19,13 +18,18 @@ function deg=degree(p,y,e)
 %
 % degree(p,[x1 x2]) returns [1 2]
 %
-% degree(p,[x1 x2],1) returns [1 0;1 2]
+% degree(p,[x1 x2],[],1) returns [1 0;1 2]
 %
-% degree(p,[],1) returns [1;3]
+% degree(p,[],1) returns [1;2]
 
-% Author Johan Löfberg 
-% $Id: degree.m,v 1.3 2007-05-10 15:00:33 joloef Exp $  
-
+if nargin == 3
+    if isa(flag,'double')       
+        % Old syntax
+        deg = degree(p,y,'max',flag);
+        return;
+    end
+   
+end
 
 if isa(p,'double')
     if nargin==1
@@ -36,17 +40,32 @@ if isa(p,'double')
     return
 end
 
-if nargin<2
-    y = recover(depends(p));
+if nargin<2 || isempty(y)
+    y = recover(depends(p));   
 end
 
-if nargin<3 | (nargin==3 & e==0)
+if nargin < 3
+    flag = 'max';
+end
+
+if nargin < 4
+    vector = 0;
+end
+
+if vector == 0
     exponent_p = exponents(p,y);
     switch nargin
-        case 1
-            deg = full(max(sum(exponent_p,2)));
+        case 1            
+            degrees = sum(exponent_p,2);
+            deg = full(max(degrees));            
         case {2,3}
-            deg = full(max(exponent_p,[],1));
+            switch flag
+                case 'max'
+                    deg = full(max(exponent_p,[],1));
+                case 'min'                    
+                    deg = full(min(exponent_p,[],1));
+                otherwise
+            end
         otherwise
             error('Too many arguments. Wadda ya mean?')
     end
@@ -70,8 +89,15 @@ else
             switch nargin
                 case 1
                     deg(i,:) = full(max(sum(exponent_p,2)));
-                case {2,3}
-                    deg(i,:) = full(max(exponent_p,[],1));
+                case {2,3,4}
+                    switch flag
+                        case 'max'
+                            deg(i,:) = full(max(exponent_p,[],1));
+                        case 'min'                           
+                            deg(i,:) = full(min(exponent_p,[],1));
+                        otherwise
+                            error('Do not understand the flag')
+                    end
                 otherwise
                     error('Too many arguments. Wadda ya mean?')
             end

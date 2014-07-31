@@ -94,6 +94,6 @@ F=[F,0.0368<=x34<=0.0768];
 F=[F,0.0368<=x35<=0.0768];
 
 % Solve problem
-sol = solvesdp(F,objective,sdpsettings('solver','bmibnb','allownonconvex',1,'bmibnb.lpreduce',0));
+sol = solvesdp(F,objective,sdpsettings('solver','bmibnb','allownonconvex',1,'bmibnb.lpreduce',1));
 mbg_assertfalse(sol.problem)
-mbg_asserttolequal(double(objective),  2.066828163087343e+007, 1e2);
+mbg_asserttolequal(double(objective),  2.066828163087343e+007, 1e3);

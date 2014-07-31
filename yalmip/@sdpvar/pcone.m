@@ -1,16 +1,15 @@
-function y = cone(z,x,y,alpha)
-%CONE Defines a power cone x^alpha y ^(1-alpha) > |z|
+function y = pcone(z,x,y,alpha)
+%PCONE Defines a power cone x^alpha y ^(1-alpha) > |z|
 %
 % Input
 %    z,y,x   : sclar SDPVAR objects.
 %    alpha   : scalar double 0<=alpha<=1
 %
 % Example
-%    F = set(cone(z,x,y,alpha))
+%    F = set(pcone(z,x,y,alpha))
 %
 % An alternative syntax with only one argument is also possible
-%    F = set(cone(z))
-% This command is equivalent to set(cone(z(2:end),z(1))
+%    F = set(pcone(z))
 %
 
 %

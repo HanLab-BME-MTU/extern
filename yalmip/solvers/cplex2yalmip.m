@@ -54,9 +54,17 @@ else
     H = full(2*Q);
 end
 
-PARAM = options.cplex.param;
+try
+    PARAM = options.cplex.param;
+catch
+    PARAM = [];
+end
 OPTIONS.verbose = options.verbose;
+try
 OPTIONS.logfile = options.cplex.logfile;
+catch
+    OPTIONS.logfile = '';
+end
 if ~isempty(x0)
     OPTIONS.x0 = [(1:length(x0))' x0(:)];
 end

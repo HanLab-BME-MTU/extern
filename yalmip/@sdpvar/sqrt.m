@@ -20,19 +20,15 @@ switch class(varargin{1})
         X = sqrt(varargin{1});
 
     case 'sdpvar' % Overloaded operator for SDPVAR objects. Pass on args and save them.
-        
-        % Try to detect the case sqrt(x'*x) and generate norm instead
-      %  varargout{1} = check_for_special_cases(varargin{:});
-      %  if isempty(varargout{1})
-            X = varargin{1};
-            [n,m] = size(X);
-            if is(varargin{1},'real') %& (n*m==1)
-                varargout{1} = InstantiateElementWise(mfilename,varargin{:});
-%                varargout{1} = yalmip('define',mfilename,varargin{:});
-            else
-                error('SQRT can only be applied to real scalars');
-            end
-      %  end
+
+        X = varargin{1};
+        [n,m] = size(X);
+        if is(varargin{1},'real') %& (n*m==1)
+            varargout{1} = InstantiateElementWise(mfilename,varargin{:});
+        else
+            error('SQRT can only be applied to real scalars');
+        end
+      
         
     case 'char' % YALMIP send 'model' when it wants the epigraph or hypograph
         switch varargin{1}
@@ -44,6 +40,18 @@ switch class(varargin{1})
                 varargout{1} = set(cone([(X-1)/2;t],(X+1)/2));
                 varargout{2} = struct('convexity','concave','monotonicity','increasing','definiteness','positive');
                 varargout{3} = X;
+            elseif is(X,'quadratic')
+                [F,x] = check_for_special_cases(X,t);
+                if isempty(F)
+                   varargout{1} = [];
+                varargout{2} = [];
+                varargout{3} = [];
+                else
+                    varargout{1} = F;
+                    varargout{2} = struct('convexity','convex','monotonicity','none','definiteness','positive');    
+                    varargout{3} = x;
+                end
+                
             else
                 varargout{1} = [];
                 varargout{2} = [];
@@ -51,25 +59,25 @@ switch class(varargin{1})
             end
             
             case 'callback'
-                        
-            X = varargin{3};
-            [U,L] = derivebounds(X);
-            if L<0
-                F = set(X > 0);
-            else
-                F = [];
-            end
-
-            operator = struct('convexity','concave','monotonicity','increasing','definiteness','positive','model','callback');
-            operator.range = [0 inf];
-            operator.domain = [0 inf];
-            operator.bounds = @bounds;
-            operator.convexhull = @convexhull;
-            operator.derivative = @(x) (1./(2*sqrt(abs(x)+eps)));%Yea, garbage for x<0
-
-            varargout{1} = F;
-            varargout{2} = operator;
-            varargout{3} = X;          
+                
+                X = varargin{3};
+                [U,L] = derivebounds(X);
+                if L<0
+                    F = set(X >= 0);
+                else
+                    F = [];
+                end
+                
+                operator = struct('convexity','concave','monotonicity','increasing','definiteness','positive','model','callback');
+                operator.range = [0 inf];
+                operator.domain = [0 inf];
+                operator.bounds = @bounds;
+                operator.convexhull = @convexhull;
+                operator.derivative = @(x) (1./(2*sqrt(abs(x)+eps)));%Yea, garbage for x<0
+                
+                varargout{1} = F;
+                varargout{2} = operator;
+                varargout{3} = X;
             otherwise
                 varargout{1} = [];
                 varargout{2} = [];
@@ -79,13 +87,11 @@ switch class(varargin{1})
 end
 
 
-function ff = check_for_special_cases(q)
+function [F,x] = check_for_special_cases(q,t)
 % Check if user is constructing sqrt(quadratic). If that is the case,
-% return norm(linear) 
-% FIXME: Turned off, since it makes it tricky if user is doing something
-% nonconvex like maximizing -sqrt(x^2). A norm expression is then
-% introduced
-ff = [];
+% return norm(linear)
+F = [];
+x = [];
 if length(q)>1
     return
 end
@@ -103,9 +109,16 @@ if info==0 & nnz(Q)>0
         end
     else
         [R,p]=chol(Q);
+        if p & min(eig(full(Q)))>=-1e-12
+            [U,S,V] = svd(full(Q));
+            r = max(find(diag(S)));
+            R = sqrtm(S(1:r,1:r))*V(:,1:r)';
+            p = 0;
+        end
     end
-    if p==0 &  abs(-(R'\c)'*(R'\c)/4+f)<1e-12
-        ff = norm(R*x+(R'\c)/2);
+    d = 0.5*(R'\c);
+    if p==0 &  f-d'*d>-1e-12
+        F = cone([R*x+d;sqrt(f-d'*d)],t);
     end
 end
 

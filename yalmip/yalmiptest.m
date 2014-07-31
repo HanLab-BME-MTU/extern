@@ -16,34 +16,31 @@ function out = yalmiptest(prefered_solver,auto)
 
 
 if ~exist('sedumi2pen.m')
-    disp('Add /yalmip/extras to your path first...')
-    return
-end
-
-if ~exist('bmibnb.m')
-    disp('Add /yalmip/modules/ with sub-directories to your path first...')
-    return
-end
-
-if ~exist('pwa_yalmip.m')
-    disp('Add /yalmip/operators to your path first...')
+    disp('Add /yalmip/extras etc to your path first...')
+    disp('Read the <a href="http://users.isy.liu.se/johanl/yalmip/pmwiki.php?n=Tutorials.Installation">Installation notes</a>.')    
     return
 end
 
 if ~exist('callsedumi.m')
-    disp('Add /yalmip/solvers to your path first...')
+    disp('Still missing paths...Just do an addpath(genpath(''yalmiprootdirectory''));')
     return
 end
 
 detected = which('yalmip.m','-all');
-if length(detected)>1
-    disp('You seem to have multiple installations of YALMIP in your path. Please correct this...');
-    detected
-    return
+% Will not work in Octave as Octave only reports first item found?
+if isa(detected,'cell') 
+    if length(detected)>1
+        disp('You seem to have multiple installations of YALMIP in your path. Please correct this...');
+        detected
+        return
+    end
 end
 
+% Pagination really doesn't work well with solvers 
+more off
+
 donttest = 0;
-if (nargin==1) & isa(prefered_solver,'char') & strcmp(prefered_solver,'test')
+if (nargin==1) && isa(prefered_solver,'char') && strcmp(prefered_solver,'test')
     donttest = 0;
     prefered_solver = '';    
 else
@@ -83,6 +80,9 @@ for i = 1:length(solvers)
     if solvers(i).show
         data{j,1} = upper(solvers(i).tag); 
         data{j,2} = solvers(i).version;
+        if length(solvers(i).subversion)>0
+            data{j,2} = [data{j,2} ' ' solvers(i).subversion];
+        end
         data{j,3} = foundstring{found(i)+1};   
         if ~donttest
             if found(i)
@@ -118,7 +118,7 @@ else
 end
 
 if ~((nargin==2) & (ops.verbose==0))    
-table({'Searching for installed solvers'},header,data);
+yalmiptable({'Searching for installed solvers'},header,data);
 disp(' ')
 end
 if nargin<2
@@ -261,7 +261,32 @@ formats{2}.header.just = 'right';
 formats{3}.header.just = 'right';
 
 clc
-table([],header,data,formats)
+yalmiptable([],header,data,formats)
+
+% Test if any LMI solver is installed.
+x = sdpvar(2);[p,~,~,m] = export(x>=0,[],[],[],[],0);
+if ~isempty(m)
+  only_lmilab = strcmpi(m.solver.tag,'lmilab');
+else
+  only_lmilab = 0;
+end
+x = binvar(1);[p,~,~,m] = export(x>=0,[],[],[],[],0);
+if ~isempty(m)
+  only_bnb = strcmpi(m.solver.tag,'bnb');
+else
+  only_bnb = 0;
+end
+if only_lmilab 
+ disp('You do not have any efficient LMI solver installed (only found <a href=" http://users.isy.liu.se/johanl/yalmip/pmwiki.php?n=Solvers.LMILAB">LMILAB</a>).')
+ disp('If you intend to solve LMIs, please install a better solver.')
+end
+if only_bnb 
+ disp('You do not have any efficient MILP solver installed (only found internal <a href=" http://users.isy.liu.se/johanl/yalmip/pmwiki.php?n=Solvers.BNB">BNB</a>).')
+ disp('If you intend to solve MILPs, please install a better solver.')
+end
+if only_lmilab  || only_bnb
+  disp('See <a href=" http://users.isy.liu.se/johanl/yalmip/pmwiki.php?n=Solvers">Interfaced solvers in YALMIP</a>')
+end
 
 
 function [pass,sol,result] = testsdpvar(ops)
@@ -350,30 +375,9 @@ try
     res = A*x-b;
     assert(nnz(clean([res res]'*[res res]-res'*res,1e-8))==0)
     assert(isreal(clean(res'*res,1e-8)))
-    
-    sdpvar x(1,1,'full','complex');
+
     assert(isreal(x*x'))
-    
-%     x = sdpvar(4,1);
-%     sdpvar i a   
-%     y = [i a];
-%     y(1)
-%    % i = sdpvar(1,1);
-%    % a = sdpvar(1,1);
-%    % [i a]
-%     
-%     
-%     
-%     size(x([i j]))
-%     assert(all(size(x([i j])) == [2 1]))
-%     assert(all(size(x(1,[i j])) == [1 2]))
-%    % assert(all(size(x(1,[i j])) == [1 2]));
-%    % x(1,[i j]);
-   % x([i j],1);
-   % x([i j],[i j]);
-    
-    
-    
+              
     result = 'N/A';
 catch
     sol.info = 'Problems';
@@ -385,8 +389,7 @@ end
 function [pass,sol,result] = feasible(ops) 
 t = sdpvar(1,1);
 Y = sdpvar(2,2);
-F = set('Y<t*eye(2)');
-F = F+set('Y>[1 0.2;0.2 1]');
+F = [Y<=t*eye(2), Y>=[1 0.2;0.2 1]];
 sol = solvesdp(F,t,ops);
 pass = ismember(sol.problem,[0 3 4 5]);
 if pass
@@ -399,9 +402,7 @@ end
 
 function [pass,sol,result] = infeasible(ops)
 t = sdpvar(1,1);
-Y = sdpvar(2,2);
-F = set('t>0');
-F = F+set('t<-10');
+F = [t>=0, t<=-10];
 sol = solvesdp(F,t,ops);
 pass = ~(sol.problem==0);
 result = 'N/A';
@@ -412,8 +413,8 @@ B = [0.4;0.08];
 L = [1.9034 1.1501];
 
 Y = sdpvar(2,2);
-F = set([Y Y*(A-B*L)';(A-B*L)*Y Y]);
-F = F+set('L*Y*L''<1');
+F = [Y Y*(A-B*L)';(A-B*L)*Y Y]>=0;
+F = F+[L*Y*L'<=1];
 sol = solvesdp(F,-logdet(Y),ops);
 Y = double(Y);
 pass = ismember(sol.problem,[0 3 4 5]);
@@ -429,8 +430,8 @@ A = [1 0;0.4 1];
 B = [0.4;0.08]; 
 L = [1.9034 1.1501];  
 Y = sdpvar(2,2);
-F = set('[Y Y*(A-B*L)'';(A-B*L)*Y Y]>0');
-F = F+set('L*Y*L''<1');
+F = [Y Y*(A-B*L)';(A-B*L)*Y Y]>=0;
+F = F+[L*Y*L'<=1];
 sol = solvesdp(F,-logdet(Y),ops);
 Y = double(Y);
 pass = ismember(sol.problem,[0 3 4 5]);
@@ -445,15 +446,9 @@ x = sdpvar(1,1);
 y = sdpvar(1,1);
 z = sdpvar(1,1);
 
-X = [x 1 2;1 y 3;2 3 100];
+X = [[x 1 2];[1 y 3];[2 3 100]];
 
-F = set(X>0);
-F = F+set(x>10);
-F = F+set(y>0); 
-F = F+set(z>0);
-F = F+set(x<1000);
-F = F+set(y<1000); 
-F = F+set(z<1000);
+F = [X>=0,x>=10,y>=0,z>=0, x<=1000, y<=1000,z<=1000];
 sol = solvesdp(F,x+y+z,ops);
 x   = double(x);
 y   = double(y);
@@ -469,20 +464,15 @@ end
 
 
 function [pass,sol,result] = complete_2(ops)
+yalmip('clear')
 x = sdpvar(1,1);
-%y = sdpvar(1,1);
 z = sdpvar(1,1);
 
-X = [x 2;2 z];
+X = [[x 2];[2 z]];
 
-F = set('X>0');
-F = F+set('x>0');
-F = F+set('z>0');
-F = F+set('x<10');
-F = F+set('z<10');
+F = [X>=0, x>=0,z>=0,x<=10,z<=10];
 sol = solvesdp(F,x+z,ops);
 x   = double(x);
-%y   = double(y);
 z   = double(z);
 
 pass = ismember(sol.problem,[0 3 4 5]);
@@ -508,16 +498,16 @@ Q = 0.25*(diag(Q*ones(n,1))-Q);
 t = sdpvar(1,1);
 tau = sdpvar(n,1);
 
-F = set('t>0');
+F = t>=0;
 
-M = [-Q zeros(n,1);zeros(1,n) t];
+M = [[-Q zeros(n,1)];[zeros(1,n) t]];
 
 for i = 1:n
     ei = zeros(n,1);ei(i,1) = 1;
     M = M+tau(i)*[ei*ei' zeros(n,1);zeros(1,n) -1];
 end
 
-F = F+set(M>0);
+F = F+[M>=0];
 sol = solvesdp(F,t,ops);
 
 t   = double(t);
@@ -532,11 +522,12 @@ end
 
 
 function [pass,sol,result] = socptest1(ops)
+yalmip('clear')
 x = sdpvar(2,1);
 a = [0;1];
 b = [1;1];
-F = set('||x-a||<1');
-F = F+set('||x-b||<1');
+F = norm(x-a)<=1;
+F = F+[norm(x-b) <= 1];
 sol = solvesdp(F,sum(x),ops);
 pass = ismember(sol.problem,[0 3 4 5]); 
 
@@ -556,10 +547,10 @@ x = sdpvar(3,1);
 y = sdpvar(3,1);
 a = [0;1;0];
 b = [1;1;0];
-F = set('||x-a||<1');
-F = F+set('||x-b||<1');
-F = F+set('x(1)==0.35');
-F = F+set('z(2:3)==[5;6]');
+F = norm(x-a)<=1;
+F = F+[norm(x-b)<=1];
+F = F+[x(1)==0.35];
+F = F+[z(2:3)==[5;6]];
 sol = solvesdp(F,sum(x),ops);
 pass = ismember(sol.problem,[0 3 4 5]); 
 
@@ -581,12 +572,12 @@ x = sdpvar(2,1);
 y = sdpvar(3,1);
 a = [0;1];
 b = [1;1];
-F = set('||x-a||<1');
-F = F+set('||x-b||<1');
-F = F+set('x(1)==0.35');
-F = F+set('z(1,end)>5');
-F = F+set('z(2,end)<100');
-F = F+set('z(2)==5');
+F = norm(x-a)<=1;
+F = F+[norm(x-b)<=1];
+F = F+[x(1)==0.35];
+F = F+[z(1,end)>=5];
+F = F+[z(2,end)<=100];
+F = F+[z(2)==5];
 
 sol = solvesdp(F,sum(x),ops);
 pass = ismember(sol.problem,[0 3 4 5]); 
@@ -612,10 +603,10 @@ x = [2;0];
 t = sdpvar(2*N,1);
 U = sdpvar(N,1);   
 Y = H*x+S*U; 
-F = set(U<1)+set(U>-1);
-F = F+set(Y(N)>-1);  
-F = F+set(Y(N)<1); 
-F = F+set([Y;U]<t)+set([Y;U]>-t);
+F = set(U<=1)+set(U>=-1);
+F = F+set(Y(N)>=-1);  
+F = F+set(Y(N)<=1); 
+F = F+set([Y;U]<=t)+set([Y;U]>=-t);
 sol = solvesdp(F,sum(t),ops);
 pass = ismember(sol.problem,[0 3 4 5]); 
 if pass
@@ -633,9 +624,9 @@ C = [0.5 0.5];
 x = [2;0];
 U = sdpvar(N,1);   
 Y = H*x+S*U; 
-F = set(U<1)+set(U>-1);
-F = F+set(Y(N)>-1);  
-F = F+set(Y(N)<1); 
+F = set(U<=1)+set(U>=-1);
+F = F+set(Y(N)>=-1);  
+F = F+set(Y(N)<=1); 
 sol = solvesdp(F,Y'*Y+U'*U,ops);
 pass = ismember(sol.problem,[0 3 4 5]); 
 if pass
@@ -654,10 +645,10 @@ C = [0.5 0.5];
 x = [2;0];
 U = sdpvar(N,1);   
 Y = H*x+S*U; 
-F = set(U<1)+set(U>-1);
-F = F+set(Y(N)>-1);  
-F = F+set(Y(N)<1); 
-F = F + set(U>0);
+F = set(U<=1)+set(U>=-1);
+F = F+set(Y(N)>=-1);  
+F = F+set(Y(N)<=1); 
+F = F + set(U>=0);
 sol = solvesdp(F,Y'*Y+U'*U,ops);
 pass = ismember(sol.problem,[1]); 
 result = 'N/A';
@@ -668,7 +659,7 @@ function [pass,sol,result] = infeasiblesdp(ops)
 A = magic(6);
 A = A*A';
 P = sdpvar(6,6);
-sol = solvesdp(set(A'*P+P*A < -P) + set(P>eye(6)),trace(P),ops); 
+sol = solvesdp(set(A'*P+P*A <= -P) + set(P>=eye(6)),trace(P),ops); 
 pass = (sol.problem==1);
 result = 'N/A';
 
@@ -678,7 +669,7 @@ n = 5;
 P = magic(n);
 Z = sdpvar(n,n,'toeplitz');
 t = sdpvar(n,n,'full');
-F = set(P-Z<t)+set(P-Z>-t);
+F = set(P-Z<=t)+set(P-Z>=-t);
 sol = solvesdp(F,sum(sum(t)),ops);
 pass = ismember(sol.problem,[0 3 4 5]); 
 result = 'N/A';
@@ -713,14 +704,14 @@ x3 = sdpvar(1,1);
 
 objective = -2*x1+x2-x3;
 
-F = set(x1*(4*x1-4*x2+4*x3-20)+x2*(2*x2-2*x3+9)+x3*(2*x3-13)+24>0);
-F = F + set(4-(x1+x2+x3)>0);
-F = F + set(6-(3*x2+x3)>0);
-F = F + set(x1>0);
-F = F + set(2-x1>0);
-F = F + set(x2>0);
-F = F + set(x3>0);
-F = F + set(3-x3>0);
+F = set(x1*(4*x1-4*x2+4*x3-20)+x2*(2*x2-2*x3+9)+x3*(2*x3-13)+24>=0);
+F = F + set(4-(x1+x2+x3)>=0);
+F = F + set(6-(3*x2+x3)>=0);
+F = F + set(x1>=0);
+F = F + set(2-x1>=0);
+F = F + set(x2>=0);
+F = F + set(x3>=0);
+F = F + set(3-x3>=0);
 sol = solvemoment(F,objective,ops);
 pass = ismember(sol.problem,[0 3 4 5]); 
 result = 'N/A';
@@ -751,7 +742,7 @@ function [pass,sol,result]=bmitest(ops)
 A = [-1 2;-3 -4];
 P = sdpvar(2,2);
 alpha = sdpvar(1,1);
-F = set(P>eye(2))+set(A'*P+P*A < -2*alpha*P)+set(alpha > 0);
+F = set(P>=eye(2))+set(A'*P+P*A <= -2*alpha*P)+set(alpha >= 0);
 sol = solvesdp(F,-alpha,ops);
 pass = ismember(sol.problem,[0 3 4 5]); 
 result = 'N/A';
@@ -790,7 +781,7 @@ D6 = R(6)*Cout6;
 D7 = R(7)*Cout7;
 
 % Constraints
-F = set(x > 1) + set(P < 20) + set(A < 100);
+F = set(x >= 1) + set(P <= 20) + set(A <= 100);
 
 % Objective
 D = max((D1+D4+D6),(D1+D4+D7),(D2+D4+D6),(D2+D4+D7),(D2+D5+D7),(D3+D5+D6),(D3+D7));
@@ -810,7 +801,7 @@ end
 
 
 function result = resultstring(x,xopt)
-if norm(double(x(:))-xopt(:))<1e-3*(1+norm(xopt(:)))
+if norm(double(x(:))-xopt(:))<=1e-3*(1+norm(xopt(:)))
     result = 'Correct';
 else
     result = 'Incorrect';

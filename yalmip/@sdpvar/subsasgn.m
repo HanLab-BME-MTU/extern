@@ -6,11 +6,15 @@ function y = subsasgn(X,I,Y)
 
 try
     if strcmp('()',I.type)
-        X_is_spdvar = isa(X,'sdpvar');
-        Y_is_spdvar = isa(Y,'sdpvar');
+        X_is_spdvar = isa(X,'sdpvar') |  isa(X,'ndsdpvar');
+        Y_is_spdvar = isa(Y,'sdpvar') |  isa(Y,'ndsdpvar');
+        if islogical(I.subs{1})
+            I.subs{1} = double(find(I.subs{1}));
+        end
         if any(I.subs{1} <=0)
             error('Index into matrix is negative or zero.');
-        end
+        end       
+
         switch 2*X_is_spdvar+Y_is_spdvar
             case 1 
                 % This code does not work properly
@@ -42,12 +46,13 @@ try
                     if length(dim)>2
                         y = ndsdpvar(y);
                     end
+                    y = flush(y);
                 catch
                     error(lasterr)
                 end
             case 2
-                if ~isempty(Y)
-                  Y = sparse(Y);
+                if ~isempty(Y)                    
+                    Y = sparse(double(Y));                    
                 end
                 y = X;
                 
@@ -77,6 +82,7 @@ try
                      % Reset info about conic terms
                      if isa(y,'sdpvar')
                          y.conicinfo = [0 0];
+                         y = flush(y);
                      end
                      return;
                 end
@@ -90,28 +96,63 @@ try
                 m = y.dim(2);
                 subX = sparse(subsasgn(full(reshape(X.basis(:,1),n,m)),I,Y));
                 y.basis = subX(:);
-                
-                j = 1;
-                Z = 0*Y;
-                for i = 1:length(x_lmi_variables)
-                    subX = sparse(subsasgn(full(reshape(X.basis(:,i+1),n,m)),I,Z));
-                    if (norm(subX,inf)>0)
-                        y.basis(:,j+1) = subX(:);
-                        lmi_variables = [lmi_variables x_lmi_variables(i)];
-                        j = j+1;
+                if isa(I.subs{1},'char')
+                    I.subs{1} = 1:n;
+                end
+                if length(I.subs)>1
+                    if isa(I.subs{2},'char')
+                        I.subs{1} = 1:m;
                     end
-                end  
-                y.dim(1) = size(subX,1);
-                y.dim(2) = size(subX,2);
-                if isempty(lmi_variables) % Convert back to double!!
-                    y=full(reshape(y.basis(:,1),y.dim(1),y.dim(2)));
-                    return
-                else %Nope, still a sdpvar
-                    y.lmi_variables = lmi_variables;
-                     % Reset info about conic terms
-                    y.conicinfo = [0 0];
+                end
+                if length(I.subs)>1
+                    if length(I.subs{1})==1 & length(I.subs{2})~=1
+                        I.subs{1} = repmat(I.subs{1},size(I.subs{2},1),size(I.subs{2},2));
+                    elseif length(I.subs{2})==1 & length(I.subs{1})~=1
+                        I.subs{2} = repmat(I.subs{2},size(I.subs{1},1),size(I.subs{1},2));
+                    end
                 end
                 
+                if length(I.subs)>1
+                   % LinearIndex = sub2ind([n m],I.subs{1},I.subs{2});
+                    ii = kron(I.subs{1}(:),ones(length(I.subs{2}),1));
+                    jj = kron(ones(length(I.subs{1}),1),I.subs{2}(:));
+                    LinearIndex = sub2ind([n m],ii,jj);%I.subs{1},I.subs{2});
+                else
+                    LinearIndex = I.subs{1};
+                end
+                
+                X.basis(LinearIndex,2:end)=sparse(0);                
+                y.basis = [y.basis(:,1) X.basis(:,2:end)];
+                
+               % j = 1;
+               % Z = 0*Y;
+               % for i = 1:length(x_lmi_variables)
+               %     subX = sparse(subsasgn(full(reshape(X.basis(:,i+1),n,m)),I,Z));
+               %     if (norm(subX,inf)>0)
+               %         y.basis(:,j+1) = subX(:);
+               %         lmi_variables = [lmi_variables x_lmi_variables(i)];
+               %         j = j+1;
+               %     end
+               % end  
+                y.dim(1) = size(subX,1);
+                y.dim(2) = size(subX,2);
+                y = clean(y);
+                if isa(y,'sdpvar')
+                    % Reset info about conic terms
+                    y.conicinfo = [0 0];
+                    y = flush(y);
+                end
+                
+%                 if isempty(lmi_variables) % Convert back to double!!
+%                     y=full(reshape(y.basis(:,1),y.dim(1),y.dim(2)));
+%                     return
+%                 else %Nope, still a sdpvar
+%                     y.lmi_variables = lmi_variables;
+%                      % Reset info about conic terms
+%                     y.conicinfo = [0 0];
+%                     y = flush(y);
+%                 end
+%                 
             case 3
                 z = X;
                 
@@ -126,7 +167,7 @@ try
                 ny = Y.dim(1);
                 my = Y.dim(2);
                 
-                if (mx==1) & (my == 1) & isempty(setdiff(y_lmi_variables,x_lmi_variables)) & (max(I.subs{1}) < nx);
+                if (mx==1) & (my == 1) & isempty(setdiff(y_lmi_variables,x_lmi_variables)) & (max(I.subs{1}) < nx) & length(I.subs)==1 & length(unique(I.subs{1}))==length(I.subs{1}) ;
                     % Fast specialized code for Didier
                      y = specialcode(X,Y,I);
                      return
@@ -172,8 +213,8 @@ try
      %                 
                 
                 all_lmi_variables = union(lmi_variables,y_lmi_variables);
-                in_z = ismembc(all_lmi_variables,lmi_variables);
-                in_y = ismembc(all_lmi_variables,y_lmi_variables);
+                in_z = ismembcYALMIP(all_lmi_variables,lmi_variables);
+                in_y = ismembcYALMIP(all_lmi_variables,y_lmi_variables);
                 z_ind = 2;
                 y_ind = 2;
                 basis = spalloc(size(z.basis,1),1+length(all_lmi_variables),0);

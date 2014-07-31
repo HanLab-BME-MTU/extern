@@ -39,9 +39,13 @@ if options.showprogress;showprogress(['Calling ' model.solver.tag],options.showp
 
 solvertime = clock; 
 problem = 0;  
+warnState = warning;
 try
     [x_s,y_s,info] = sedumi(-F_struc(:,2:end),-c,F_struc(:,1),K,pars);
 catch
+    if findstr(lasterr,'Out of memory')
+        error(lasterr)
+    end
     try
         if options.verbose > 0
             disp(' ');
@@ -58,9 +62,14 @@ catch
     catch
         disp('Nope, unexplained crash in SeDuMi! (could be memory issues or wrong binary)')
         disp('Make sure you have a recent and compiled version')
+        disp(' ')        
+        disp(' ')        
         disp('For better diagnostics, use sdpsettings(''debug'',1)')        
+        disp(' ')        
+        disp(' ')                
     end
 end
+warning(warnState);
 % solvertime = cputime - solvertime;%etime(clock,solvertime
 if model.getsolvertime solvertime = etime(clock,solvertime);else solvertime = 0;end
 

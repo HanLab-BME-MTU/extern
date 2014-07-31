@@ -27,11 +27,38 @@ switch direction
         du = reshape(du,nx*mx,1);
         dd = reshape(dd,nx*mx,1);
         [M,m] = derivebounds(x);
-        F = set(m.*(du+dd) <= x <= M.*(du+dd)) + set(sum([du dd],2) <= 1);
-        F = F + set(z == ((sum(du) + sum(dd))));
-        F = F + set(x > 1e-5+(-1+m).*(1-du));
-        F = F + set(x < -1e-5+(1+M).*(1-dd));
+        fixedzeros = find(M==m & m==0);       
+        positive = find(m>0);
+        negative = find(M<0);
+        left = setdiff(1:nx*mx,[fixedzeros;positive;negative]);
+        
+        m = m(left);
+        M = M(left);
+        x = x(left);
+        du = du(left);
+        dd = dd(left);
+        du(M<=0) = 0;
+        dd(m>=0) = 0;
+        F = [];
+        eps=1e-3;
+        F = F + set(sum([du dd],2) <= 1);
+        F = F + set(z == length(negative)+length(positive) + ((sum(du) + sum(dd))));
+        F = F + set(x >= eps+(m-eps).*(1-du));
+        F = F + set(x <= eps+(M-eps).*du);
+        F = F + set(x <=-eps+(M+eps).*(1-dd));
+        F = F + set(x >= -eps+(m+eps).*dd);
+        F = F + set(m.*(du+dd) <= x <= M.*(dd+du));
         F = F + set(0 <= z <=nx*mx);
+        
+        %F = F + set(x > 0+(m-0).*(1-du));
+        % F = F + set(x < -0+(0+M).*(1-dd));
+        %F = F + set(0 <= z <=nx*mx);
+        
+      %  F = set(m.*(du+dd) <= x <= M.*(du+dd)) + set(sum([du dd],2) <= 1);
+      %  F = F + set(z == ((sum(du) + sum(dd))));
+      %  F = F + set(x > 1e-5+(-1+m).*(1-du));
+      %  F = F + set(x < -1e-5+(1+M).*(1-dd));
+      %  F = F + set(0 <= z <=nx*mx);
     otherwise
 end
 

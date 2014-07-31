@@ -2,25 +2,27 @@ function y = cone(Axplusb,cxplusd)
 %CONE Defines a second order cone constraint ||z||<x
 %
 % Input
-%    z       : column vector SDPVAR object.
-%    h       : scalar double or SDPVAR object
+%    z       : Linear SDPVAR object.
+%    h       : Linear scalar SDPVAR object
 %
 % Example
-%    F = set(cone(z,x)) 
 %
-% An alternative syntax with only one argument is also possible
-%    F = set(cone(z))
-% This command is equivalent to set(cone(z(2:end),z(1))
-% 
-
+% Standard SOCP constraint ||z||<x where z is a vector and x is a scalar
+%    F = cone(z,x)
 %
-% See also  SET, RCONE, @SDPVAR/NORM
-
-% Author Johan Löfberg
-% $Id: cone.m,v 1.7 2008-04-24 11:15:13 joloef Exp $
+% Alternative syntax with only one argument is also possible
+%    F = cone(z)
+% This command is equivalent to cone(z(2:end),z(1)
+%
+% To quickly define several cones, the argument can be a matrix, and the
+% command is then short-hand for 
+% for i = 1:size(z,2);F = [F,cone(z(:,i))];end 
+% The code will however run much fast than the manual version
+%
+% See also  @SDPVAR/NORM
 
 [n,m] = size(Axplusb);
-if min(n,m)>1
+if min(n,m)>1 & nargin>1
     error('z must be a  vector')
 end
 
@@ -31,9 +33,28 @@ if nargin == 2
 else
 end
 
-if n<m
+if n<m & nargin>1
     Axplusb = Axplusb';
 end
+
+if nargin > 1 & ~is(Axplusb,'real')
+    y = cone([real(Axplusb);imag(Axplusb)],cxplusd);
+    return
+end
+
+% if isa(Axplusb,'sdpvar')
+%     if ~is(Axplusb,'linear')
+%         error('Both arguments must be linear');
+%     end
+% end
+% 
+% if nargin > 1
+%     if isa(cxplusd,'sdpvar')
+%         if ~is(cxplusd,'linear')
+%             error('Both arguments must be linear');
+%         end
+%     end
+% end
 
 try
     if nargin == 2
@@ -41,7 +62,11 @@ try
     else
         y = [Axplusb];
     end
-    y.typeflag = 4;
+    if size(Axplusb,2)>1
+        y.typeflag = 54; % Stacked cones
+    else
+        y.typeflag = 4;
+    end
     y = set(y);
 catch
     error(lasterr)

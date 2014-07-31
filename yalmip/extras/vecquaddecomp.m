@@ -78,19 +78,34 @@ for index = 1:n*m
                 % Old version of code
                 [jj,ii,kk] = find(mt');ii = [ii(:) ;0];
                 top = 1;
-                for i = 1:length(x_lin)
-                    if ii(top) == ii(top+1)
-                        % Variable i is the product of two
-                        Qtemp(jj(top),jj(top+1))=Qtemp(jj(top),jj(top+1)) + base(i)/2;
-                        top = top + 2;
-                    else
-                        j = [jj(top)];
-                        if kk(top)==1
-                            ctemp(j)=base(i);
+                if 1
+                    %Qtemp2=Qtemp;
+                    %ctemp2=ctemp;
+                    bilinear_places = find(diff(ii)==0);                    
+                    quadratic_places   = find(diff(ii)~=0 & kk==2);                    
+                    Qtemp(sub2ind(size(Qtemp),jj(bilinear_places),jj(bilinear_places+1)))= base(ii(bilinear_places))/2;
+                    Qtemp(sub2ind(size(Qtemp),jj(quadratic_places),jj(quadratic_places)))= base(ii(quadratic_places))/2;
+                    linear_places = find(variabletype==0);
+                    [iii,jjj] = find(mt(linear_places,:));
+                    ctemp(jjj) = base(linear_places);
+                else
+                    %Qtemp(jj(bilinear_places),jj(bilinear_places+1))
+                    for i = 1:length(x_lin)
+                        if ii(top) == ii(top+1)
+                            % Variable i is the product of two
+                            Qtemp(jj(top),jj(top+1))=Qtemp(jj(top),jj(top+1)) + base(i)/2;
+                            %Qtemp(jj(top),jj(top+1)) = base(i)/2;
+                            top = top + 2;
                         else
-                            Qtemp(j,j)=Qtemp(j,j) + base(i)/2;
+                            j = [jj(top)];
+                            if kk(top)==1
+                                ctemp(j)=base(i);
+                            else
+                                Qtemp(j,j)=Qtemp(j,j) + base(i)/2;
+                                % Qtemp(j,j) = base(i)/2;
+                            end
+                            top = top + 1;
                         end
-                        top = top + 1;
                     end
                 end
                 Qtemp =  Qtemp+Qtemp';

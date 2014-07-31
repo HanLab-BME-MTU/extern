@@ -1,6 +1,6 @@
 function Freal = imag2reallmi(F)
 
-% Author Johan Löfberg 
+% Author Johan Löfberg
 % $Id: imag2reallmi.m,v 1.6 2006-12-18 14:42:28 joloef Exp $
 
 Counter = size(F.clauses,2);
@@ -13,12 +13,16 @@ for i = 1:Counter
     else
         switch F.clauses{i}.type
             case 1
-                reF=real(F.clauses{j}.data);
-                imF=imag(F.clauses{j}.data);
-%               Freal.clauses{j}.data=[reF imF;-imF reF];
-
-              %  Freal.clauses{j}.data = imag2real(F.clauses{j}.data);              
-                Freal.clauses{j}.data = kron(eye(2),reF) + kron([0 1;-1 0],imF);
+                               
+                if hasfactors(Freal.clauses{j}.data)                    
+                    % We use factor-tracking lifting
+                   Freal.clauses{j}.data = lift2real(F.clauses{j}.data);                    
+                else
+                    % Fast without tracking
+                    reF=real(F.clauses{j}.data);
+                    imF=imag(F.clauses{j}.data);                                            
+                    Freal.clauses{j}.data = kron(eye(2),reF) + kron([0 1;-1 0],imF);
+                end
                 
                 j = j+1;
             case {2,3}
@@ -30,7 +34,7 @@ for i = 1:Counter
                 reF=real(F.clauses{j}.data);
                 imF=imag(F.clauses{j}.data);
                 Freal.clauses{j}.data=[reF(1);reF(2:end);imF(2:end)];
-                j = j+1;       
+                j = j+1;
             otherwise
                 error('Internal bug. Please report.');
         end

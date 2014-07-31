@@ -33,4 +33,4 @@ F=[F,0<=x2<=13];
 % Solve problem
 sol = solvesdp(F,objective,sdpsettings('solver','bmibnb','allownonconvex',1));
 mbg_assertfalse(sol.problem)
-mbg_asserttolequal(double(objective),-24.5714 , 1e-2);
+mbg_asserttolequal(double(objective),-24.5714 , 3e-2);

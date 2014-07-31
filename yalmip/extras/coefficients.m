@@ -33,6 +33,14 @@ if isa(p,'double')
     return
 end
 
+if isa(p,'ncvar')
+    if isa(x,'ncvar')
+        error('Coefficients not applicable when x is non-commuting');
+    end
+    [base,v] = ncvar_coefficients(p,x);
+    return
+end
+
 if nargout>1 & (max(size(p))>1)
     error('For matrix inputs, only the coefficients can be returned. Request feature if you need this...');
 end
@@ -51,7 +59,7 @@ base = [];
 for i = 1:length(p)
     allvar = depends(p(i));
     t = setdiff(allvar,xvar);
-    if 1%isa(p(i),'sdpvar')
+    if isa(p(i),'sdpvar')
         [exponent_p,p_base] = getexponentbase(p(i),recover(depends(p(i))));
         ParametricIndicies = find(ismember(allvar,t));
         % FIX : don't define it here, wait until sparser below. Speed!!
@@ -63,11 +71,30 @@ for i = 1:length(p)
             keepthese = j(1:max(k));
             v = recovermonoms(exponent_p(keepthese,find(~ismember(allvar,t))),recover(xvar));
         end
-    end
-    if isa(p,'ncvar')
+    elseif isa(p,'ncvar')
+  
         [exponent_p,ordered_list] = exponents(p,recover(depends(p(i))));
         ParametricIndicies = find(ismember(allvar,t));
+        NotParametricIndicies = find(~ismember(allvar,t));
         
+        pars   = recover(allvar(ParametricIndicies))';
+        nonpar = recover(allvar(NotParametricIndicies))';
+        
+        NonParMonoms = exponent_p(:,NotParametricIndicies);
+        used = zeros(size(exponent_p,1),1);
+        for j = 1:size(exponent_p,1)
+            if ~used(j)
+                thisMonom = NonParMonoms(j);
+                thisMonom = 1;
+                for k = 1:max(find(ordered_list(j,:)))
+                    thisMonom = thisMonom*recover(ordered_list(j,k));
+                end
+                
+                thisBase = prod(ordered_list(j,nonpar));
+            end
+        end
+        
+              
         for j = 1:length(ParametricIndicies)
             a = find(ordered_list(:,1) == ParametricIndicies(j))
             b = [];

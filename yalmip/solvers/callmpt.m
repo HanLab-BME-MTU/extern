@@ -1,7 +1,8 @@
 function output = callmpt(interfacedata)
 
 % Author Johan Löfberg
-% $Id: callmpt.m,v 1.84 2006-11-09 14:49:44 joloef Exp $
+
+% This file is kept for MPT2 compatability
 
 % Speeds up solving LPs in mpmilp
 global mptOptions
@@ -26,6 +27,11 @@ end
 if options.mp.unbounded
     Matrices = removeExplorationConstraints(Matrices);
 end
+
+[dummy,un] = unique([Matrices.G Matrices.E Matrices.W],'rows');
+Matrices.G = Matrices.G(un,:);
+Matrices.E = Matrices.E(un,:);
+Matrices.W = Matrices.W(un,:);
 
 if isempty(Matrices.binary_var_index)
 
@@ -67,6 +73,8 @@ else
             [Matrices.SOS,Matrices.SOSVariables] =  mpt_detect_sos(Matrices);
             [Matrices.lb,Matrices.ub] = mpt_detect_and_improve_bounds(Matrices,Matrices.lb,Matrices.ub,Matrices.binary_var_index,options);                                
             model = mpt_de_mpmilp(Matrices,options,[]);            
+             
+            
             
         otherwise
     end

@@ -21,7 +21,7 @@ function options = sdpsettings(varargin)
 %    solver             - Specify solver [''|sdpt3|sedumi|sdpa|pensdp|penbmi|csdp|dsdp|maxdet|lmilab|cdd|cplex|xpress|mosek|nag|quadprog|linprog|bnb|bmibnb|kypd|mpt|none ('')]
 %    verbose            - Display-level [0|1|2|...(0)] (0-silent, 1-normal, >1-loud)
 %    usex0              - Use the current values obtained from double as initial iterate [0|1 (0)]
-%    dimacs             - Compute DIMACS error measures [0|1(1)]
+%    dimacs             - Compute DIMACS error measures [0|1(0)]
 %
 %    showprogress       - Show progress of YALMIP (suitable for large problems) [0|1 (0)]
 %    cachesolvers       - Check for available solvers only first time solvesdp is called [0|1 (0)]
@@ -37,7 +37,7 @@ function options = sdpsettings(varargin)
 %    shift              - Add small perturbation to (try to) enforce strict feasibility [double >=0 (0)]
 %    relax              - Disregard integrality constraint and/or relax nonlinear terms  [0 | 1 (both) 2 (relax integrality) 3 (relax nonlinear terms) (0)]
 %    allowmilp          - Allow introduction of binary variables to model nonlinear operators [0 | 1 (0)]
-%    expand             - Expand nonlinear operators [0|1 (1)]. Should always be true except in rare debugging cases. 
+%    expand             - Expand nonlinear operators [0|1 (1)]. Should always be true except in rare debugging cases.
 %    plot               - Options when plotting sets
 %
 %   SUM-OF-SQUARES
@@ -62,7 +62,7 @@ function options = sdpsettings(varargin)
 % $Id: sdpsettings.m,v 1.80 2010-04-27 14:25:05 joloef Exp $
 
 % Print out possible values of properties.
-if (nargin == 0) & (nargout == 0)
+if (nargin == 0) && (nargout == 0)
     help sdpsettings
     return;
 end
@@ -91,14 +91,22 @@ Names = {'solver'
     'allowmilp'
     'allownonconvex'
     'savedebug'
-    'debug'    
-  %  'plot.colormap'
-  %  'plot.gradcolor'
-    'plot.edgecolor'   
+    'debug'
+    %  'plot.colormap'
+    %  'plot.gradcolor'
+    %'kkt.primalbounds'
+    'kkt.dualbounds'
+    'kkt.minnormdual'
+    'kkt.licqcut'
+    'kkt.dualpresolve.lplift'
+    'kkt.dualpresolve.passes'
+    'plot.edgecolor'
     'plot.wirestyle'
     'plot.wirecolor'
     'plot.linewidth'
     'plot.shade'
+    'plot.waitbar'
+    'bilevel.algorithm'
     'bilevel.maxiter'
     'bilevel.compslacktol'
     'bilevel.feastol'
@@ -124,7 +132,9 @@ Names = {'solver'
     'bnb.prunetol'
     'bnb.multiple'
     'bnb.profile'
+    'bnb.plotbounds'
     'bnb.ineq2eq'
+    'bnb.rounding'
     'bmilin.trust'
     'bmilin.alpha'
     'bmilin.beta'
@@ -138,9 +148,9 @@ Names = {'solver'
     'bmibnb.diagonalize'
     'bmibnb.lowersolver'
     'bmibnb.uppersolver'
-    'bmibnb.lpsolver'   
+    'bmibnb.lpsolver'
     'bmibnb.target'
-    'bmibnb.boundtarget'
+    'bmibnb.lowertarget'
     'bmibnb.vartol'
     'bmibnb.relgaptol'
     'bmibnb.absgaptol'
@@ -151,6 +161,16 @@ Names = {'solver'
     'bmibnb.roottight'
     'bmibnb.numglobal'
     'bmibnb.localstart'
+    'bmibnb.strengthscheme'
+    'bmibnb.cut.multipliedequality'
+    'bmibnb.cut.convexity'
+    'bmibnb.cut.evalvariable'
+    'bmibnb.cut.bilinear'  
+    'bmibnb.cut.monomial'
+    'bmibnb.cut.complementarity'
+    'cbc.tolint'
+    'cbc.maxiter'
+    'cbc.maxnodes'
     'cutsdp.solver'
     'cutsdp.maxiter'
     'cutsdp.cutlimit'
@@ -164,7 +184,10 @@ Names = {'solver'
     'mp.simplify'
     'mp.presolve'
     'robust.lplp'
+    'robust.auxreduce'
     'robust.polya'
+    'robust.reducedual'
+    'robust.reducesemiexplicit'
     'global.branchmethod'
     'global.branchrule'
     'global.lpreduce'
@@ -182,17 +205,105 @@ Names = {'solver'
     'global.inttol'
     'global.maxiter'
     'global.maxtime'
+    
+    'gurobi.BarIterLimit'
+    'gurobi.Cutoff'
     'gurobi.IterationLimit'
+    'gurobi.NodeLimit'
+    'gurobi.SolutionLimit'
+    'gurobi.TimeLimit'
+    'gurobi.BarConvTol'
+    'gurobi.BarQCPConvTol'
     'gurobi.FeasibilityTol'
     'gurobi.IntFeasTol'
-    'gurobi.OptimalityTol'
+    'gurobi.MarkowitzTol'
     'gurobi.MIPGap'
-    'gurobi.LPMethod'
-    'gurobi.Presolve'
-    'gurobi.TimeLimit'
-    'gurobi.Threads'
+    'gurobi.MIPGapAbs'
+    'gurobi.OptimalityTol'
+    'gurobi.PSDTol'
+    'gurobi.InfUnbdInfo'
+    'gurobi.NormAdjust'
+    'gurobi.ObjScale'
+    'gurobi.PerturbValue'
+    'gurobi.Quad'
+    'gurobi.ScaleFlag'
+    'gurobi.Sifting'
+    'gurobi.SiftMethod'
+    'gurobi.SimplexPricing'
+    'gurobi.BarCorrectors'
+    'gurobi.BarHomogeneous'
+    'gurobi.BarOrder'
+    'gurobi.Crossover'
+    'gurobi.CrossoverBasis'
+    'gurobi.QCPDual'
+    'gurobi.BranchDir'
+    'gurobi.ConcurrentMIP'
+    'gurobi.Heuristics'
+    'gurobi.ImproveStartGap'
+    'gurobi.ImproveStartNodes'
+    'gurobi.ImproveStartTime'
+    'gurobi.MinRelNodes'
+    'gurobi.MIPFocus'
+    'gurobi.MIQCPMethod'
+    'gurobi.NodefileDir'
+    'gurobi.NodefileStart'
+    'gurobi.NodeMethod'
+    'gurobi.PumpPasses'
+    'gurobi.RINS'
+    'gurobi.SolutionNumber'
+    'gurobi.SubMIPNodes'
+    'gurobi.Symmetry'
+    'gurobi.VarBranch'
+    'gurobi.ZeroObjNodes'
+    'gurobi.TuneOutput'
+    'gurobi.TuneResults'
+    'gurobi.TuneTimeLimit'
+    'gurobi.TuneTrials'
+    'gurobi.Cuts'
+    'gurobi.CliqueCuts'
+    'gurobi.CoverCuts'
+    'gurobi.FlowCoverCuts'
+    'gurobi.FlowPathCuts'
+    'gurobi.GUBCoverCuts'
+    'gurobi.ImpliedCuts'
+    'gurobi.MIPSepCuts'
+    'gurobi.MIRCuts'
+    'gurobi.ModKCuts'
+    'gurobi.NetworkCuts'
+    'gurobi.SubMIPCuts'
+    'gurobi.ZeroHalfCuts'
+    'gurobi.CutAggPasses'
+    'gurobi.CutPasses'
+    'gurobi.GomoryPasses'
+    'gurobi.AggFill'
+    'gurobi.Aggregate'
     'gurobi.DisplayInterval'
-    'gurobi.Display'
+    'gurobi.DualReductions'
+    'gurobi.FeasRelaxBigM'
+    'gurobi.IISMethod'
+    'gurobi.LogFile'
+    'gurobi.Method'
+    'gurobi.NonBlocking'
+    'gurobi.NumericFocus'
+    'gurobi.PreCrush'
+    'gurobi.PreDepRow'
+    'gurobi.PreDual'
+    'gurobi.PrePasses'
+    'gurobi.PreMIQPMethod'
+    'gurobi.PrePasses'
+    'gurobi.PreQLinearize'
+    'gurobi.Presolve'
+    'gurobi.PreSparsify'
+    'gurobi.ResultFile'
+    'gurobi.Threads'
+    
+    'filtersd.maxiter'
+    'filtersd.maxtime'
+    'filtersd.maxfeval'        
+    'filtersd.rho'
+    'filtersd.htol'
+    'filtersd.rgtol'
+         
     'mpcvx.solver'
     'mpcvx.relgaptol'
     'mpcvx.absgaptol'
@@ -268,17 +379,41 @@ Names = {'solver'
     'sedumi.cg.restol'
     'sedumi.cg.stagtol'
     'sedumi.cg.maxiter'
-    'sedumi.cg.refine'   
+    'sedumi.cg.refine'
     
-    'sparsecolo.SDPsolver'  
+    'sparsecolo.SDPsolver'
     'sparsecolo.domain'
     'sparsecolo.range'
     'sparsecolo.EQorLMI'
     
-    'dsdp.r0'  
+    'sparsepop.relaxOrder'
+    'sparsepop.sparseSW'
+    'sparsepop.multiCliquesFactor'
+    'sparsepop.scalingSW'
+    'sparsepop.boundSW'
+    'sparsepop.eqTolerance'
+    'sparsepop.perturbation'
+    'sparsepop.reduceMomentMatSW'
+    'sparsepop.complementaritySW'
+    'sparsepop.reduceAMatSW'
+    'sparsepop.SDPsolver'
+    'sparsepop.SDPsolverSW'
+    'sparsepop.SDPsolverEpsilon'
+    'sparsepop.SDPsolverOutFile'
+    'sparsepop.sdpaDataFile'
+    'sparsepop.matFile'
+    'sparsepop.POPsolver'
+    'sparsepop.detailedInfFile'
+    'sparsepop.printFileName'
+    'sparsepop.printLevel'
+    'sparsepop.errorBdIdx'
+    'sparsepop.fValueUbd'
+    'sparsepop.symbolicMath'
+    'sparsepop.mex'      
+    'dsdp.r0'
     'dsdp.zbar'
-    'dsdp.penalty' 
-    'dsdp.boundy' 
+    'dsdp.penalty'
+    'dsdp.boundy'
     'dsdp.gaptol'
     'dsdp.maxit'
     'dsdp.steptol'
@@ -287,20 +422,20 @@ Names = {'solver'
     'dsdp.dobjmin'
     'dsdp.rho'
     'dsdp.dynamicrho'
-    'dsdp.cc'    
-    'dsdp.bigM'    
+    'dsdp.cc'
+    'dsdp.bigM'
     'dsdp.mu0'
     'dsdp.reuse'
-    'dsdp.lp_barrier'      
-    'dsdp.objectiveconstant'    
+    'dsdp.lp_barrier'
+    'dsdp.objectiveconstant'
     'dsdp.matrixfreesize'
-    'dsdp.scale_data'    
+    'dsdp.scale_data'
     'dsdp.maxlanczos'
     'dsdp.max_trust_radius'
     'dsdp.maxtrustradius'
     'dsdp.max_mu_reduction'
     'dsdp.max_infeasible_trust_radius'
-    'dsdp.max_infeasible_mu_reduction'   
+    'dsdp.max_infeasible_mu_reduction'
     'sdplr.feastol'
     'sdplr.centol'
     'sdplr.dir'
@@ -319,7 +454,6 @@ Names = {'solver'
     'sdpa.betaBar'
     'sdpa.gammaStar'
     'sdpa.epsilonDash'
-    'sdpa.searchDir'
     'sdpa.isSymmetric'
     'glpk.lpsolver'
     'glpk.scale'
@@ -356,8 +490,8 @@ Names = {'solver'
     'qsopt.scale'
     'qsopt.maxiter'
     'qsopt.maxtime'
-    'xpress.presol'
-    'xpress.niter'
+    %'xpress.presol'
+    %'xpress.niter'
     'lpsolve.scalemode'
     'cdd.method'
     'clp.solver'
@@ -374,7 +508,7 @@ Names = {'solver'
     'pensdp.DENSE'
     'pensdp.LS'
     'pensdp.XOUT'
-    'pensdp.UOUT'    
+    'pensdp.UOUT'
     'pensdp.U0'
     'pensdp.MU'
     'pensdp.MU2'
@@ -402,12 +536,12 @@ Names = {'solver'
     'penbmi.P_EPS'
     'penbmi.UMIN'
     'penbmi.ALPHA'
-    'penbmi.P0'   
+    'penbmi.P0'
     'penbmi.PEN_UP'
-    'penbmi.ALPHA_UP'  
+    'penbmi.ALPHA_UP'
     'penbmi.PRECISION'
-    'penbmi.PRECISION_2'  
-    'penbmi.CG_TOL_DIR'  
+    'penbmi.PRECISION_2'
+    'penbmi.CG_TOL_DIR'
     
     'pennlp.maxit'
     'pennlp.nwtiters'
@@ -423,7 +557,7 @@ Names = {'solver'
     'pennlp.prec'
     'pennlp.cmaxnzs'
     'pennlp.autoini'
-    'pennlp.ipenup'    
+    'pennlp.ipenup'
     'pennlp.precision'
     'pennlp.uinit'
     'pennlp.pinit'
@@ -437,9 +571,9 @@ Names = {'solver'
     'pennlp.cgtolup'
     'pennlp.uinitbox'
     'pennlp.uinitnc'
-
+    
     'lmirank.solver'
-    'lmirank.maxiter'    
+    'lmirank.maxiter'
     'lmirank.eps'
     'lmirank.itermod'
     'lmilab.reltol'
@@ -456,13 +590,15 @@ Names = {'solver'
     'qpip.mu'
     'qpip.method'
     
+    'quadprogbb.max_time'
+    'quadprogbb.fathom_tol'
+    'quadprogbb.tol'
+    'quadprogbb.use_quadprog'
+    'quadprogbb.use_single_processor'
     
     'lindo.LS_IPARAM_NLP_SOLVER'
     'lindo.LS_IPARAM_NLP_MAXLOCALSEARCH'
-    'lindo.METHOD'
-    
-
-    'mosek.param'    
+    'lindo.METHOD'   
     'sos.model'
     'sos.newton'
     'sos.congruence'
@@ -491,7 +627,7 @@ Names = {'solver'
     'csdp.minstepd'
     'csdp.usexzgap'
     'csdp.tweakgap'
-        
+    
     'sdpnal.tol'
     'sdpnal.sigma'
     'sdpnal.maxiter'
@@ -532,11 +668,11 @@ Names = {'solver'
     'moment.solver'
     'moment.refine'
     'moment.extractrank'
-    'moment.rceftol'    
+    'moment.rceftol'
     'ipopt.tol'
     'ipopt.mu_strategy'
     'ipopt.hessian_approximation'
-            
+    
     'logdetppa.tol'
     'logdetppa.sig'
     'logdetppa.maxiter'
@@ -550,7 +686,7 @@ Names = {'solver'
     'logdetppa.switch_alt_newton_tol'
     
     'powersolver'
-};
+    };
 
 % Try to run optimset
 [Names,quadprognames,quadprogops]     = trytoset('quadprog',Names);
@@ -558,6 +694,8 @@ Names = {'solver'
 [Names,bintprognames,bintprogops]     = trytoset('bintprog',Names);
 [Names,fminconnames,fminconops]       = trytoset('fmincon',Names);
 [Names,fminsearchnames,fminsearchops] = trytoset('fminsearch',Names);
+[Names,lsqnonnegnames,lsqnonnegops]   = trytoset('lsqnonneg',Names);
+[Names,lsqlinnames,lsqlinops]         = trytoset('lsqlin',Names);
 
 obsoletenames ={
     'abstol'
@@ -581,7 +719,7 @@ obsoletenames ={
 [m,n] = size(Names);
 names = lower(Names);
 
-if (nargin>0) & isstruct(varargin{1})
+if (nargin>0) && isstruct(varargin{1})
     options = varargin{1};
     paramstart = 2;
 else
@@ -589,10 +727,10 @@ else
     % YALMIP options
     options.solver = '';
     options.verbose = 1;
-    options.dimacs = 1;
+    options.debug = 0;
+    options.usex0 = 0;
     options.warning = 1;
-    options.cachesolvers = 0;
-    options.beeponproblem = [-5 -4 -3 -2 -1];
+    options.cachesolvers = 0;  
     options.showprogress = 0;
     options.saveduals = 1;
     options.removeequalities = 0;
@@ -604,28 +742,37 @@ else
     options.relax = 0;
     options.dualize = 0;
     options.usex0 = 0;
-    options.shift = 0; 
-    options.savedebug = 0; 
+    options.savedebug = 0;
     options.debug = 0;
-    options.expand = 1;    
+    options.expand = 1;
     options.allowmilp = 1;
     options.allownonconvex = 1;
-       
-   % options.plot.colormap = 'hsv';
-   % options.plot.gradcolor = 0;
+    options.shift = 0;
+    options.dimacs = 0;
+    options.beeponproblem = [-5 -4 -3 -2 -1];
+    % options.plot.colormap = 'hsv';
+    % options.plot.gradcolor = 0;
     options.plot.edgecolor = 'k';
     options.plot.wirestyle = '-';
     options.plot.wirecolor = 'k';
     options.plot.linewidth = 0.5;
-    options.plot.shade = 0.6;
+    options.plot.shade = 1;
+    options.plot.waitbar = 1;
+    
+    %options.kkt.primalbounds = 1;
+    options.kkt.dualbounds = 1;
+    options.kkt.dualpresolve.passes = 1;
+    options.kkt.dualpresolve.lplift = 1;
+    options.kkt.minnormdual = 0;
+    options.kkt.licqcut = 0;
     
     options.sos.model = 0;
-    options.sos.newton = 1;    
+    options.sos.newton = 1;
     options.sos.congruence = 2;
     options.sos.scale = 1;
     options.sos.numblkdg = 0;
     options.sos.postprocess = 0;
-    options.sos.csp = 0;    
+    options.sos.csp = 0;
     options.sos.extlp = 1;
     options.sos.impsparse = 0;
     options.sos.sparsetol = 1e-5;
@@ -643,13 +790,17 @@ else
     options.moment.rceftol = -1;
     
     options.robust.lplp = 'enumeration';
+    options.robust.auxreduce = 'none';
+    options.robust.reducedual = 0;
+    options.robust.reducesemiexplicit = 0;
     options.robust.polya = nan;
-      
+    
+    options.bilevel.algorithm = 'internal';
     options.bilevel.maxiter = 1e4;
     options.bilevel.outersolver = '';
     options.bilevel.innersolver = '';
     options.bilevel.rootcuts = 0;
-    options.bilevel.solvefrp = 1;
+    options.bilevel.solvefrp = 0;
     options.bilevel.relgaptol = 1e-3;
     options.bilevel.feastol = 1e-6;
     options.bilevel.compslacktol = 1e-8;
@@ -668,6 +819,8 @@ else
     options.bnb.nodetight = 0;
     options.bnb.nodefix = 0;
     options.bnb.ineq2eq = 0;
+    options.bnb.plotbounds = 0;
+    options.bnb.rounding = {'ceil','floor','round','shifted round','fix'};
     
     options.bnb.round = 1;
     options.bnb.maxiter = 300;
@@ -677,15 +830,21 @@ else
     options.bnb.profile = 0;
     
     try
-        options.bpmpd.opts = bpopt;    
+        options.bpmpd.opts = bpopt;
     catch
         options.bpmpd.opts =[];
     end
     
-        
+    
     % Options for global BMI solver
     options.bmibnb.branchmethod = 'best';
     options.bmibnb.branchrule = 'omega';
+    options.bmibnb.cut.multipliedequality = 0;
+    options.bmibnb.cut.convexity = 0;
+    options.bmibnb.cut.evalvariable = 1;
+    options.bmibnb.cut.bilinear = 1;
+    options.bmibnb.cut.monomial = 1;
+    options.bmibnb.cut.complementarity = 1;
     options.bmibnb.sdpcuts = 0;
     options.bmibnb.lpreduce = 1;
     options.bmibnb.lowrank  = 0;
@@ -705,6 +864,8 @@ else
     options.bmibnb.roottight = 1;
     options.bmibnb.numglobal = inf;
     options.bmibnb.localstart = 'relaxed';
+    options.bmibnb.presolvescheme = [];
+    options.bmibnb.strengthscheme = [1 2 1 3 1 4 1 6 1 5 1 4 1 6 1 4 1];
     
     options.cutsdp.solver = '';
     options.cutsdp.maxiter = 100;
@@ -724,10 +885,10 @@ else
     options.global.branchrule = 'omega';
     options.global.lowersolver = '';
     options.global.uppersolver = '';
-    options.global.lpsolver = '';    
+    options.global.lpsolver = '';
     options.global.sdpcuts = 0;
     options.global.lpreduce = 1;
-    options.global.roottight = 1;    
+    options.global.roottight = 1;
     options.global.lowrank  = 0;
     options.global.target = -inf;
     options.global.vartol = 1e-3;
@@ -736,7 +897,7 @@ else
     options.global.pdtol = -1e-6;
     options.global.eqtol = 1e-6;
     options.global.inttol = 1e-4;
-    options.global.round = 1;    
+    options.global.round = 1;
     options.global.maxiter = 100;
     options.global.maxtime = 3600;
     
@@ -747,6 +908,10 @@ else
     options.mpcvx.plot = 0;
     options.mpcvx.rays = 'n*20';
     
+    options.cbc.tolint = 1e-4;
+    options.cbc.maxiter = 10000;
+    options.cbc.maxnodes = 100000;
+
     options.cdd.method = 'criss-cross';
     
     options.clp.solver = 1;
@@ -757,8 +922,129 @@ else
     options.clp.primalpivot = 1;
     options.clp.dualpivot = 1;
     
+    options.quadprogbb.max_time = inf;
+  
+    try
+        options.ipopt = ipoptset;
+        options.ipopt.hessian_approximation = 'limited-memory';
+        
+        cNames = recursivefieldnames(options.ipopt);
+        for i = 1:length(cNames)
+            Names{end+1} = ['ipopt.' cNames{i}];
+        end
+        [m,n] = size(Names);
+        names = lower(Names);               
+    catch
+        options.ipopt.mu_strategy = 'adaptive';
+        options.ipopt.tol = 1e-7;
+        options.ipopt.hessian_approximation = 'limited-memory';    
+    end
+      
+    try   
+        options.bonmin = bonminset([],'noIpopt');       
+        options.bonmin = rmfield(options.bonmin,'var_lin');
+        options.bonmin = rmfield(options.bonmin,'cons_lin');
+        
+        cNames = recursivefieldnames(options.bonmin);
+        for i = 1:length(cNames)
+            Names{end+1} = ['bonmin.' cNames{i}];
+        end
+        [m,n] = size(Names);
+        names = lower(Names);
+    catch
+        options.bonmin =[];
+    end
+    
+     try
+        options.nomad = nomadset;                       
+        cNames = recursivefieldnames(options.nomad);
+        for i = 1:length(cNames)
+            Names{end+1} = ['nomad.' cNames{i}];          
+        end
+        [m,n] = size(Names);
+        names = lower(Names);
+    catch
+        options.nomad =[];
+     end
+    
+     
+     try
+         options.clp = clpset;
+         cNames = recursivefieldnames(options.clp);
+         for i = 1:length(cNames)
+             Names{end+1} = ['clp.' cNames{i}];
+         end
+         [m,n] = size(Names);
+         names = lower(Names);
+     catch
+         
+     end
+     
+     try
+         options.cbc = cbcset;
+         cNames = recursivefieldnames(options.cbc);
+         for i = 1:length(cNames)
+             Names{end+1} = ['cbc.' cNames{i}];
+         end
+         [m,n] = size(Names);
+         names = lower(Names);
+     catch
+         
+     end
+     
+     try
+         options.intlinprog =optimoptions('intlinprog');
+         evalc('cNames = recursivefieldnames(struct(options.intlinprog));');
+         for i = 1:length(cNames)
+             Names{end+1} = ['intlinprog.' cNames{i}];
+         end
+         [m,n] = size(Names);
+         names = lower(Names);
+     catch
+         options.intlinprog = [];
+     end
+     
+     try
+         options.ooqp = ooqpset;
+         cNames = recursivefieldnames(options.ooqp);
+         for i = 1:length(cNames)
+             Names{end+1} = ['ooqp.' cNames{i}];
+         end
+         [m,n] = size(Names);
+         names = lower(Names);
+     catch
+         options.ooqp = [];
+     end
+    
+    try
+        options.xpress = xprsoptimset;
+        cNames = recursivefieldnames(options.xpress);
+        for i = 1:length(cNames)
+            Names{end+1} = ['xpress.' cNames{i}];
+            options.xpress = setfield(options.xpress,cNames{i},[]);
+        end
+        [m,n] = size(Names);
+        names = lower(Names);
+    catch
+        options.xpress =[];
+    end
+            
+    try
+        options.qpoases = qpOASES_options;
+        cNames = recursivefieldnames(options.qpoases);
+        for i = 1:length(cNames)
+            Names{end+1} = ['xpress.' cNames{i}];
+            options.qpoases = setfield(options.qpoases,cNames{i},[]);
+        end
+        [m,n] = size(Names);
+        names = lower(Names);
+    catch
+        options.qpoases =[];
+    end
+        
     try
         options.cplex = cplexoptimset('cplex');
+        options.cplex.output.clonelog = 0;
         remove = zeros(length(Names),1);
         for i = 1:length(Names)
             if strfind(Names{i},'cplex')
@@ -766,7 +1052,7 @@ else
             end
         end
         Names = Names(find(~remove));
-        cNames = recursicefieldnames(options.cplex);
+        cNames = recursivefieldnames(options.cplex);
         for i = 1:length(cNames)
             Names{end+1} = ['cplex.' cNames{i}];
         end
@@ -786,6 +1072,113 @@ else
     end
     
     try
+        options.baron = baronset;
+        cNames = recursivefieldnames(options.baron);
+        for i = 1:length(cNames)
+            Names{end+1} = ['baron.' cNames{i}];
+        end
+        [m,n] = size(Names);
+        names = lower(Names);
+    catch
+        options.baron = [];
+    end
+    
+    try
+        options.knitro = optimset;
+        options.knitro.optionsfile = '';
+        cNames = recursivefieldnames(options.knitro);
+        for i = 1:length(cNames)
+            Names{end+1} = ['knitro.' cNames{i}];
+        end
+        [m,n] = size(Names);
+        names = lower(Names);
+    catch
+       options.knitro.optionsfile = '';
+    end
+    
+    try
+        % OPTI Toolbox interface
+        options.csdp = csdpset();
+        
+        remove = zeros(length(Names),1);
+        for i = 1:length(Names)
+            if strfind(Names{i},'csdp')
+                remove(i)=1;
+            end
+        end
+        Names = Names(find(~remove));
+        cNames = recursivefieldnames(options.csdp);
+        for i = 1:length(cNames)
+            Names{end+1} = ['csdp.' cNames{i}];
+        end
+        [m,n] = size(Names);
+        names = lower(Names);
+        
+    catch
+        options.csdp.axtol  = 1e-8;
+        options.csdp.atytol = 1e-8;
+        options.csdp.objtol = 1e-8;
+        options.csdp.pinftol = 1e8;
+        options.csdp.dinftol = 1e8;
+        options.csdp.maxiter = 100;
+        options.csdp.minstepfrac = 0.90;
+        options.csdp.maxstepfrac = 0.97;
+        options.csdp.minstepp = 1e-8;
+        options.csdp.minstepd = 1e-8;
+        options.csdp.usexzgap = 1;
+        options.csdp.tweakgap = 0;
+    end
+        
+    try
+        options.scip = optiset;
+        cNames = recursivefieldnames(options.scip);
+        for i = 1:length(cNames)
+            Names{end+1} = ['scip.' cNames{i}];
+        end
+        [m,n] = size(Names);
+        names = lower(Names);
+    catch
+        options.scip = [];
+    end
+    
+    try
+        % OPTI Toolbox interface
+        options.dsdp = dsdpset();
+        
+        remove = zeros(length(Names),1);
+        for i = 1:length(Names)
+            if strfind(Names{i},'dsdp')
+                remove(i)=1;
+            end
+        end
+        Names = Names(find(~remove));
+        cNames = recursivefieldnames(options.dsdp);
+        for i = 1:length(cNames)
+            Names{end+1} = ['dsdp.' cNames{i}];
+        end
+        [m,n] = size(Names);
+        names = lower(Names);
+        
+    catch
+        % Options for DSDP 5.6 classical interface
+        options.dsdp.r0 = -1;
+        options.dsdp.zbar = 0;
+        options.dsdp.penalty  = 1e8;
+        options.dsdp.boundy  = 1e6;
+        options.dsdp.gaptol = 1e-7;
+        options.dsdp.maxit  = 500;
+        options.dsdp.steptol=5e-2;
+        options.dsdp.inftol=1e-8;
+        options.dsdp.dual_bound = 1e20;
+        options.dsdp.rho = 3;
+        options.dsdp.dynamicrho = 1;
+        options.dsdp.bigM = 0;
+        options.dsdp.mu0 = -1;
+        options.dsdp.reuse = 4;
+        options.dsdp.lp_barrier = 1;
+    end
+    
+    try        
         evalc('[r,res]=mosekopt(''param'');');
         options.mosek = res.param;
         remove = zeros(length(Names),1);
@@ -795,58 +1188,75 @@ else
             end
         end
         Names = Names(find(~remove));
-        cNames = recursicefieldnames(options.mosek);
+        cNames = recursivefieldnames(options.mosek);
         for i = 1:length(cNames)
             Names{end+1} = ['mosek.' cNames{i}];
         end
         [m,n] = size(Names);
-        names = lower(Names);        
+        names = lower(Names);
     catch
         options.mosek.param = [];
     end
-        
-    options.csdp.axtol  = 1e-8;
-    options.csdp.atytol = 1e-8;
-    options.csdp.objtol = 1e-8;
-    options.csdp.pinftol = 1e8;
-    options.csdp.dinftol = 1e8;
-    options.csdp.maxiter = 100;
-    options.csdp.minstepfrac = 0.90;
-    options.csdp.maxstepfrac = 0.97;
-    options.csdp.minstepp = 1e-8;
-    options.csdp.minstepd = 1e-8;
-    options.csdp.usexzgap = 1;
-    options.csdp.tweakgap = 0;
     
-    options.mosek.param = [];
+    try
+        options.penlab = penlab.defopts(1);
+        cNames = recursivefieldnames(options.penlab);
+        for i = 1:length(cNames)
+            Names{end+1} = ['penlab.' cNames{i}];
+        end
+        [m,n] = size(Names);
+        names = lower(Names);
+    catch
+        options.penlab = [];
+    end
     
-    % Options for DSDP 5.6
-    options.dsdp.r0 = -1;
-    options.dsdp.zbar = 0;
-    options.dsdp.penalty  = 1e8;
-    options.dsdp.boundy  = 1e6;
-    options.dsdp.gaptol = 1e-7;
-    options.dsdp.maxit  = 500;
-    options.dsdp.steptol=5e-2;      
-    options.dsdp.inftol=1e-8;      
-    options.dsdp.dual_bound = 1e20;
-    options.dsdp.rho = 3;  
-    options.dsdp.dynamicrho = 1;  
-    options.dsdp.bigM = 0;  
-    options.dsdp.mu0 = -1;
-    options.dsdp.reuse = 4;
-    options.dsdp.lp_barrier = 1;    
-
+    
+%     options.csdp.axtol  = 1e-8;
+%     options.csdp.atytol = 1e-8;
+%     options.csdp.objtol = 1e-8;
+%     options.csdp.pinftol = 1e8;
+%     options.csdp.dinftol = 1e8;
+%     options.csdp.maxiter = 100;
+%     options.csdp.minstepfrac = 0.90;
+%     options.csdp.maxstepfrac = 0.97;
+%     options.csdp.minstepp = 1e-8;
+%     options.csdp.minstepd = 1e-8;
+%     options.csdp.usexzgap = 1;
+%     options.csdp.tweakgap = 0;    
+  %  options.mosek.param = [];
+    
+%     % Options for DSDP 5.6
+%     options.dsdp.r0 = -1;
+%     options.dsdp.zbar = 0;
+%     options.dsdp.penalty  = 1e8;
+%     options.dsdp.boundy  = 1e6;
+%     options.dsdp.gaptol = 1e-7;
+%     options.dsdp.maxit  = 500;
+%     options.dsdp.steptol=5e-2;
+%     options.dsdp.inftol=1e-8;
+%     options.dsdp.dual_bound = 1e20;
+%     options.dsdp.rho = 3;
+%     options.dsdp.dynamicrho = 1;
+%     options.dsdp.bigM = 0;
+%     options.dsdp.mu0 = -1;
+%     options.dsdp.reuse = 4;
+%     options.dsdp.lp_barrier = 1;
+    
     % Older versions
-    options.dsdp.objectiveconstant = 0;    
+    options.dsdp.objectiveconstant = 0;
     options.dsdp.matrixfreesize = 3000;
-    options.dsdp.scale_data = 1;    
+    options.dsdp.scale_data = 1;
     options.dsdp.max_trust_radius = -1;
     options.dsdp.maxtrustradius = 1e10;
     options.dsdp.max_infeasible_trust_radius = -1;
     options.dsdp.max_infeasible_mu_reduction = 2;
-    options.dsdp.max_mu_reduction = 1e8;    
+    options.dsdp.max_mu_reduction = 1e8;
     options.dsdp.maxlanczos = 20;
+    
+    
+    options.filtersd.maxiter = 1500;
+    options.filtersd.maxtime = 1000;
+    options.filtersd.maxfeval = 10000;         
     
     % Options for GLPK
     options.glpk.lpsolver = 1;
@@ -868,22 +1278,98 @@ else
     options.glpk.tolobj = 1e-7;
     options.glpk.presol = 1;
     options.glpk.save = 0;
+            
+    options.gurobi.BarIterLimit = inf;
+    options.gurobi.Cutoff = inf;
+    options.gurobi.IterationLimit = inf;
+    options.gurobi.NodeLimit = inf;
+    options.gurobi.SolutionLimit = inf;
+    options.gurobi.TimeLimit = inf;
+    
+    options.gurobi.BarConvTol = 1e-8;
+    options.gurobi.BarQCPConvTol = 1e-6;
+    options.gurobi.FeasibilityTol = 1e-6;
+    options.gurobi.IntFeasTol = 1e-6;
+    options.gurobi.MarkowitzTol = 0.0078125;
+    options.gurobi.MIPGap = 1e-4;
+    options.gurobi.MIPGapAbs = 1e-10;
+    options.gurobi.OptimalityTol = 1e-6;
+    options.gurobi.PSDTol = 1e-6;
+    options.gurobi.InfUnbdInfo = 0;
+    options.gurobi.NormAdjust = -1;
+    options.gurobi.ObjScale = 0;
+    options.gurobi.PerturbValue = 0.0002;
+    options.gurobi.Quad = -1;
+    options.gurobi.ScaleFlag = 1;
+    options.gurobi.Sifting = -1;
+    options.gurobi.SiftMethod = -1;
+    options.gurobi.SimplexPricing = -1;
+    options.gurobi.BarCorrectors = -1;
+    options.gurobi.BarHomogeneous = -1;
+    options.gurobi.BarOrder = -1;
+    options.gurobi.Crossover = -1;
+    options.gurobi.CrossoverBasis = 0;
+    options.gurobi.QCPDual = 0;
+    options.gurobi.BranchDir = 0;
+    options.gurobi.ConcurrentMIP = 1;
+    options.gurobi.Heuristics = 0.05;
+    options.gurobi.ImproveStartGap = 0;
+    options.gurobi.ImproveStartNodes = inf;
+    options.gurobi.ImproveStartTime = inf;
+    options.gurobi.MinRelNodes = 0;
+    options.gurobi.MIPFocus = 0;
+    options.gurobi.MIQCPMethod = -1;
+    options.gurobi.NodefileDir = '.';
+    options.gurobi.NodefileStart = inf;
+    options.gurobi.NodeMethod = 1;
+    options.gurobi.PumpPasses = 0;
+    options.gurobi.RINS = -1;
+    options.gurobi.SolutionNumber = 0;
+    options.gurobi.SubMIPNodes = 500;
+    options.gurobi.Symmetry = -1;
+    options.gurobi.VarBranch = -1;
+    options.gurobi.ZeroObjNodes = 0;
+    options.gurobi.TuneOutput = 2;
+    options.gurobi.TuneResults = -1;
+    options.gurobi.TuneTimeLimit = -1;
+    options.gurobi.TuneTrials = 2;
+    options.gurobi.Cuts = -1;
+    options.gurobi.CliqueCuts = -1;
+    options.gurobi.CoverCuts = -1;
+    options.gurobi.FlowCoverCuts = -1;
+    options.gurobi.FlowPathCuts = -1;
+    options.gurobi.GUBCoverCuts = -1;
+    options.gurobi.ImpliedCuts = -1;
+    options.gurobi.MIPSepCuts = -1;
+    options.gurobi.MIRCuts = -1;
+    options.gurobi.ModKCuts = -1;
+    options.gurobi.NetworkCuts = -1;
+    options.gurobi.SubMIPCuts = -1;
+    options.gurobi.ZeroHalfCuts = -1;
+    options.gurobi.CutAggPasses = -1;
+    options.gurobi.CutPasses = -1;
+    options.gurobi.GomoryPasses = -1;
+    options.gurobi.AggFill = 10;
+    options.gurobi.Aggregate = 1;    
+    options.gurobi.DisplayInterval = 5;
+    options.gurobi.DualReductions = 1;
+    options.gurobi.FeasRelaxBigM = 1e6;
+    options.gurobi.IISMethod = -1;
+    options.gurobi.LogFile = '';
+    options.gurobi.Method = -1;
+    options.gurobi.NonBlocking = 0;
+    options.gurobi.NumericFocus = 0;
+    options.gurobi.PreCrush = 0;
+    options.gurobi.PreDepRow = -1;
+    options.gurobi.PreDual = -1;
+    options.gurobi.PreMIQPMethod = -1;
+    options.gurobi.PreQLinearize = -1;
+    options.gurobi.PrePasses = -1;
+    options.gurobi.Presolve = -1;
+    options.gurobi.PreSparsify = 0;
+    options.gurobi.ResultFile = '';
+    options.gurobi.Threads = 0;
       
-    options.gurobi.IterationLimit=1e12;
-    options.gurobi.FeasibilityTol=1e-6;
-    options.gurobi.IntFeasTol=1e-5;
-    options.gurobi.OptimalityTol=1e-6;
-    options.gurobi.MIPGap=1e-4;
-    options.gurobi.LPMethod=1;
-    options.gurobi.Presolve=-1;
-    options.gurobi.TimeLimit=1e12;
-    options.gurobi.Threads=0;
-    options.gurobi.DisplayInterval=5;
-    
-    options.ipopt.mu_strategy = 'adaptive';
-    options.ipopt.tol = 1e-7;
-    options.ipopt.hessian_approximation = 'limited-memory';
-    
     options.kypd.solver = '';
     options.kypd.lyapunovsolver = 'schur';
     options.kypd.reduce = 0;
@@ -896,25 +1382,25 @@ else
     options.lmilab.maxiter = 100;
     options.lmilab.feasradius = 1e9;
     options.lmilab.L = 10;
-   
+    
     options.lmirank.solver = '';
-    options.lmirank.maxiter = 100;      
+    options.lmirank.maxiter = 100;
     options.lmirank.maxiter = 1000;
     options.lmirank.eps = 1e-9;
     options.lmirank.itermod = 1;
     
     
-    options.logdetppa.tol = 1e-6; 
-    options.logdetppa.sig = 10;   
-    options.logdetppa.maxiter    = 100; 
+    options.logdetppa.tol = 1e-6;
+    options.logdetppa.sig = 10;
+    options.logdetppa.maxiter    = 100;
     options.logdetppa.maxitersub = 30;
-    options.logdetppa.precond    = 1; 
-    options.logdetppa.maxitpsqmr = 100; 
-    options.logdetppa.stagnate_check_psqmr = 0; 
-    options.logdetppa.scale_data = 2;    
-    options.logdetppa.plotyes    = 0;    
-    options.logdetppa.use_proximal = 1; 
-    options.logdetppa.switch_alt_newton_tol = 1e-2;                 
+    options.logdetppa.precond    = 1;
+    options.logdetppa.maxitpsqmr = 100;
+    options.logdetppa.stagnate_check_psqmr = 0;
+    options.logdetppa.scale_data = 2;
+    options.logdetppa.plotyes    = 0;
+    options.logdetppa.use_proximal = 1;
+    options.logdetppa.switch_alt_newton_tol = 1e-2;
     
     options.vsdp.solver = '';
     options.vsdp.verifiedupper = 0;
@@ -925,7 +1411,7 @@ else
     options.lindo.LS_IPARAM_NLP_SOLVER = 'LS_NMETHOD_MSW_GRG';
     options.lindo.LS_IPARAM_NLP_MAXLOCALSEARCH = 1;
     options.lindo.LS_METHOD = 'LS_METHOD_FREE';
-   
+    
     options.lpsolve.scalemode = 0;
     
     % Options for MAXDET solver
@@ -954,8 +1440,8 @@ else
     options.penbmi.U0 = 1;
     options.penbmi.MU = 0.7;
     options.penbmi.MU2 = 0.5;          %!0.1
-   % options.penbmi.PBM_EPS = 1e-6;     %!1e-7
-    options.penbmi.PRECISION = 1e-6;     %!1e-7    
+    % options.penbmi.PBM_EPS = 1e-6;     %!1e-7
+    options.penbmi.PRECISION = 1e-6;     %!1e-7
     options.penbmi.P_EPS = 1e-4;       %!1e-6
     options.penbmi.UMIN = 1e-14;
     options.penbmi.ALPHA = 1e-2;
@@ -995,7 +1481,7 @@ else
     options.pennlp.uinitbox = 1;
     options.pennlp.uinitnc = 1;
     
-      
+    
     options.pensdp.DEF = 1;
     options.pensdp.PBM_MAX_ITER = 50;
     options.pensdp.UM_MAX_ITER = 100;
@@ -1015,8 +1501,17 @@ else
     
     options.powersolver = [];
     
+    
+    options.quadprogbb.max_time = 86400;
+    options.quadprogbb.fathom_tol = 1e-6;
+    options.quadprogbb.tol = 1e-8;
+    options.quadprogbb.use_quadprog = 1;
+    options.quadprogbb.use_single_processor = 0;
+    
+    
+    
     % Options for SDPA
-    options.sdpa.maxIteration = 40 ;
+    options.sdpa.maxIteration = 100 ;
     options.sdpa.epsilonStar = 1.0E-7;
     options.sdpa.lambdaStar  = 1.0E2  ;
     options.sdpa.omegaStar  = 2.0 ;
@@ -1026,14 +1521,13 @@ else
     options.sdpa.betaBar  = 0.2 ;
     options.sdpa.gammaStar  = 0.9 ;
     options.sdpa.epsilonDash  = 1.0E-7 ;
-    options.sdpa.searchDir = 1 ;
     options.sdpa.isSymmetric = 0 ;
     
     options.sdplr.feastol = 1e-5;
     options.sdplr.centol = 1e-1;
     options.sdplr.dir = 1;
     options.sdplr.penfac = 2;
-    options.sdplr.reduce = 1;
+    options.sdplr.reduce = 0;
     options.sdplr.limit = 3600;
     options.sdplr.soln_factored = 0;
     options.sdplr.maxrank = 0;
@@ -1062,11 +1556,36 @@ else
     options.sdpt3.cachesize = 256;
     options.sdpt3.linsys_options = 'raugmatsys';
     options.sdpt3.smallblkdim = 30;
-
+    
     options.sparsecolo.SDPsolver = '';
     options.sparsecolo.domain = 2;
     options.sparsecolo.range = 1;
     options.sparsecolo.EQorLMI = 2;
+    
+    options.sparsepop.relaxOrder = 1;
+    options.sparsepop.sparseSW = 1;
+    options.sparsepop.multiCliquesFactor = 1;
+    options.sparsepop.scalingSW = 1;
+    options.sparsepop.boundSW = 2;
+    options.sparsepop.eqTolerance = 0;
+    options.sparsepop.perturbation = 0;
+    options.sparsepop.reduceMomentMatSW = 1;
+    options.sparsepop.complementaritySW = 0;
+    options.sparsepop.reduceAMatSW = 1;
+    options.sparsepop.SDPsolver = 'sedumi';
+    options.sparsepop.SDPsolverSW = 1;
+    options.sparsepop.SDPsolverEpsilon = 1.0000e-009;
+    options.sparsepop.SDPsolverOutFile = 0;
+    options.sparsepop.sdpaDataFile = '';
+    options.sparsepop.matFile = '';
+    options.sparsepop.POPsolver = '';
+    options.sparsepop.detailedInfFile = '';
+    options.sparsepop.printFileName = 1;
+    %  options.sparsepop.printLevel = [2 0];
+    options.sparsepop.errorBdIdx = '';
+    options.sparsepop.fValueUbd = '';
+    options.sparsepop.symbolicMath = 1;
+    options.sparsepop.mex = 0;
     
     options.sdpnal.tol = 1e-6;
     options.sdpnal.sigma = 10;
@@ -1079,7 +1598,7 @@ else
     options.sdpnal.scale_data = 2;
     options.sdpnal.plotyes = 0;
     options.sdpnal.proximal = 1;
-        
+    
     % Options for SeDuMi (1.03 -> 1.05)
     options.sedumi.alg    = 2;
     options.sedumi.beta   = 0.5;
@@ -1122,9 +1641,9 @@ else
     options.qpip.mu = 0.0;
     options.qpip.method = 1;
     
-    options.xpress.presol = 1;
-    options.xpress.niter  = 1;
-
+    %  options.xpress.presol = 1;
+    %  options.xpress.niter  = 1;
+    
     try
         % Maybe we already created these above
         if exist('fminconops','var')
@@ -1133,12 +1652,16 @@ else
             options.bintprog  = bintprogops;
             options.fmincon  = fminconops;
             options.fminsearch  = fminsearchops;
+            options.lsqnonneg  = lsqnonnegops;
+            options.lsqlin  = lsqlinops;
         else
             options.quadprog = optimset('quadprog');
             options.linprog  = optimset('linprog');
             options.bintprog  = optimset('linprog');
             options.fmincon  = optimset('fmincon');
             options.fminsearch  = optimset('fminsearch');
+            options.lsqnonneg  = optimset('lsqnonneg');
+            options.lsqlin  = optimset('lsqlin');
         end
     catch
         try
@@ -1168,7 +1691,7 @@ while i <= nargin
     arg = varargin{i};
     
     if ~expectval
-        if ~isstr(arg)
+        if ~ischar(arg)
             error(sprintf('Expected argument %d to be a string property name.', i));
         end
         
@@ -1194,13 +1717,13 @@ while i <= nargin
                 lowArg = 'radius';
                 arg = lowArg;
                 warning('The field ''sedumi.maxradius'' is obsolete. Use ''radius'' instead')
-             elseif strcmp(lowArg,'penbmi.pbm_eps')
+            elseif strcmp(lowArg,'penbmi.pbm_eps')
                 lowArg = 'penbmi.precision';
                 arg = lowArg;
-                warning('The field ''penbmi.pbm_eps'' is obsolete. Use ''penbmi.precision'' instead')                
+                warning('The field ''penbmi.pbm_eps'' is obsolete. Use ''penbmi.precision'' instead')
             elseif strcmp(lowArg,'sos.solvedual')
                 lowArg = 'sos.model';
-                arg = lowArg;                     
+                arg = lowArg;
             else
                 error(sprintf('The property name ''%s'' is obsolete. Sorry...', arg));
             end
@@ -1212,7 +1735,7 @@ while i <= nargin
         elseif length(j) > 1                % if more than one match
             % Check for any exact matches (in case any names are subsets of others)
             k = strmatch(lowArg,names,'exact');
-            if (length(k) == 1) 
+            if (length(k) == 1)
                 j = k;
             else
                 msg = sprintf('Ambiguous property name ''%s'' ', arg);
@@ -1240,27 +1763,42 @@ end
 function [Names,solvernames,solverops] = trytoset(solver,Names)
 
 try
-    solverops = optimset(solver);
+    try
+        try
+            evalc(['solverops = ' solver '(''defaults'');']);
+        catch
+            solverops = optimset(solver);
+        end
+    catch
+        solverops = optimset;
+    end
     solvernames = fieldnames(solverops);
+    
+    
+    if isequal(solver, 'quadprog') && isfield(solverops, 'Algorithm') && ~isempty(solverops.Algorithm)
+        solverops.Algorithm = 'active-set';
+    end
 
-    if any(strcmp(solvernames,'LargeScale'))
-        solverops.LargeScale = 'off';
+    if  any(strcmp(solvernames,'LargeScale'))
+        if isequal(solver, 'quadprog')
+            solverops.LargeScale = 'off';
+        end
     else
         solvernames{end+1} = 'LargeScale';
         solverops.LargeScale = 'off';
     end
-
+    
     for i = 1:length(solvernames)
         Names = [Names;{[solver '.' solvernames{i}]}];
     end
-
+    
 catch
     solvernames = {'LargeScale'};
     solverops = struct('LargeScale','off');
 end
 
 
-function cNames = recursicefieldnames(options,append);
+function cNames = recursivefieldnames(options,append);
 
 if nargin == 1
     append = '';
@@ -1268,8 +1806,9 @@ end
 
 cNames = fieldnames(options);
 for i = 1:length(cNames)
-    if eval(['isa(options.' cNames{i} ',''struct''' ')'])
-        cNames = [cNames;recursicefieldnames(eval(['options.' cNames{i}]),[cNames{i}])];
+    eval(['temporaryOptions = options.' cNames{i} ';']);
+    if isa(temporaryOptions,'struct')
+        cNames = [cNames;recursivefieldnames(temporaryOptions,[cNames{i}])];
     end
 end
 for i = 1:length(cNames)

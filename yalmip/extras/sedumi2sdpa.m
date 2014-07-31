@@ -1,9 +1,6 @@
 function [mDIM,nBLOCK,bLOCKsTRUCT,c,F] = sedumi2sdpa(F_struc,c,K);
 %SEDUMI2SDPA Internal function to convert SeDuMi structure to format needed in SDPA
 
-% Author Johan Löfberg
-% $Id: sedumi2sdpa.m,v 1.2 2004-07-02 08:17:32 johanl Exp $
-
 start = 1;
 
 % This is a hack. K.f is only available when called from bnb with dynamically added equalities
@@ -39,11 +36,28 @@ end
 % Semidefinite constraints
 if K.s>0
     for i = 1:length(K.s)
+        z = tril(ones(K.s(i)),-1);z = find(z(:));
         theend = start+power(K.s(i),2)-1;
-        F{i+nl,1}=triu(sparse(-reshape(F_struc(start:theend,1),K.s(i),K.s(i))));
-        for j = 2:size(F_struc,2)      
-            F{i+nl,j}=triu(sparse(reshape(F_struc(start:theend,j),K.s(i),K.s(i))));
+        temp = sparse(F_struc(start:theend,:))';
+        temp(:,z) = 0;
+        temp = temp';        
+        %F{i+nl,1}=triu(sparse(-reshape(F_struc(start:theend,1),K.s(i),K.s(i))));
+        F{i+nl,1}=((-reshape(temp(:,1),K.s(i),K.s(i))));
+        FastZero = spalloc(K.s(i),K.s(i),0);
+        nonZeros = setdiff(find(any(temp,1)),1);
+        for j = nonZeros%2:size(F_struc,2)
+            %bbb=reshape(F_struc(start:theend,j),K.s(i),K.s(i));
+            r = temp(:,j);           
+            bbb=reshape(r,K.s(i),K.s(i));
+            aaa = (bbb);
+            F{i+nl,j}=(aaa);           
         end
+       % Zeros = setdiff(find(~any(temp,1)),1);
+       
+       % for j = Zeros
+       %     F{i+nl,j} = [];%FastZero;            
+       % end
+        
         start = theend+1;
         bLOCKsTRUCT = [bLOCKsTRUCT K.s(i)];
     end

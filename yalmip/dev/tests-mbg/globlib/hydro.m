@@ -101,4 +101,4 @@ F=[F,60000<=x31<=120000];
 % Solve problem
 sol = solvesdp(F,objective,sdpsettings('solver','bmibnb','allownonconvex',1));
 mbg_assertfalse(sol.problem)
-mbg_asserttolequal(double(objective),4.3669e+006 , 1e2);
+mbg_asserttolequal(double(objective),4.3669e+006 , 1e4);

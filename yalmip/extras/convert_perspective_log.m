@@ -52,6 +52,7 @@ for i = 1:length(p.evalMap)
                                 p.evalMap{i}.properties.bounds = @plog_bounds;
                                 p.evalMap{i}.properties.convexhull = @plog_convexhull;
                                 p.evalMap{i}.properties.derivative = @plog_derivative;
+                                p.evalMap{i}.properties.inverse = [];
                                 p.variabletype(other) = 0;
                                 p.monomtable(other,:) = 0;
                                 p.monomtable(other,other) = 1;
@@ -72,6 +73,10 @@ for i = 1:length(p.evalMap)
 end
 kept = 1:length(p.c);
 kept = setdiff(kept,removable);
+aux_used = zeros(1,length(p.c));
+aux_used(p.aux_variables) = 1;
+aux_used(removable)=[];
+p.aux_variables = find(aux_used);
 if length(removable) > 0
     kept = 1:length(p.c);
     kept = setdiff(kept,removable);    

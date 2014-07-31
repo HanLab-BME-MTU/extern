@@ -36,8 +36,10 @@ function [sol,x_extract,momentsstructure,sosout] = solvemoment(F,obj,options,k)
 %
 %   See also SDPVAR, SET, SDPSETTINGS, SOLVESDP
 
-% Author Johan Löfberg
-% $Id: solvemoment.m,v 1.8 2007-05-28 09:09:42 joloef Exp $
+% Author Johan Löfberg, Philipp Rostalski  Update
+% $Id: solvemoment.m,v 1.8 2007/05/28 09:09:42 joloef Exp $
+%
+% Updated equality constraint handling, 2010/08/02
 
 if nargin ==0
     help solvemoment
@@ -55,6 +57,15 @@ end
 
 if nargin<3 | (isempty(options))
     options = sdpsettings;
+end
+
+if strcmp(options.solver,'sparsepop')
+    if nargin >= 4        
+        sol = solvesdp(F,obj,sdpsettings(options,'relaxLevel',k));
+    else
+        sol = solvesdp(F,obj,options);
+    end
+    return
 end
 
 % Relaxation-order given?
@@ -153,7 +164,7 @@ d = ceil((max(degree(obj),max(deg)))/2);
 k_min = d;
 if isempty(k)
     k = k_min;
-elseif 0
+else
     if k<k_min
         error('Higher order relaxation needed')
     end
@@ -161,6 +172,7 @@ end
 
 % Generate monomials of order k
 u{k} = monolist(x,k);
+ulong{k} = monolist(x,2*k);
 
 % Largest moment matrix. NOTE SHIFT M{k+1} = M_k.
 M{k+1}=u{k}*u{k}';
@@ -183,11 +195,11 @@ end
 % end
 
 % Lasserres relaxation (Lasserre, SIAM J. OPTIM, 11(3) 796-817)
-Fmoments = set(M{k+1}>0);
-for i = 1:length(vecConstraints)
-    v_k = floor((degree(vecConstraints(i))+1)/2);
-    Localizer = vecConstraints(i)*M{k-v_k+1};
+Fmoments = set(M{k+1}>=0);
+for i = 1:length(vecConstraints)   
     if isinequality(i)
+        v_k = floor((degree(vecConstraints(i))+1)/2);
+        Localizer = vecConstraints(i)*M{k-v_k+1};
         if isa(vecConstraints(i),'double')
             if vecConstraints(i)<0
                 error('Problem is trivially infeasible due to negative constant')
@@ -195,7 +207,7 @@ for i = 1:length(vecConstraints)
                 continue
             end
         end
-        Fmoments = Fmoments+set(Localizer>0);
+        Fmoments = Fmoments+set(Localizer>=0);
     else
         if isa(vecConstraints(i),'double')
             if vecConstraints(i)~=0
@@ -203,14 +215,14 @@ for i = 1:length(vecConstraints)
             else
                 continue
             end
-        end
-        indicies = find(triu(ones(length(Localizer))));
-        Fmoments = Fmoments+set(Localizer(indicies)==0);
+        end        
+        Localizer = vecConstraints(i)*monolist(x,2*k-degree(vecConstraints(i)));      
+        Fmoments = Fmoments+set(Localizer==0);
     end
 end
 for i = 1:length(sdpConstraints)
     v_k = floor((degree(sdpConstraints{i})+1)/2);
-    Fmoments = Fmoments+set(kron(M{k-v_k+1},sdpConstraints{i})>0);
+    Fmoments = Fmoments+set(kron(M{k-v_k+1},sdpConstraints{i})>=0);
 end
 
 % Add them all
@@ -248,16 +260,9 @@ if nargout >= 4
             sosout.vi{i} = u{end}(1:length(sosout.Qi{i}));
             sosout.pi{i} = sosout.vi{i}'*sosout.Qi{i}*sosout.vi{i};
         else
-            % For equalities, we need to reconstruct a matrix from the
-            % upper triangle
-            vecDuals = dual(Fnew(i+1));
-            ntemp = -(1/2)+sqrt(1/4+length(vecDuals)*2);
-            [ix,jx] = find(triu(ones(ntemp)));
-            temp = sparse(ix,jx,vecDuals);
-            temp = temp + temp';%- diag(diag(temp));
-            sosout.Qi{i} = temp/2;
-            sosout.vi{i} = u{end}(1:length(sosout.Qi{i}));
-            sosout.pi{i} = sosout.vi{i}'*sosout.Qi{i}*sosout.vi{i};
+            sosout.Qi{i} = dual(Fnew(i+1));
+            sosout.vi{i} = ulong{end}(1:length(sosout.Qi{i}));
+            sosout.pi{i} = sosout.Qi{i}'*sosout.vi{i};
         end
     end
 end

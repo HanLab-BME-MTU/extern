@@ -1,7 +1,7 @@
 function assign(X,value,ls)
 %ASSIGN Assigns a numerical value to an sdpvar
 %
-% ASSIGN(X,value)   Tries to set the free variables in X so that  
+% ASSIGN(X,value)   Tries to set the free variables in X so that
 %                   double(X)=value. Notice that other variables
 %                   sharing the same free variables will be affected.
 %                   If the assignment is infeasible, an error message
@@ -9,8 +9,8 @@ function assign(X,value,ls)
 %
 % ASSIGN(X,value,1) Least square assignment.
 
-% Author Johan Löfberg 
-% $Id: assign.m,v 1.5 2007-10-04 11:27:53 joloef Exp $  
+% Author Johan Löfberg
+% $Id: assign.m,v 1.5 2007-10-04 11:27:53 joloef Exp $
 
 if nargin<3
     ls = 0;
@@ -32,11 +32,15 @@ if prod(size(value)) == 1
     value = repmat(value,size(X));
 end
 
+if isempty(value)
+    return
+end
+
 if ~isequal(size(X),size(value))
-  error('Both arguments must have same size') 
+    error('Both arguments must have same size')
 end
 if ~isa(X,'sdpvar')
-  error('First arguments must be an sdpvar object') 
+    error('First arguments must be an sdpvar object')
 end
 
 if is(X,'complex')

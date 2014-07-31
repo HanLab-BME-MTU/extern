@@ -82,11 +82,9 @@ xx = x;
 x(1,7) = y;
 t13 = isequal(x-[xx [0 y;0 0]],zeros(2,7))
 
+% Bug 1006
+p = sdpvar(3,1);
+p([1 1])=[4 5];
+t14 = isa(p(1),'double') & isequal(p(1),5)
 
-
-
-
-
-
-
-mbg_asserttrue(t1 & t2 & t3 & t4 & t5 & t6 & t7 & t8 & t9 & t10 &t11 & t12 & t13);
+mbg_asserttrue(t1 & t2 & t3 & t4 & t5 & t6 & t7 & t8 & t9 & t10 &t11 & t12 & t13 & t14);

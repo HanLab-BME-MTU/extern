@@ -16,7 +16,7 @@ F = F + set(  (0.143 + (-0.13*x1) - 0.195*x2)*exp(10*x2/(1 + 0.01*x2)) + x1 - 3*
 
 F = F + set(  (-(0.143 + (-0.13*x1) - 0.195*x2)*exp(10*x2/(1 + 0.01*x2))) - x1 + 3*x2 - x3 <= 0);
 
-F = F + set(-1 < [x1 x2 ] < 1);
+F = F + set(-1 <= [x1 x2 ] <= 1);
 
 sol = solvesdp(F,objvar,sdpsettings('solver','bmibnb','bmibnb.upper','fmincon','allownon',1));
 mbg_assertfalse(sol.problem);

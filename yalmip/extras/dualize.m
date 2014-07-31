@@ -1,4 +1,4 @@
-function [Fdual,objdual,X,t,err] = dualize(F,obj,auto,extlp,extend)
+function [Fdual,objdual,X,t,err,complexInfo] = dualize(F,obj,auto,extlp,extend,options)
 % DUALIZE Create the dual of an SDP given in primal form
 %
 % [Fd,objd,X,t,err] = dualize(F,obj,auto)
@@ -24,14 +24,13 @@ function [Fdual,objdual,X,t,err] = dualize(F,obj,auto,extlp,extend)
 %
 % See also DUAL, SOLVESDP, PRIMALIZE
 
-% Author Johan Löfberg
-% $Id: dualize.m,v 1.62 2007-05-15 12:06:03 joloef Exp $
-
 % Check for unsupported problems
 
 if isempty(F)
     F = set([]);
 end
+
+complexInfo = [];
 
 LogDetTerm = 0;
 if nargin < 2
@@ -54,13 +53,13 @@ elseif isa(obj,'logdet')
     LogDetTerm = 1;
     Ftemp = set([]);
     for i = 1:length(Plogdet)
-        Ftemp = Ftemp + set(Plogdet{i} > 0,'LOGDET');
+        Ftemp = Ftemp + set(Plogdet{i} >= 0,'LOGDET');
     end
     F = Ftemp + F;
 end
 
 err = 0;
-p1 = ~(isreal(F) & isreal(obj));
+p1 = ~isreal(obj);%~(isreal(F) & isreal(obj));
 p2 = ~(islinear(F) & islinear(obj));
 p3 = any(is(F,'integer')) | any(is(F,'binary'));
 if p1 | p2 | p3
@@ -72,11 +71,14 @@ if p1 | p2 | p3
     end
 end
 
-if nargin<5
+if nargin<5 || isempty(extend)
     extend = 1;
 end
 
-if extend
+if extend    
+    if nargin < 6 || isempty(options)    
+        options = sdpsettings;
+    end
     options.dualize = 1;
     options.allowmilp = 0;
     options.solver = '';
@@ -86,11 +88,11 @@ if extend
     end
 end
 
-if nargin<3
+if nargin<3 || isempty(auto)
     auto = 1;
 end
 
-if nargin<4
+if nargin<4 || isempty(extlp)
     extlp = 1;
 end
 
@@ -109,6 +111,7 @@ X={};
 % when we add simple LP constraints (as in P>0, P(1,3)>0)
 varSDP = [];
 SDPset = zeros(length(F),1);
+ComplexSDPset = zeros(length(F),1);
 isSDP = is(F,'sdp');
 for i = 1:length(F)
     if isSDP(i);
@@ -120,6 +123,9 @@ for i = 1:length(F)
                 varSDP = [varSDP;vars(1) vars(end)];
                 shiftMatrix{end+1} = getbasematrix(Fi,0);
                 X{end+1}=Fi;
+                if is(Fi,'complex')
+                    ComplexSDPset(i) = 1;
+                end
             end
         end
     end
@@ -180,7 +186,7 @@ if ~isempty(elementwise_index)
     if ~isempty(implicit_positive)        
         implicit_positive = setdiff(implicit_positive,getvariables(F_CONE));
         if ~isempty(implicit_positive) 
-            Flp = Flp + set(recover(implicit_positive) > 0);
+            Flp = Flp + set(recover(implicit_positive) >= 0);
         end
     end
 
@@ -322,6 +328,7 @@ end
 keep = ones(length(F),1);
 isSDP  = is(F,'sdp');
 isSOCP = is(F,'socp');
+isVecSOCP = is(F,'vecsocp');
 
 % Pre-allocate all SDP slacks in one call
 % This is a lot faster
@@ -364,6 +371,17 @@ for i = 1:length(F)
         shiftMatrix{end+1} = spalloc(n,1,0);
         X{end+1}=S;
         keep(i)=0;
+    elseif isVecSOCP(i)
+         % Vectorized SOC dual-form cone
+        Fi = sdpvar(F(i));
+        [n,m]  = size(Fi);
+        S  = sdpvar(n,m,'full');        
+        slack = Fi-S;
+        F_AXb =  F_AXb + set(slack==0);
+        F_CONE = F_CONE + set(cone(S));
+        shiftMatrix{end+1} = spalloc(n,m,0);
+        X{end+1}=S;
+        keep(i)=0;
     end
 end
 
@@ -383,6 +401,61 @@ if length(F)>0
     error('DUALIZE can only treat standard SDPs (and LPs) at the moment.')
 end
 
+% If complex SDP cone, we make reformulate and call again on a real
+% problem. This leads to twice the amount of work, but it is a quick fix
+% for the moment
+if any(is(F_CONE,'complexsdpcone'))
+    F_NEWCONES = [];
+    top = 1;
+    for i = 1:length(X)      
+        if is(X{i},'complexsdpcone')
+            Xreplace{top} = X{i};
+            n = length(X{i});
+            Xnew{top} = sdpvar(2*n);
+            
+            
+            rQ = real(Xreplace{top});
+            iQ = imag( Xreplace{top});
+            L1 = Xnew{top}(1:n,1:n);
+            L3 = Xnew{top}(n+1:end,n+1:end);
+            L2 = Xnew{top}(1:n,n + 1:end);
+                        
+            s0r = getvariables(rQ);
+            s1r = getvariables(L1);
+            s2r = getvariables(L3);
+            r0 = recover(s0r);
+            r1 = recover(s1r);
+            r2 = recover(s2r);
+            
+            s0i = getvariables(iQ);
+            s1i = getvariables(triu(L2,1))';
+            s2i = getvectorvariables(L2(find(tril(ones(length(L2)),-1))));
+            i0 = recover(s0i);
+            i1 = recover(s1i);
+            i2 = recover(s2i);
+           
+            replacement = [r1+r2;i1-i2];
+            if ~isempty(F_AXb)
+                F_AXb = remap(F_AXb,[s0r s0i],replacement);
+            end
+            if ~isempty(F_SOC)
+                F_SOC = remap(F_AXb,[s0r s0i],replacement);
+            end
+            if ~isempty(obj)
+                obj = remap(obj,[s0r s0i],replacement);
+            end
+                                   
+            X{i} = Xnew{top};
+            top = top + 1;
+        end
+        F_NEWCONES = [F_NEWCONES, X{i} >= 0];
+    end  
+    F_reformulated = [F_NEWCONES, F_AXb, F_SOC, x>=0];
+    complexInfo.replaced = Xreplace;
+    complexInfo.new = Xnew;
+    [Fdual,objdual,X,t,err] = dualize(F_reformulated,obj,auto,extlp,extend);
+    return
+end
 
 % Sort the SDP cone variables X according to YALMIP
 % This is just to simplify some indexing later
@@ -399,7 +472,7 @@ shiftMatrix={shiftMatrix{index}};
 shift = [];
 for i = 1:length(F_CONE)
     ns(i) = length(X{i});
-    if size(X{i},2)==1
+    if size(X{i},2)==1 | (size(X{i},1) ~= size(X{i},2))
         % SOCP
         shift = [shift;shiftMatrix{i}(:)];
     else
@@ -427,21 +500,21 @@ if isequal(all_variables,Xx_variables)
     t = [];
 else
     t_variables = setdiff(all_variables,Xx_variables);
-    ind = ismembc(all_variables,t_variables);
+    ind = ismembcYALMIP(all_variables,t_variables);
     t_in_all = find(ind);
     t = recover(t_variables);
 end
 
-ind = ismembc(all_variables,x_variables);
+ind = ismembcYALMIP(all_variables,x_variables);
 x_in_all = find(ind);
-ind = ismembc(all_variables,X_variables);
+ind = ismembcYALMIP(all_variables,X_variables);
 X_in_all = find(ind);
 
 vecF1 = [];
 nvars = length(all_variables);
 for i = 1:length(F_AXb)
     AXb = sdpvar(F_AXb(i));
-    mapper = find(ismembc(all_variables,getvariables(AXb)));
+    mapper = find(ismembcYALMIP(all_variables,getvariables(AXb)));
 
     [n,m] = size(AXb);
     data = getbase(AXb);
@@ -471,7 +544,7 @@ if isempty(obj)
     vecF1(end+1,1) = 0;
 else
     if is(obj,'linear')
-        mapper = find(ismembc(all_variables,getvariables(obj)));
+        mapper = find(ismembcYALMIP(all_variables,getvariables(obj)));
         [n,m] = size(obj);
         data = getbase(obj);
         [iF,jF,sF] = find(data);
@@ -488,7 +561,7 @@ else
         % min c'x+0.5x'Qx, Ax==b, x>=0
         % max b'y-0.5x'Qx, c-A'y+Qx >=0
         [Q,c,xreally,info] = quaddecomp(obj,recover(all_variables))
-        mapper = find(ismembc(all_variables,getvariables(c'*xreally)));
+        mapper = find(ismembcYALMIP(all_variables,getvariables(c'*xreally)));
         [n,m] = size(c'*xreally);
         data = getbase(c'*xreally);
         F_structemp  = spalloc(n*m,1+nvars,nnz(data));
@@ -580,7 +653,7 @@ for j = 1:1:n_cones
             end
             % Fix diagonal term
             diags = find(diag(1:ns(j)));
-            id = find(ismembc(iA,diags));
+            id = find(ismembcYALMIP(iA,diags));
             sA(id) = 2*sA(id);
             Ai = sparse(iA,jA,sA,ns(j)^2,length(b));
 
@@ -612,11 +685,13 @@ for j = 1:1:n_cones
         start = start + length(ind);
     else
         % Second order cone
-        ind = 1:ns(j);
+        ind = 1:prod(size(X{j}));
+        %ind = 1:ns(j);
 
         % Get constraint AiX=b
         Fi = Fbase_X(1:length(b),start+(1:length(ind)))';
-        Ai = spalloc(ns(j),length(b),nnz(Fi));
+        %Ai = spalloc(ns(j),length(b),nnz(Fi));
+        Ai = spalloc(prod(size(X{j})),length(b),nnz(Fi));
         Ai(ind,:) = Fi;
         vecA{j} = Ai;
         start = start + length(ind);
@@ -651,7 +726,8 @@ for j = 1:1:n_cones
         C{j} = (C{j}+ C{j}')/2;
         start = start + length(indi);
     else
-        ind = 1:ns(j);
+        %ind = 1:ns(j);
+        ind = 1:prod(size(X{j}));
         C{j} = spalloc(ns(j),1,0);
         C{j}(ind) = -Fbase_X(end,start+(1:length(ind)));
         start = start + length(ind);
@@ -679,9 +755,12 @@ for j = 1:n_cones
         % Fast call avoids symmetry check
         Fdual = Fdual + lmi(S,[],[],[],1);
     else
-        Ay = reshape(vecA{j}*y,ns(j),1);
+        Ay = reshape(vecA{j}*y,[],1);
+        %Ay = reshape(vecA{j}*y,ns(j),1);
         S = C{j}-Ay;
-        Fdual = Fdual + lmi(cone(S(2:end),S(1)));
+        S = reshape(S,size(X{j},1),[]);
+        %Fdual = Fdual + lmi(cone(S(2:end),S(1)));
+        Fdual = Fdual + lmi(cone(S));
     end
 end
 if n_lp > 0

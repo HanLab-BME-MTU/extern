@@ -20,14 +20,19 @@ switch class(varargin{1})
     case 'sdpvar'
         varargout{1} = yalmip('define',mfilename,varargin{:});
         
-    case 'char' % YALMIP send 'model' when it wants the epigraph or hypograph
+    case 'char' % YALMIP sends 'model' when it wants the epigraph or hypograph
         if isequal(varargin{1},'graph')
             t = varargin{2};
             X = varargin{3};
             [n,m] = size(X);
-            U = sdpvar(m);
-            V = sdpvar(n);
-            F = [trace(U)+trace(V) < 2*t, [U X';X V]>0];
+            if is(X,'real')
+                U = sdpvar(m);
+                V = sdpvar(n);
+            else
+                U = sdpvar(m,m,'hermitian','complex');
+                V = sdpvar(n,n,'hermitian','complex');
+            end
+            F = [trace(U)+trace(V) <= 2*t, [U X';X V]>=0];
             varargout{1} = F;
             varargout{2} = struct('convexity','convex','monotonicity','none','definiteness','positive','model','graph');
             varargout{3} = X;

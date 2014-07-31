@@ -1,4 +1,4 @@
-function [Fconv,no_changed,infeasible] = convertquadratics(F)
+function [Fconv,no_changed,infeasible,Forigquad] = convertquadratics(F)
 %CONVERTQUADRATICS Internal function to extract quadratic constraints
 
 % Author Johan Löfberg
@@ -9,26 +9,26 @@ function [Fconv,no_changed,infeasible] = convertquadratics(F)
 % ******************************
 
 infeasible = 0;
-itslinear = islinear(F);
-if itslinear
-    Fconv = F;
-    no_changed = 0;
+Fconv = F;
+no_changed = 0;
+Forigquad = [];
+
+if islinear(F)
     return
 end
 
-itssigmonial = issigmonial(F);
-if itssigmonial
-    Fconv = F;
-    no_changed = 0;
+if issigmonial(F)
     return
 end
 
 Fconv = lmi;
 no_changed = 0;
+i_changed = [];
 for i = 1:1:length(F)
     if is(F(i),'element-wise') & ~is(F(i),'linear') & ~is(F(i),'sigmonial')
         % f-c'*x-x'*Q*x>0
         fi = sdpvar(F(i));fi = fi(:);
+        %[Qs,cs,fs,x,info] = vecquaddecomp(fi);
         for j = 1:length(fi)
             fij = fi(j);
             if isa(fij,'double')
@@ -38,6 +38,7 @@ for i = 1:1:length(F)
                     return
                 end
             end
+           % Q = Qs{j};c = cs{j};f = fs{j};
             [Q,c,f,x,info] = quaddecomp(fij);
             if info==0
                 if nnz(Q)==0
@@ -55,36 +56,33 @@ for i = 1:1:length(F)
                     [R,p]=chol(Qred);
                     if p
                         % Safety check to account for low rank problems
-%                        try
                         if all(eig(full(Qred))>=-1e-12)
                             [u,s,v]=svd(full(Qred));
                             r=find(diag(s)>1e-12);
                             R=(u(:,r)*sqrt(s(r,r)))';
                             p=0;
                         end
- %                       catch
- %                           1
- %                       end
                     end
                     if p==0
                         % Write as second order cone
                         d = -c'*x-f;
-                        if isa(d,'double') & d==1
-                            Fconv=Fconv + lmi(cone([2*R*xred],1+d));
-                        else
-                            if length(c) == length(xred)%size(R,1)==size(R,2)
-                                ctilde = -(R')\(c/2);
-                                if ctilde'*ctilde-f > 0
-                                    % simple form norm(Rx-c) < r
-                                    Fconv=Fconv + lmi(cone([R*xred-ctilde],sqrt(ctilde'*ctilde-f)));
-                                else
-                                    Fconv=Fconv + lmi(cone([2*R*xred;1-d],1+d));
-                                end
+                        if isa(d,'double')
+                            if d<0
+                                infeasible = 1;
+                                return
                             else
-                                Fconv=Fconv + lmi(cone([2*R*xred;1-d],1+d));
+                                Fconv=Fconv + lmi(cone([R*xred],sqrt(d)));
+                            end
+                        else
+                            if length(c) == length(xred)
+                                ctilde = -(R')\(c/2);                             
+                                Fconv=Fconv + lmi(cone([R*xred;.5*(1-d)],.5*(1+d)));                             
+                            else
+                                Fconv=Fconv + lmi(cone([R*xred;.5*(1-d)],.5*(1+d)));
                             end
                         end
                         no_changed = no_changed + 1;
+                        i_changed = [i_changed i];                        
                     else
                         Fconv = Fconv + set(fi(j));
                     end
@@ -96,4 +94,7 @@ for i = 1:1:length(F)
     else
         Fconv = Fconv + F(i);
     end
+end
+if ~isempty(i_changed)
+    Forigquad = F(i_changed);
 end

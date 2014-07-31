@@ -1,16 +1,10 @@
 function output = callfmincon(model)
 
-% Author Johan Löfberg
-% $Id: callfmincon.m,v 1.61 2010-01-20 10:20:57 joloef Exp $
-
-
 model = yalmip2nonlinearsolver(model);
 
 switch model.options.verbose
     case 0
-        model.options.fmincon.Display = 'off';
-    case 1
-        model.options.fmincon.Display = 'final';
+        model.options.fmincon.Display = 'off';   
     otherwise
         model.options.fmincon.Display = 'iter';
 end
@@ -25,10 +19,8 @@ if isfield(model.options.fmincon,'LargeScale')
 end
 
 if model.derivative_available
-    model.options.fmincon.GradObj = 'on';    
-end
-if model.derivative_available
-    model.options.fmincon.GradConstr = 'on';   
+    model.options.fmincon.GradObj = 'on';  
+    model.options.fmincon.GradConstr = 'on';
 end
 
 if model.options.savedebug
@@ -36,13 +28,36 @@ if model.options.savedebug
     save fmincondebug model %A b Aeq beq x0 lb ub ops
 end
 
+if strcmp(model.options.fmincon.Algorithm,'trust-region-reflective')
+    if ~model.linearconstraints
+        model.options.fmincon.Algorithm = 'interior-point';
+    elseif ~isempty(model.A)
+        model.options.fmincon.Algorithm = 'interior-point';
+    elseif model.nonlinearinequalities>0 | model.nonlinearequalities>0
+        model.options.fmincon.Algorithm = 'interior-point';
+    elseif any(~isinf(model.lb) | ~isinf(model.ub)) & ~isempty(model.Aeq)
+        model.options.fmincon.Algorithm = 'interior-point';
+    end
+end
+
+global latest_xevaled
+global latest_x_xevaled
+latest_xevaled = [];
+latest_x_xevaled = [];
+
 showprogress('Calling FMINCON',model.options.showprogress);
 
-warning('off','optim:fmincon:NLPAlgLargeScaleConflict')
+if model.linearconstraints
+    callback_con = [];
+else
+    callback_con = 'fmincon_con';
+end
+
+%warning('off','optim:fmincon:NLPAlgLargeScaleConflict')
 solvertime = clock;
-[xout,fmin,flag,output,lambda] = fmincon('fmincon_fun',model.x0,model.A,model.b,model.Aeq,model.beq,model.lb,model.ub,'fmincon_con',model.options.fmincon,model);
+[xout,fmin,flag,output,lambda] = fmincon('fmincon_fun',model.x0,model.A,model.b,model.Aeq,model.beq,model.lb,model.ub,callback_con,model.options.fmincon,model);
 solvertime = etime(clock,solvertime);
-warning('on','optim:fmincon:NLPAlgLargeScaleConflict')
+%warning('on','optim:fmincon:NLPAlgLargeScaleConflict')
 
 x = RecoverNonlinearSolverSolution(model,xout);
 
@@ -58,13 +73,17 @@ else
     if flag>0
         problem = 0;
     else
-        if isempty(x)
-            x = repmat(nan,length(model.c),1);
-        end
-        if model.c'*x<-1e10 % Likely unbounded
-            problem = 2;
-        else          % Probably convergence issues
-            problem = 5;
+        if flag == -2
+            problem = 1;
+        else
+            if isempty(x)
+                x = repmat(nan,length(model.c),1);
+            end
+            if model.c'*x<-1e10 % Likely unbounded
+                problem = 2;
+            else          % Probably convergence issues
+                problem = 5;
+            end
         end
     end
 end

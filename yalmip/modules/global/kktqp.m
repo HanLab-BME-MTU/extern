@@ -1,5 +1,12 @@
 function output = kktqp(interfacedata)
 %KKTQP Solver for indefinite QP problems using binary optmization
+%
+% Note that this solver can be implemented using very little code by using
+% the high-level KKT operator. This version is only kept for compatibility
+% reasons.
+%
+% See also kkt
+
 
 % Author Johan Löfberg
 % $Id: kktqp.m,v 1.2 2008-06-10 14:47:59 joloef Exp $
@@ -27,16 +34,8 @@ if ~all(isinf(interfacedata.ub))
     end
 end
 
-
-% Lazy...
-% try
-     P = polytope(A,b);
-     [B,L,U] = bounding_box(P);
-     [A,b] = double(P);
-% catch
- %   L = zeros(n,1);
- %   U = ones(n,1);
-%end
+x = sdpvar(length(c),1);
+[dummy, L, U] = boundingbox(A*x <= b);
 
 % Formulation here assumes maximization...
 Q = -2*interfacedata.Q;
@@ -54,14 +53,11 @@ s = b-A*x; % slack
 % Derive bounds on primal slack
 [M,m] = derivebounds(s);
 
-% Let us try to derive bounds on the dauls 
-% variables. Hmm...
-% Ugly, but let's just maximize/minimize linear
-% relaxations
-F = set(A'*y == Q*x + c) + set(s>0) + set(y>0);%KKT 
-F = F + set(s < ds.*M);   % Big M, we know upper bound on s 
-F = F + set(dy+ds <= 1);  % Complementary slackness 
-F = F + set(0 <= sum(dy) <= n);
+% Let us try to derive bounds on the dual variables
+F = [A'*y == Q*x + c, s>=0, y>=0];%KKT 
+F = [F, s <= ds.*M];   % Big M, we know upper bound on s 
+F = [F, dy+ds <= 1];  % Complementary slackness 
+F = [F, 0 <= sum(dy) <= n];
 
 % Find dis-joint constraints (silly way...)
 for i = 1:length(b)

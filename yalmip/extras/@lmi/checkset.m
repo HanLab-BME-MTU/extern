@@ -1,5 +1,5 @@
-function [pres,dres] = checklmi(F)
-% checklmi(F)  Displays/calculates constraint residuals on set-object F
+function [pres,dres] = checkset(F)
+% CHECKSET(F)  Displays/calculates constraint residuals on constraint F
 %
 % [pres,dres] = checkset(F)
 %
@@ -56,7 +56,8 @@ lmiinfo{9} = 'KYP constraint';
 lmiinfo{10} = 'Eigenvalue constraint';
 lmiinfo{11} = 'SOS constraint';
 lmiinfo{15} = 'Uncertainty declaration';
-
+lmiinfo{54} = 'Vectorized second order cone constraints';
+lmiinfo{55} = 'Complementarity constraint';
 header = {'ID','Constraint','Type','Primal residual','Dual residual','Tag'};
 
 if nargout==0
@@ -113,8 +114,16 @@ for j = 1:nlmi
             res(j,1) = full(F0(1)-norm(F0(2:end)));
         case 5
             res(j,1) = full(2*F0(1)*F0(2)-norm(F0(3:end))^2);
-        case {7,8}
+        case 7
+            res(j,1) = -full(max(max(abs(F0-round(F0)))));            
+        case 8
             res(j,1) = -full(max(max(abs(F0-round(F0)))));
+            res(j,1) = min(res(j,1),-(any(F0>1) | any(F0<0)));
+        case 54
+            res(j,1) = inf;
+            for k = 1:size(F0,2)
+                res(j,1) = min(res(j,1),full(F0(1,k)-norm(F0(2:end,k))));
+            end                
         case 11
             if 0
                 p = F.clauses{j}.data;          
@@ -228,6 +237,6 @@ else
         temp = {data{:,[1 2 3 4]}};
         data = reshape(temp,length(temp)/4,4);
     end
-    table('',header,data)
+    yalmiptable('',header,data)
     disp(' ');
 end

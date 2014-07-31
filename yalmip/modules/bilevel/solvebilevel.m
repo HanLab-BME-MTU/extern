@@ -1,4 +1,4 @@
-function [sol,info] = solvebilevel(Cout,Oout,Cinn,Oinn,y,options)
+function [sol,info] = solvebilevel(OuterConstraints,OuterObjective,InnerConstraints,InnerObjective,InnerVariables,options)
 %SOLVEBILEVEL Simple global bilevel solver
 %
 %   min        CO(x,y)
@@ -44,21 +44,39 @@ elseif isempty(options)
     options = sdpsettings;
 end
 
+y = InnerVariables;
+
+% User wants to use fmincon, cplex or something like
+if strcmp(options.bilevel.algorithm,'external')
+    % Derive KKT conditions of inner problem, append with outer, and solve
+    % using standard solver
+    z = [depends(OuterConstraints) depends(OuterObjective) depends(InnerObjective) depends(InnerConstraints)];
+    z = setdiff(z,depends(y));
+    z = recover(unique(z));
+    [K,details] = kkt(InnerConstraints,InnerObjective,z,options);    
+    Constraints = [K,OuterConstraints];    
+    sol = solvesdp(Constraints,OuterObjective,options);
+    info = [];
+    return
+end
+
 % Export the inner model, and select solver
 options.solver = options.bilevel.innersolver;
-if is(Oinn,'linear')
-    [Imodel,Iax1,Iax2,inner_p] = export(Cinn,Oinn,options,[],[],0);
-elseif is(Oinn,'quadratic')
+if is(InnerObjective,'linear')
+    [Imodel,Iax1,Iax2,inner_p] = export(InnerConstraints,InnerObjective,options,[],[],0);
+elseif is(InnerObjective,'quadratic')
     % We have to be a bit careful about cases such as x'y. This is convex in
     % the inner problem, since x is constant there.
-    % [Q,c,f,dummy,nonquadratic] = vecquaddecomp(Oinn);
+    % [Q,c,f,dummy,nonquadratic] = vecquaddecomp(InnerObjective);
     % Extract model for a fake quadratic model
-    % [Cinn,failure] = expandmodel(Cinn,Oinn)
-    %[Imodel,Iax1,Iax2,inner_p] = export(Cinn,dummy'*diag(1+diag(Q{1}))*dummy+c{1}'*dummy,options,[],[],0);
-    yy = recover(setdiff(depends(y),setdiff(depends(Oinn),depends(y))));;
-    [Imodel,Iax1,Iax2,inner_p] = export(Cinn,yy'*yy+sum(recover(depends(Oinn))),options,[],[],0);
-    [Q,c,f,dummy,nonquadratic] = vecquaddecomp(Oinn,recover(inner_p.used_variables));
-    %[Imodel,Iax1,Iax2,inner_p] = export(Cinn,Oinn,options,[],[],0);
+    % [InnerConstraints,failure] = expandmodel(InnerConstraints,InnerObjective)
+    %[Imodel,Iax1,Iax2,inner_p] = export(InnerConstraints,dummy'*diag(1+diag(Q{1}))*dummy+c{1}'*dummy,options,[],[],0);
+   % toptions = options;
+   % toptions.expandbilinear = 1;
+    yy = recover(setdiff(depends(y),setdiff(depends(InnerObjective),depends(y))));
+    [Imodel,Iax1,Iax2,inner_p] = export(InnerConstraints,yy'*yy+sum(recover(depends(InnerObjective))),options,[],[],0);
+    [Q,c,f,dummy,nonquadratic] = vecquaddecomp(InnerObjective,recover(inner_p.used_variables));
+    %[Imodel,Iax1,Iax2,inner_p] = export(InnerConstraints,InnerObjective,options,[],[],0);
     % Now plug in the real quadratic function
     if ~isequal(getvariables(dummy),inner_p.used_variables)
         error('This quadratic form is not supported yet. Please make feature request')
@@ -71,11 +89,23 @@ else
     error('Only LPs or convex QPs allowed as inner problem');
 end
 
+% Modeling of inner problem might have lead to more decision variables in
+% the inner problem. Append these
+v1 = getvariables(y);
+v2 = inner_p.used_variables(inner_p.extended_variables);
+v3 = inner_p.used_variables(inner_p.aux_variables(:));
+y = recover(unique([v1(:);v2(:);v3(:)]));
+
 % Export the outer model, and select solver
 options.solver = options.bilevel.outersolver;
-[Omodel,Oax1,Oax2,outer_p] = export(Cout,Oout,options,[],[],0);
+[Omodel,Oax1,Oax2,outer_p] = export(OuterConstraints,OuterObjective,options,[],[],0);
+if isstruct(Oax2)
+   sol = Oax2;
+   info = 2;
+   return
+end
 % Export a joint model with KKT removed, to simplify some setup later
-% [Auxmodel,Auxax1,Auxax2,outerinner_p] = export([Cout,Cinn],Oout+pi*Oinn,options,[],[],0);
+% [Auxmodel,Auxax1,Auxax2,outerinner_p] = export([OuterConstraints,InnerConstraints],OuterObjective+pi*InnerObjective,options,[],[],0);
 
 if ~all(inner_p.variabletype==0) | ~isequal(inner_p.K.s,0) | ~isequal(inner_p.K.q,0)
     error('Only LPs or convex QPs allowed as inner problem');
@@ -87,9 +117,16 @@ if options.bilevel.rootcuts & (~(isequal(outer_p.K.s,0) & isequal(outer_p.K.q,0)
 end
 
 FRP0 = inner_p;
+
+[merged_mt,merged_vt] = mergemonoms(inner_p,outer_p);
+
 if ~isequal(inner_p.used_variables,outer_p.used_variables)
     invar  = inner_p.used_variables;
     outvar = outer_p.used_variables;
+    
+    binary_variables = unique([inner_p.used_variables(inner_p.binary_variables) outer_p.used_variables(outer_p.binary_variables)]);
+    integer_variables = unique([inner_p.used_variables(inner_p.integer_variables) outer_p.used_variables(outer_p.integer_variables)]);
+    semi_variables = unique([inner_p.used_variables(inner_p.semicont_variables) outer_p.used_variables(outer_p.semicont_variables)]);
     all_variables = unique([inner_p.used_variables outer_p.used_variables]);
     if ~isequal(all_variables,inner_p.used_variables )
         inner_p = pad(inner_p,all_variables);
@@ -100,9 +137,16 @@ if ~isequal(inner_p.used_variables,outer_p.used_variables)
         outer_p = pad(outer_p,all_variables);
     end
 else
+    binary_variables = unique([inner_p.used_variables(inner_p.binary_variables) outer_p.used_variables(outer_p.binary_variables)]);
+    integer_variables = unique([inner_p.used_variables(inner_p.integer_variables) outer_p.used_variables(outer_p.integer_variables)]);
+    semi_variables = unique([inner_p.used_variables(inner_p.semicont_variables) outer_p.used_variables(outer_p.semicont_variables)]);
     all_variables = inner_p.used_variables;
 end
 
+outer_p.monomtable   = merged_mt;
+outer_p.variabletype = merged_vt;
+inner_p.variabletype = merged_vt;
+inner_p.monomtable   = merged_vt;
 % Index to inner variables
 for i = 1:length(y)
     y_var(i) = find(all_variables == getvariables(y(i)));
@@ -110,6 +154,36 @@ end
 
 % Index to outer variables
 x_var = setdiff(1:length(all_variables),y_var);
+
+% Index to binary variables
+bin_var = [];
+for i = 1:length(binary_variables)
+    bin_var(i) = find(all_variables == binary_variables(i));
+end
+int_var = [];
+for i = 1:length(integer_variables)
+    int_var(i) = find(all_variables == integer_variables(i));
+end
+semi_var = [];
+for i = 1:length(semi_variables)
+    semi_var(i) = find(all_variables == semi_variables(i));
+end
+
+if ~isempty(intersect(y_var,binary_variables))
+   error('Only LPs or convex QPs allowed as inner problem (inner variables can not be binary)');
+end
+if ~isempty(intersect(y_var,integer_variables))
+   error('Only LPs or convex QPs allowed as inner problem (inner variables can not be integer)');
+end
+if ~isempty(intersect(y_var,semi_variables))
+   error('Only LPs or convex QPs allowed as inner problem (inner variables can not be semi-continuous)');
+end
+inner_p.binary_variables = bin_var;
+outer_p.binary_variables = bin_var;
+inner_p.integer_variables = int_var;
+outer_p.integer_variables = int_var;
+inner_p.semicont_variables = semi_var;
+outer_p.semicont_variables = semi_var;
 
 % Number of inequalities in inner model = #bounded dual variables
 ninequalities = inner_p.K.l;
@@ -126,12 +200,12 @@ eqdual_var = dual_var(end)+1:dual_var(end)+inner_p.K.f;
 p = outer_p;
 if ~isempty(dual_var)
     p.c(dual_var(end))=0;
-    p.Q(dual_var(end),dual_var(end)) = 0;
+    p.Q(dual_var(end),dual_var(end)) = sparse(0);
 end
 
 if ~isempty(eqdual_var)
     p.c(eqdual_var(end))=0;
-    p.Q(eqdual_var(end),eqdual_var(end)) = 0;
+    p.Q(eqdual_var(end),eqdual_var(end)) = sparse(0);
 end
 
 % Structure of the constraints
@@ -152,15 +226,15 @@ if length(eqdual_var)>0
     stationary = [stationary  -inner_p.F_struc(1:inner_p.K.f,1+y_var)'];
 end
 
-p.F_struc = [stationary;p.F_struc zeros(size(p.F_struc,1),length(dual_var) + length(eqdual_var))];
+p.F_struc = [stationary;p.F_struc spalloc(size(p.F_struc,1),length(dual_var) + length(eqdual_var),0)];
 p.K.f = p.K.f + length(y_var);
 
 % Add dual>0 to outer model
-p.F_struc = [p.F_struc(1:p.K.f,:);zeros(ninequalities,length(x_var)+length(y_var)+1) eye(ninequalities) zeros(ninequalities,nequalities);p.F_struc(1+p.K.f:end,:)];
+p.F_struc = [p.F_struc(1:p.K.f,:);spalloc(ninequalities,length(x_var)+length(y_var)+1,0) speye(ninequalities) spalloc(ninequalities,nequalities,0);p.F_struc(1+p.K.f:end,:)];
 p.K.l = p.K.l + ninequalities;
 
 % Add inner level constraints to outer model
-p.F_struc = [p.F_struc(1:p.K.f,:);inner_p.F_struc zeros(ninequalities+nequalities);p.F_struc(1+p.K.f:end,:)];
+p.F_struc = [p.F_struc(1:p.K.f,:);inner_p.F_struc spalloc(ninequalities+nequalities,ninequalities+nequalities,0);p.F_struc(1+p.K.f:end,:)];
 p.K.f = p.K.f + inner_p.K.f;
 p.K.l = p.K.l + inner_p.K.l;
 slack_index = p.K.f+1:+p.K.f+ninequalities;
@@ -187,6 +261,13 @@ for i = 1:length(eqdual_var)
     p.variabletype(eqdual_var(i)) = 0;
 end
 
+% xy = sdpvar(length(x_var)+length(y_var),1);
+% z = sdpvar(length(dual_var),1);
+% res = p.F_struc*[1;xy;z]
+% 
+% F_bilevel = [res(1:p.K.f) == 0,res(p.K.f+1:end)>0]
+% 
+
 % Enable outer problem to be nonconvex etc
 p = build_recursive_scheme(p);
 % Turned off, generates crash. Unit test in test_bilevel_1
@@ -206,7 +287,7 @@ ninfeascuts = 0;
 
 % Extract the inequalities in the inner problem. These are really the
 % interesting ones
-inner_p.F_struc = [inner_p.F_struc(1+inner_p.K.f:end,:) zeros(inner_p.K.l,ninequalities+nequalities)];
+inner_p.F_struc = [inner_p.F_struc(1+inner_p.K.f:end,:) spalloc(inner_p.K.l,ninequalities+nequalities,0)];
 
 if options.verbose
     disp('* Starting YALMIP bilevel solver.');
@@ -224,7 +305,6 @@ inner_p = detectdisjoint(inner_p);
 while length(list)>0 & gap > options.bilevel.relgaptol & iter < options.bilevel.maxiter
     iter = iter + 1;
     [p,list,lower] = select(list);
-    iter = iter + 1;
 
     Comment = '';
     if p.lower<upper
@@ -236,7 +316,7 @@ while length(list)>0 & gap > options.bilevel.relgaptol & iter < options.bilevel.
         end
         
         output  = feval(p.solver.call,p);
-
+       
         if output.problem==2
             Comment = 'Unbounded node';
         end
@@ -266,12 +346,12 @@ while length(list)>0 & gap > options.bilevel.relgaptol & iter < options.bilevel.
                 if outputCheck.problem == 1
                     % We will not continue branching, and let the user now
                     % that this choice
-                    Comment = [Comment 'Infeasible solution returned, resolve => abort'];
+                    Comment = ['Infeasible'];
                     cost = inf;
                     sol.problem = 4;  
                 else
                     % Hard to say anything                    
-                    Comment = [Comment 'Infeasible solution returned, resolve => continue'];
+                    Comment = ['Infeasible solution returned, resolve => continue'];
                     sol.problem = 4;  
                     cost = p.lower;
                 end
@@ -279,6 +359,12 @@ while length(list)>0 & gap > options.bilevel.relgaptol & iter < options.bilevel.
             if cost<inf
                  
                  if strcmp(p.options.solver,'bmibnb') 
+                     if output.problem == -6
+                         sol.problem = -6;
+                         sol.info = yalmiperror(-6);
+                         info = [];
+                         return
+                     end
                      p.lb = max([p.lb output.extra.propagatedlb],[],2);
                      p.ub = min([p.ub output.extra.propagatedub],[],2);
                  end
@@ -431,7 +517,7 @@ while length(list)>0 & gap > options.bilevel.relgaptol & iter < options.bilevel.
         gap = inf;
     end
     if options.verbose
-        fprintf(' %4.0f : %12.3E  %7.2f   %12.3E  %2.0f  %s\n',iter,upper,100*gap,lower,length(list),Comment)
+        fprintf(' %4.0f : %12.3E  %7.2f   %12.3E  %2.0f  %s\n',iter,full(upper),100*full(gap),full(lower),length(list),Comment)
     end
 end
 info.upper = upper;
@@ -484,7 +570,7 @@ p.F_struc = [zeros(1,size(p.F_struc,2));p.F_struc];
 p.F_struc(1,1+i)=1;
 
 
-function     outer_p = pad(outer_p,all_variables)
+function outer_p = pad(outer_p,all_variables)
 
 [i,loc] = find(ismember(all_variables,outer_p.used_variables));
 p = outer_p;
@@ -498,14 +584,19 @@ p.ub(loc) = outer_p.ub;
 p.variabletype = zeros(1,length(all_variables));
 p.variabletype(loc) = outer_p.variabletype;
 
-p.c = zeros(length(all_variables),1);
+p.c = spalloc(length(all_variables),1,0);
 p.c(loc) = outer_p.c;
 
-p.F_struc = spalloc(size(p.F_struc,1),length(all_variables)+1,nnz(p.F_struc));
-p.F_struc(:,1) = outer_p.F_struc(:,1);
-p.F_struc(:,1+loc) = outer_p.F_struc(:,2:end);
+if ~isempty(p.F_struc)
+    p.F_struc = spalloc(size(p.F_struc,1),length(all_variables)+1,nnz(p.F_struc));
+    p.F_struc(:,1) = outer_p.F_struc(:,1);
+    p.F_struc(:,1+loc) = outer_p.F_struc(:,2:end);
+end
 
-p.Q = speye(length(all_variables));
+% if ~isempty(p.binary_variables)
+% end
+
+p.Q = spalloc(length(all_variables),length(all_variables),nnz(outer_p.Q));
 p.Q(loc,loc) = outer_p.Q;
 
 outer_p = p;
@@ -657,4 +748,37 @@ FRP.F_struc(:,1) = FRP.F_struc(:,1) + B*xi;
 %                         FRP.Q(x_var,y_var)=0;
 %                         FRP.Q(y_var,x_var)=0;
 %                         FRP.Q(x_var,x_var)=0;
+
+
+
+function [merged_mt,merged_vt] = mergemonoms(inner_p,outer_p);
+
+if isequal(inner_p.used_variables,outer_p.used_variables)
+    merged_mt = inner_p.monomtable;
+    merged_vt = inner_p.variabletype;
+else
+    invar  = inner_p.used_variables;
+    outvar = outer_p.used_variables;
+    all_variables = unique([invar outvar]);
+    
+    [i_inner,loc_inner] = find(ismember(all_variables,inner_p.used_variables));
+    [i_outer,loc_outer] = find(ismember(all_variables,outer_p.used_variables));
+
+    merged_mt = spalloc(length(all_variables),length(all_variables),0);
+    merged_vt = zeros(1,length(all_variables));
+    
+    for i = 1:length(i_inner)
+        [ii,jj,kk] = find(inner_p.monomtable(i,:));
+        merged_mt(loc_inner(i),loc_inner(jj)) = kk;
+        merged_vt(loc_inner(i)) = inner_p.variabletype(i);
+    end
+    for i = 1:length(i_outer)
+        [ii,jj,kk] = find(outer_p.monomtable(i,:));
+        merged_mt(loc_outer(i),loc_outer(jj)) = kk;
+        merged_vt(loc_outer(i)) = outer_p.variabletype(i);
+    end   
+end
+    
+    
+    
 

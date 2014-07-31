@@ -5,7 +5,7 @@ N = 2;
 x = sdpvar(2*ones(1,N),ones(1,N));
 u = sdpvar(  ones(1,N),ones(1,N));
 
-F = set(-5 < [x{:}] <5) + set(-10 < [u{:}] < 10);
+F = set(-5 <= [x{:}] <=5) + set(-10 <= [u{:}] <= 10);
 obj = 0;
 Q = eye(2);R = 1/10;
 h = 0.05;
@@ -27,10 +27,10 @@ uk = [];
 cost = 0;
 ops =sdpsettings('solver','bmibnb','bmibnb.lpreduce',0,'bmibnb.maxiter',10,'debug',1,'bmibnb.upper','fmincon','bmibnb.root',1);
           
-sol = solvesdp(F+set(-10 < x{1} < 10) + set(x{1} == xk(:,end)),obj,ops)
+sol = solvesdp(F+set(-10 <= x{1} <= 10) + set(x{1} == xk(:,end)),obj,ops)
 mbg_asserttolequal(sol.problem,0);
 mbg_asserttolequal(double(obj), 48.8272, 1e-3);
 
-P1 = optimizer(F+set(-10 < x{1} < 10) ,obj,ops,x{1},u{1})
+P1 = optimizer(F+set(-10 <= x{1} <= 10) ,obj,ops,x{1},u{1})
 mbg_asserttolequal(P1{xk},-0.3307, 1e-3);
 

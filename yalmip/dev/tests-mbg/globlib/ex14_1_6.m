@@ -38,7 +38,7 @@ F = F + set( (-sqr(x7)) - sqr(x8) - x9 <= -1);
 
 
 
-F = F + set( -1 < [x1 x2 x3 x4 x5 x6 x7 x8] < 1);
+F = F + set( -1 <= [x1 x2 x3 x4 x5 x6 x7 x8] <= 1);
 
 sol = solvesdp(F,objvar,sdpsettings('solver','bmibnb','bmibnb.upper','fmincon'))
 mbg_asserttolequal(sol.problem,0);

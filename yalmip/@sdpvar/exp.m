@@ -2,30 +2,41 @@ function varargout = exp(varargin)
 %EXP (overloaded)
 
 % Author Johan Löfberg
-% $Id: exp.m,v 1.30 2009-03-11 09:45:32 joloef Exp $
 switch class(varargin{1})
 
-    case 'double'
-        error('Overloaded SDPVAR/EXP CALLED WITH DOUBLE. Report error')
-
     case 'sdpvar'
-        varargout{1} = InstantiateElementWise(mfilename,varargin{:});
-
+        x = varargin{1};
+        d = size(x);
+        x = x(:);
+        y = [];
+        for i = 1:prod(d)
+            xi = extsubsref(x,i);
+            if isreal(xi)
+                y = [y;InstantiateElementWise(mfilename,xi)];
+            else
+                y = [y;cos(xi) + sqrt(-1)*sin(xi)];
+            end
+        end
+        varargout{1} = reshape(y,d);
+                    
     case 'char'
-
-        operator = struct('convexity','convex','monotonicity','increasing','definiteness','positive','model','callback');
-        operator.convexhull = @convexhull;
-        operator.bounds     = @bounds;
-        operator.derivative = @(x)exp(x);
-        operator.range = [0 inf];
-
+        
         varargout{1} = [];
-        varargout{2} = operator;
+        varargout{2} = createOperator;
         varargout{3} = varargin{3};
 
     otherwise
         error('SDPVAR/EXP called with CHAR argument?');
 end
+
+function operator = createOperator
+
+operator = struct('convexity','convex','monotonicity','increasing','definiteness','positive','model','callback');
+operator.convexhull = @convexhull;
+operator.bounds     = @bounds;
+operator.derivative = @(x)exp(x);
+operator.inverse    = @(x)log(x);
+operator.range = [0 inf];
 
 % Bounding functions for the branch&bound solver
 function [L,U] = bounds(xL,xU)

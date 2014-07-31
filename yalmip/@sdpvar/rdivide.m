@@ -22,6 +22,11 @@ if isa(Y,'double') & prod(size(Y))==1
     return
 end
 
+if isa(X,'sdpvar') & isa(Y,'double')
+    y = X.*(1./Y);
+    return
+end
+
 % FIX : SLOOOOW BUT SOMEWHAT ROBUST
 [nx,mx] = size(X);
 [ny,my] = size(Y);

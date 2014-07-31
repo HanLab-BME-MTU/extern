@@ -12,14 +12,16 @@ if all(relaxed_p.lb==relaxed_p.ub)
 end
 
 p = relaxed_p;
+p.solver.tag = p.solver.lower.tag;
+
 removethese = p.lb==p.ub;
 if nnz(removethese)>0 & all(p.variabletype == 0) & isempty(p.evalMap)% ~isequal(lowersolver,'callfmincongp') & ~isequal(lowersolver,'callgpposy')
-    
+
     if ~isinf(upper) & nnz(p.Q)==0 & isequal(p.K.m,0)
         p.F_struc = [p.F_struc(1:p.K.f,:);upper-p.f -p.c';p.F_struc(1+p.K.f:end,:)];
         p.K.l=p.K.l+1;
     end
-          
+   
     if ~isempty(p.F_struc)
         if ~isequal(p.K.l,0) & p.options.bnb.ineq2eq
             affected = find(any(p.F_struc(:,1+find(removethese)),2));
@@ -27,10 +29,13 @@ if nnz(removethese)>0 & all(p.variabletype == 0) & isempty(p.evalMap)% ~isequal(
         p.F_struc(:,1)=p.F_struc(:,1)+p.F_struc(:,1+find(removethese))*p.lb(removethese);
         p.F_struc(:,1+find(removethese))=[];       
     end
-    
-    p.c(removethese)=[];
-    if nnz(p.Q)>0
-        p.c = p.c + 2*p.Q(find(~removethese),find(removethese))*p.lb(removethese);
+        
+    idx = find(removethese);
+    p.f = p.f + p.c(idx)'*p.lb(idx);
+    p.c(idx)=[];
+    if nnz(p.Q)>0     
+        p.c = p.c + 2*p.Q(find(~removethese),idx)*p.lb(idx);
+        p.f = p.f + p.lb(idx)'*p.Q(idx,idx)*p.lb(idx);
         p.Q(:,find(removethese))=[];
         p.Q(find(removethese),:)=[];
     else
@@ -41,12 +46,15 @@ if nnz(removethese)>0 & all(p.variabletype == 0) & isempty(p.evalMap)% ~isequal(
     p.x0(removethese)=[];
     p.monomtable(:,find(removethese))=[];
     p.monomtable(find(removethese),:)=[];
-    p.variabletype = []; % Reset, to messy to recompute
+    
+    % This is not necessarily correct!! x*y^2, fix y and we have a linear!
+    p.variabletype(removethese) = [];
+    % p.variabletype = []; % Reset, to messy to recompute
     if ~isequal(p.K.l,0) & p.options.bnb.ineq2eq
         Beq = p.F_struc(1:p.K.f,1);
         Aeq = -p.F_struc(1:p.K.f,2:end);
         B   = p.F_struc(1+p.K.f:p.K.l+p.K.f,1);
-        A   = -p.F_struc(1+p.K.f:p.K.l+p.K.f,2:end);        
+        A   = -p.F_struc(1+p.K.f:p.K.l+p.K.f,2:end);
         affected = affected(affected <= p.K.f + p.K.l);
         affected = affected(affected > p.K.f) - p.K.f;
         aaa = zeros(p.K.l,1);aaa(affected) = 1;
@@ -63,7 +71,7 @@ if nnz(removethese)>0 & all(p.variabletype == 0) & isempty(p.evalMap)% ~isequal(
         end
     end
     
-    % Find empty rows
+    % Find completely empty rows
     zero_row = find(~any(p.F_struc,2));    
     zero_row = zero_row(zero_row <= p.K.f + p.K.l);
     if ~isempty(zero_row)
@@ -71,6 +79,28 @@ if nnz(removethese)>0 & all(p.variabletype == 0) & isempty(p.evalMap)% ~isequal(
         p.K.l =  p.K.l - nnz(zero_row > p.K.f);
         p.K.f =  p.K.f - nnz(zero_row <= p.K.f);
     end
+    if p.K.l > 0
+         zero_row = find(~any(p.F_struc(1+p.K.f:p.K.f+p.K.l,2:end),2));
+         if ~isempty(zero_row)
+             lhs = p.F_struc(p.K.f + zero_row,1);
+             zero_row_pos = find(lhs >= 0);
+             remove_these = zero_row(zero_row_pos);
+             p.F_struc(p.K.f + remove_these,:) = [];
+             p.K.l = p.K.l - length(remove_these);
+         end
+    end
+     if p.K.q> 0
+         top = p.K.f + p.K.l+1;
+         for i = 1:length(p.K.q)
+             if ~any(p.F_struc(top,:))
+                 i
+             end
+             %nnz(Ff(2:end,:))
+              %   1
+             %end
+         end
+     end
+             
     
     % Derive bounds from this model, and if we fix more variables, apply
     % recursively  
@@ -88,13 +118,21 @@ if nnz(removethese)>0 & all(p.variabletype == 0) & isempty(p.evalMap)% ~isequal(
         dummy.ub = newub;
         output = bnb_solvelower(lowersolver,dummy,upper,lower);        
     else
-        output = feval(lowersolver,p);
+        if any(p.lb>p.ub+0.1)
+            output.problem = 1;
+            output.Primal = zeros(length(p.lb),1);
+        else
+            p.solver.version = p.solver.lower.version;
+            p.solver.subversion = p.solver.lower.subversion;
+            output = feval(lowersolver,p);
+        end
     end
     x=relaxed_p.c*0;
     x(removethese)=relaxed_p.lb(removethese);
     x(~removethese)=output.Primal;
     output.Primal=x;
 else
+    p.solver = p.solver.lower;
     output = feval(lowersolver,p);    
 end
 

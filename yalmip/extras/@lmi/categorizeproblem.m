@@ -1,7 +1,7 @@
 function [problem,integer_variables,binary_variables,parametric_variables,uncertain_variables,semicont_variables,quad_info] = categorizeproblem(F,P,h,relax,parametric,evaluation,F_vars)
 %categorizeproblem          Internal function: tries to determine the type of optimization problem
 
-% Author Johan Löfberg 
+% Author Johan Löfberg
 % $Id: categorizeproblem.m,v 1.24 2009-05-29 08:05:12 joloef Exp $
 
 Counter = size(F.clauses,2);
@@ -31,7 +31,8 @@ problem.objective.linear = 0;
 problem.objective.quadratic.convex = 0;
 problem.objective.quadratic.nonconvex = 0;
 problem.objective.polynomial = 0;
-problem.objective.maxdet = 0;
+problem.objective.maxdet.convex = 0;
+problem.objective.maxdet.nonconvex = 0;
 problem.objective.sigmonial = 0;
 
 problem.constraint.equalities.linear     = 0;
@@ -52,13 +53,19 @@ problem.constraint.inequalities.semidefinite.sigmonial = 0;
 
 problem.constraint.inequalities.rank = 0;
 
-problem.constraint.inequalities.secondordercone = 0;
+problem.constraint.inequalities.secondordercone.linear = 0;
+problem.constraint.inequalities.secondordercone.nonlinear = 0;
 problem.constraint.inequalities.rotatedsecondordercone = 0;
 problem.constraint.inequalities.powercone = 0;
+
+problem.constraint.complementarity.variable = 0;
+problem.constraint.complementarity.linear = 0;
+problem.constraint.complementarity.nonlinear = 0;
 
 problem.constraint.integer = 0;
 problem.constraint.binary = 0;
 problem.constraint.semicont = 0;
+problem.constraint.sos1 = 0;
 problem.constraint.sos2 = 0;
 
 problem.complex = 0;
@@ -90,7 +97,13 @@ end
 % ********************************************************
 % Logarithmic objective?
 % ********************************************************
-problem.objective.maxdet = ~isempty(P);
+if ~isempty(P)
+    problem.objective.maxdet.convex = 1;
+    problem.objective.maxdet.nonconvex = 1;
+    problem.objective.maxdet.convex = all(P.gain<=0);
+    problem.objective.maxdet.nonconvex = any(P.gain>0);                  
+end
+%problem.objective.maxdet = ~isempty(P);
 
 % ********************************************************
 % Rank variables
@@ -113,10 +126,13 @@ else
     allvars = F_vars;
 end
 
-any_nonlinear_variables =~isempty(find(ismembc(nonlinear_variables,allvars)));
+members = ismembcYALMIP(nonlinear_variables,allvars);
+any_nonlinear_variables =~isempty(find(members));
 any_discrete_variables = ~isempty(integer_variables) | ~isempty(binary_variables) | ~isempty(semicont_variables);
 
 interval_data = isinterval(h);
+
+problem.constraint.equalities.multiterm = 0;
 
 for i = 1:Counter
     
@@ -124,19 +140,30 @@ for i = 1:Counter
     % Only real-valued data?
     real_data = real_data & isreal(Fi.data);
     interval_data = interval_data |  isinterval(Fi.data);
-        
+    
     % Any discrete variables used
     if any_discrete_variables
         Fvar = getvariables(Fi.data);
-        int_data = int_data | any(ismembc(Fvar,integer_variables));
-        bin_data = bin_data | any(ismembc(Fvar,binary_variables));
-        par_data = par_data | any(ismembc(Fvar,parametric_variables));
-        scn_data = scn_data | any(ismembc(Fvar,semicont_variables));
+        int_data = int_data | any(ismembcYALMIP(Fvar,integer_variables));
+        bin_data = bin_data | any(ismembcYALMIP(Fvar,binary_variables));
+        par_data = par_data | any(ismembcYALMIP(Fvar,parametric_variables));
+        scn_data = scn_data | any(ismembcYALMIP(Fvar,semicont_variables));
     end
     
-    if any_rank_variables       
+    if any_rank_variables
         rank_constraint = rank_constraint | any(ismember(getvariables(Fi.data),rank_variables));
-    end  
+    end
+    
+    % Check for equalities violating GP definition    
+    if problem.constraint.equalities.multiterm == 0
+        if Fi.type==3
+            if isempty(strfind(Fi.handle,'Expansion of'))
+                if multipletermsInEquality(Fi)
+                    problem.constraint.equalities.multiterm = 1;
+                end
+            end
+        end
+    end
     
     if ~any_nonlinear_variables % No nonlinearly parameterized constraints
         
@@ -147,139 +174,151 @@ for i = 1:Counter
                 problem.constraint.inequalities.elementwise.linear = 1;
             case 3
                 problem.constraint.equalities.linear = 1;
-            case 4
-                problem.constraint.inequalities.secondordercone = 1;
+            case {4,54}
+                problem.constraint.inequalities.secondordercone.linear = 1;
             case 5
                 problem.constraint.inequalities.rotatedsecondordercone = 1;
             case 20
                 problem.constraint.inequalities.powercone = 1;
             case 50
                 problem.constraint.sos2 = 1;
+            case 51
+                problem.constraint.sos1 = 1;                
+            case 55
+                problem.constraint.complementarity.linear = 1;
             otherwise
         end
     else
         % Can be nonlinear stuff
         vars = getvariables(Fi.data);
-        usednonlins = find(ismembc(nonlinear_variables,vars));
+        usednonlins = find(ismembcYALMIP(nonlinear_variables,vars));
         if ~isempty(usednonlins)
             usedsigmonials = find(ismember(sigmonial_variables,vars));
             if ~isempty(usedsigmonials)
                 switch Fi.type
-                case 1
-                    problem.constraint.inequalities.semidefinite.sigmonial = 1;
-                case 2
-                    problem.constraint.inequalities.elementwise.sigmonial = 1;
-                case 3
-                    problem.constraint.equalities.sigmonial = 1;
-                case 4
-                    error('Sigmonial SOCP not supported');                     
-                case 5
-                    error('Sigmonial RSOCP not supported');                    
-                otherwise
-                    error('Report bug in problem classification (sigmonial constraint)');
+                    case 1
+                        problem.constraint.inequalities.semidefinite.sigmonial = 1;
+                    case 2
+                        problem.constraint.inequalities.elementwise.sigmonial = 1;
+                    case 3
+                        problem.constraint.equalities.sigmonial = 1;
+                    case {4,54}
+                       problem.constraint.inequalities.secondordercone.nonlinear = 1;
+                    case 5
+                        error('Sigmonial RSOCP not supported');
+                    otherwise
+                        error('Report bug in problem classification (sigmonial constraint)');
                 end
             else
                 deg = degree(Fi.data);
                 switch deg
                     
-                case 1
-                    switch Fi.type
                     case 1
-                        problem.constraint.inequalities.semidefinite.linear = 1;
+                        switch Fi.type
+                            case 1
+                                problem.constraint.inequalities.semidefinite.linear = 1;
+                            case 2
+                                problem.constraint.inequalities.elementwise.linear = 1;
+                            case 3
+                                problem.constraint.equalities.linear = 1;
+                            case {4,54}
+                                problem.constraint.inequalities.secondordercone.linear = 1;
+                            case 5
+                                problem.constraint.inequalities.rotatedsecondordercone = 1;
+                            case 20
+                                problem.constraint.inequalities.powercone = 1;
+                                
+                            otherwise
+                                error('Report bug in problem classification (linear constraint)');
+                        end
                     case 2
-                        problem.constraint.inequalities.elementwise.linear = 1;
-                    case 3
-                        problem.constraint.equalities.linear = 1;
-                    case 4
-                        problem.constraint.inequalities.secondordercone = 1;
-                    case 5
-                        problem.constraint.inequalities.rotatedsecondordercone = 1;                                
-                    case 20
-                        problem.constraint.inequalities.powercone = 1;                                
+                        switch Fi.type
+                            case 1
+                                problem.constraint.inequalities.semidefinite.quadratic = 1;
+                            case 2
+                                % FIX : This should be re-used from
+                                % convertconvexquad
+                                convex = 1;
+                                f = Fi.data;f = f(:);
+                                ii = 1;
+                                while convex & ii<=length(f)
+                                    [Q,caux,faux,xaux,info] = quaddecomp(f(ii));
+                                    
+                                    if info | any(eig(full(Q)) > 0)
+                                        convex = 0;
+                                    end
+                                    ii= ii + 1;
+                                end
+                                if convex
+                                    problem.constraint.inequalities.elementwise.quadratic.convex = 1;
+                                else
+                                    problem.constraint.inequalities.elementwise.quadratic.nonconvex = 1;
+                                end
+                            case 3
+                                problem.constraint.equalities.quadratic = 1;
+                            case {4,54}
+                                problem.constraint.inequalities.secondordercone.nonlinear = 1;
+                            case 5
+                                error
+                            case 55
+                                problem.constraint.complementarity.nonlinear = 1;
+                            otherwise
+                                error('Report bug in problem classification (quadratic constraint)');
+                        end
+                    otherwise
+                        switch Fi.type
+                            case 1
+                                problem.constraint.inequalities.semidefinite.polynomial = 1;
+                            case 2
+                                problem.constraint.inequalities.elementwise.polynomial = 1;
+                            case 3
+                                problem.constraint.equalities.polynomial = 1;
+                            case {4,54}
+                                problem.constraint.inequalities.secondordercone.nonlinear = 1;
+                            case 5
+                                %   problem.constraint.inequalities.rotatedsecondordercone = 1;
+                            case 55
+                                problem.constraint.complementarity.nonlinear = 1;
+                            otherwise
+                                error('Report bug in problem classification (polynomial constraint)');
+                        end
                         
-                    otherwise
-                        error('Report bug in problem classification (linear constraint)');
-                    end
-                case 2
-                    switch Fi.type
-                    case 1
-                        problem.constraint.inequalities.semidefinite.quadratic = 1;
-                    case 2
-                        % FIX : This should be re-used from
-                        % convertconvexquad
-                        convex = 1;
-                        f = Fi.data;f = f(:);
-                        ii = 1;
-                        while convex & ii<=length(f)
-                            [Q,c,f,x,info] = quaddecomp(f(ii));
-
-                            if info | any(eig(Q) > 0)
-                                convex = 0;
-                            end
-                            ii= ii + 1;
-                        end
-                        if convex
-                            problem.constraint.inequalities.elementwise.quadratic.convex = 1;
-                        else
-                            problem.constraint.inequalities.elementwise.quadratic.nonconvex = 1;
-                        end
-                    case 3
-                        problem.constraint.equalities.quadratic = 1;
-                    case 4
-                        error                                
-                    case 5
-                        error                                
-                    otherwise
-                        error('Report bug in problem classification (quadratic constraint)');
-                    end
-                otherwise
-                    switch Fi.type
-                    case 1
-                        problem.constraint.inequalities.semidefinite.polynomial = 1;
-                    case 2
-                        problem.constraint.inequalities.elementwise.polynomial = 1;
-                    case 3
-                        problem.constraint.equalities.polynomial = 1;
-                    case 4
-                        %   problem.constraint.inequalities.secondordercone = 1;
-                    case 5
-                        %   problem.constraint.inequalities.rotatedsecondordercone = 1;
-                    otherwise
-                        error('Report bug in problem classification (polynomial constraint)');
-                    end
-                    
                 end
             end
         else
             switch Fi.type
-            case 1
-                problem.constraint.inequalities.semidefinite.linear = 1;
-            case 2
-                problem.constraint.inequalities.elementwise.linear = 1;
-            case 3
-                problem.constraint.equalities.linear = 1;
-            case 4
-                problem.constraint.inequalities.secondordercone = 1;                    
-            case 5
-                problem.constraint.inequalities.rotatedsecondordercone = 1; 
+                case 1
+                    problem.constraint.inequalities.semidefinite.linear = 1;
+                case 2
+                    problem.constraint.inequalities.elementwise.linear = 1;
+                case 3
+                    problem.constraint.equalities.linear = 1;
+                case {4,54}
+                    problem.constraint.inequalities.secondordercone.linear = 1;
+                case 5
+                    problem.constraint.inequalities.rotatedsecondordercone = 1;
                 case 20
-                                    problem.constraint.inequalities.powercone = 1; 
-            case 7
-                problem.constraint.integer = 1;
-            case 8
-                problem.constraint.binary = 1;                     
-            case 50
-                problem.constraint.sos2 = 1;   
-            case 52
-                problem.constraint.semicont = 1;   
-            otherwise
-                error('Report bug in problem classification (linear constraint)');
+                    problem.constraint.inequalities.powercone = 1;
+                case 7
+                    problem.constraint.integer = 1;
+                case 8
+                    problem.constraint.binary = 1;
+                case 50
+                    problem.constraint.sos2 = 1;
+                case 51
+                    problem.constraint.sos1 = 1;                    
+                case 52
+                    problem.constraint.semicont = 1;
+                case 55
+                    problem.constraint.complementarity.linear = 1;
+                otherwise
+                    error('Report bug in problem classification (linear constraint)');
             end
         end
     end
 end
 
-if int_data   
+if int_data
     problem.constraint.integer = 1;
 end
 if bin_data
@@ -291,7 +330,7 @@ end
 if ~real_data
     problem.complex = 1;
 end
-if interval_data    
+if interval_data
     problem.interval = 1;
 end
 if rank_constraint
@@ -303,15 +342,15 @@ end
 
 if (relax==1) | (relax==2)
     problem.constraint.integer = 0;
-    problem.constraint.binary = 0;    
-    problem.constraint.sos2 = 0;    
-    problem.constraint.semicont = 0;    
+    problem.constraint.binary = 0;
+    problem.constraint.sos2 = 0;
+    problem.constraint.semicont = 0;
     int_data = 0;
     bin_data = 0;
     scn_data = 0;
 end
-if (relax==1) | (relax==3)    
-    problem.constraint.equalities.linear = problem.constraint.equalities.linear | problem.constraint.equalities.quadratic | problem.constraint.equalities.polynomial | problem.constraint.equalities.sigmonial; 
+if (relax==1) | (relax==3)
+    problem.constraint.equalities.linear = problem.constraint.equalities.linear | problem.constraint.equalities.quadratic | problem.constraint.equalities.polynomial | problem.constraint.equalities.sigmonial;
     problem.constraint.equalities.quadratic = 0;
     problem.constraint.equalities.polynomial = 0;
     problem.constraint.equalities.sigmonial = 0;
@@ -320,22 +359,31 @@ if (relax==1) | (relax==3)
     problem.constraint.inequalities.elementwise.quadratic.convex = 0;
     problem.constraint.inequalities.elementwise.quadratic.nonconvex = 0;
     problem.constraint.inequalities.elementwise.sigmonial   = 0;
-    problem.constraint.inequalities.elementwise.polynomial  = 0;    
+    problem.constraint.inequalities.elementwise.polynomial  = 0;
     
-    problem.constraint.inequalities.semidefinite.linear =  problem.constraint.inequalities.semidefinite.linear | problem.constraint.inequalities.semidefinite.quadratic | problem.constraint.inequalities.semidefinite.polynomial | problem.constraint.inequalities.semidefinite.sigmonial;    
+    problem.constraint.inequalities.semidefinite.linear =  problem.constraint.inequalities.semidefinite.linear | problem.constraint.inequalities.semidefinite.quadratic | problem.constraint.inequalities.semidefinite.polynomial | problem.constraint.inequalities.semidefinite.sigmonial;
     problem.constraint.inequalities.semidefinite.quadratic  = 0;
     problem.constraint.inequalities.semidefinite.polynomial = 0;
     problem.constraint.inequalities.semidefinite.sigmonial  = 0;
     
+    problem.constraint.inequalities.elementwise.secondordercone.linear = problem.constraint.inequalities.secondordercone.linear |  problem.constraint.inequalities.secondordercone.nonlinear ;
+    problem.constraint.inequalities.elementwise.secondordercone.nonlinear = 0;
+    
     poly_constraint = 0;
     bilin_constraint = 0;
-    sigm_constraint = 0;    
+    sigm_constraint = 0;
+    problem.evaluation = 0;
 end
-
 
 % Analyse the objective function
 quad_info = [];
-if (~isempty(h)) & ~is(h,'linear') &~(relax==1) &~(relax==3)
+if isa(h,'sdpvar')
+    h_is_linear = is(h,'linear');
+else
+    h_is_linear = 0;
+end
+
+if (~isempty(h)) & ~h_is_linear &~(relax==1) &~(relax==3)
     if ~(isempty(binary_variables) & isempty(integer_variables))
         h_var = depends(h);
         if any(ismember(h_var,binary_variables))
@@ -359,9 +407,9 @@ if (~isempty(h)) & ~is(h,'linear') &~(relax==1) &~(relax==3)
             cr(abs(cr)<1e-10) = 0;
             ci(abs(ci)<1e-10) = 0;
             Q = Qr + sqrt(-1)*Qi;
-            c = cr + sqrt(-1)*ci;            
+            c = cr + sqrt(-1)*ci;
         end
-        if info==0    
+        if info==0
             % OK, we have some kind of quadratic expression
             % Find involved variables
             index = find(any(Q,2));
@@ -375,8 +423,8 @@ if (~isempty(h)) & ~is(h,'linear') &~(relax==1) &~(relax==3)
                 if p==0
                     [i,j,k] = find(Rsub);
                     R = sparse((i),index(j),k,length(Qsub),length(Q));
-%                    R = Q*0;
-%                    R(index,index) = Rsub;
+                    %                    R = Q*0;
+                    %                    R(index,index) = Rsub;
                 else
                     R = [];
                 end
@@ -386,7 +434,7 @@ if (~isempty(h)) & ~is(h,'linear') &~(relax==1) &~(relax==3)
             if p~=0
                 Q = full(Q);
                 if min(eig(Q))>=-1e-10
-                    p=0;      
+                    p=0;
                     try
                         [U,S,V]=svd(Q);
                     catch
@@ -411,6 +459,17 @@ if (~isempty(h)) & ~is(h,'linear') &~(relax==1) &~(relax==3)
             problem.objective.polynomial = 1;
         end
     end
-else   
+else
     problem.objective.linear = ~isempty(h);
+end
+
+function p = multipletermsInEquality(Fi);
+p = 0;
+Fi = sdpvar(Fi.data);
+if length(getvariables(Fi))>1
+    B = getbase(Fi);  
+    if ~isreal(B)
+        B = [real(B);imag(B)];   
+    end
+    p = any(sum(B | B,2)-(B(:,1) == 0) > 1);    
 end

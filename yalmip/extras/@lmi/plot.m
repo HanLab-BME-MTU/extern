@@ -1,14 +1,18 @@
-function x_opt = plot(varargin)
+function varargout = plot(varargin)
 %PLOT  Plots the feasible region of a set of constraints
 %
 % p = plot(C,x,c,n,options)
 %
-% C:  SET object
+% Note that only convex sets are allowed, or union of convex sets
+% represented using binary variables (either defined explictly or
+% introduced by YALMIP when modelling, e.g., mixed integer linear
+% programming representable operators)
+%
+% C:  Constraint object
 % x:  Plot variables [At most three variables]
 % c:  color [double] ([r g b] format) or char from 'rymcgbk'
-% n:  #vertices [double ]
+% n:  #vertices [double ] (default 100 in 2D and 300 otherwise)
 % options: options structure from sdpsettings
-
 
 % Author Johan Löfberg
 % $Id: plot.m,v 1.18 2010-03-31 14:27:39 joloef Exp $
@@ -32,6 +36,7 @@ else
         opts = sdpsettings('verbose',0);
     end
 end
+opts.verbose = max(opts.verbose-1,0);
 
 if any(is(F,'uncertain'))
     F = robustify(F,[],opts);
@@ -41,6 +46,9 @@ if nargin < 3
     color=['rymcgbk']';
 else
     color = varargin{3};
+    if isa(color,'sdpvar')
+        error('The variables should be specified in the second argument.');
+    end
     color = color(:)';
     if isempty(color)
         color=['rymcgbk']';
@@ -53,9 +61,12 @@ if nargin < 2
 else
     x = varargin{2};
     if ~isempty(x)
+        if ~isa(x,'sdpvar')
+            error('Second argument should be empty or an SDPVAR');
+        end
         x = x(:);
         x = x(1:min(3,length(x)));
-    end
+    end    
 end
 
 if isempty(F)
@@ -109,17 +120,17 @@ end
 
 if nargin < 4
     if length(x)==3
-        n = 100;
+        n = 300;
     else
-        n = 25;
+        n = 100;
     end
 else
     n = varargin{4};
     if isempty(n)
         if length(x)==3
-            n = 100;
+            n = 300;
         else
-            n = 25;
+            n = 100;
         end
     end
     if ~isa(n,'double')
@@ -176,6 +187,10 @@ elseif nargout == 0
     end
 end
 
+if nargout > 0
+    varargout{1} = x_opt;
+end
+
 
 function [xout,errorstatus] = solvefordirection(c,internalmodel,uv)
 internalmodel.c = 0*internalmodel.c;
@@ -186,14 +201,21 @@ xout = xout(uv(:));
 errorstatus = sol.problem;
 
 
-function plotSet(x_opt,color,options)
+function p = plotSet(x_opt,color,options)
 if size(x_opt,1)==2
-    patch(x_opt(1,:),x_opt(2,:),color);
+    p = patch(x_opt(1,:),x_opt(2,:),color);
+    set(p,'LineStyle',options.plot.wirestyle);   
+    set(p,'LineWidth',options.plot.linewidth);
+    set(p,'EdgeColor',options.plot.edgecolor);
+    set(p,'Facealpha',options.plot.shade);    
 else
-    K = convhulln(x_opt');
-    %p = patch('Vertices', x_opt', 'Faces', K, 'FaceVertexCData', color, 'FaceColor', color);%, 'FaceAlpha', 0.5);
-    p = patch('Vertices', x_opt', 'Faces', K,'FaceColor', color);
-    set(p,'LineStyle',options.plot.wirestyle);
+    try
+        K = convhulln(x_opt');
+        p = patch('Vertices', x_opt','Faces',K,'FaceColor', color);
+    catch
+         p = fill3(x_opt(1,:),x_opt(2,:),x_opt(3,:),1);
+    end
+    set(p,'LineStyle',options.plot.wirestyle);   
     set(p,'LineWidth',options.plot.linewidth);
     set(p,'EdgeColor',options.plot.edgecolor);
     set(p,'Facealpha',options.plot.shade);     
@@ -202,43 +224,7 @@ else
     camlight('headlight','infinite');
     camlight('headlight','infinite');
     camlight('right','local');
-    camlight('left','local');
-   
-%     if ~(isequal(options.plot.wirestyle,'') | isequal(options.plot.wirestyle,'none'))
-%         for i = 1:size(K,1) 
-%             p1 = K(i,1);p2 = K(i,2);p3 = K(i,3);
-%             x1 = x_opt(:,p1);
-%             x2 = x_opt(:,p2);
-%             x3 = x_opt(:,p3);
-%             n = cross(x2-x1,x3-x1);n = n/norm(n);
-%             normals(:,i)=n;
-%         end
-%         for i = 1:size(K,1)    
-%             p1 = K(i,1);p2 = K(i,2);p3 = K(i,3);
-%             x1 = x_opt(:,p1);
-%             x2 = x_opt(:,p2);
-%             x3 = x_opt(:,p3);
-%             n = cross(x2-x1,x3-x1);n = n/norm(n);
-%             cand1 =  setdiff(find(sum((sort(K')' == p1) | (sort(K')' == p2),2)==2),i);
-%             cand2 =  setdiff(find(sum((sort(K')' == p1) | (sort(K')' == p3),2)==2),i);
-%             cand3 =  setdiff(find(sum((sort(K')' == p2) | (sort(K')' == p3),2)==2),i);
-%             cand = [cand1(:);cand2(:);cand3(:)];
-%             doplot = 1;
-%             if length(cand)>0
-%                for j = 1:length(cand)
-%                    if norm(n-normals(:,cand(j)))<1e-8
-%                        doplot = 0;
-%                    end
-%                end
-%             end
-%             if doplot
-%            l = line(x_opt(1,K(i,:)),x_opt(2,K(i,:)),x_opt(3,K(i,:)));
-%            set(l,'LineStyle',options.plot.wirestyle);
-%            set(l,'LineWidth',options.plot.linewidth);
-%            set(l,'Color',options.plot.wirecolor);
-%             end
-%         end
-%     end
+    camlight('left','local');   
 end
 
 
@@ -249,6 +235,10 @@ function [x_opt,errorstatus] = generateBoundary(internalmodel,x,n,localindex);
 x_opt = [];
 phi = [];
 errorstatus = 0;
+waitbar_created = 0;
+t0 = clock;
+waitbar_starts_at = 2;
+lastdraw = clock;
 try % Try to ensure that we close h
     if length(x)==2
         mu = 0.5;
@@ -257,7 +247,7 @@ try % Try to ensure that we close h
     end
     n_ = n;
     n = ceil(mu*n);
-    h = waitbar(0,['Please wait, solving ' num2str(n_) ' problems using ' internalmodel.solver.tag]);
+   % h = waitbar(0,['Please wait, solving ' num2str(n_) ' problems using ' internalmodel.solver.tag]);
     angles = (0:(n))*2*pi/n;
     if length(x)==2
         c = [cos(angles);sin(angles)];
@@ -268,10 +258,25 @@ try % Try to ensure that we close h
     while i<=n & errorstatus ~=1
         [xi,errorstatus] = solvefordirection(c(:,i),internalmodel,localindex(:));
         if errorstatus == 2
-            disp('Discovered unbounded direction. You should add bounds on variables')
-        end
+            disp('Discovered unbounded direction. You should add bounds on variables')            
+        elseif errorstatus == 12
+            [xi,errorstatus] = solvefordirection(0*c(:,i),internalmodel,localindex(:));
+            if errorstatus == 0
+                errorstatus = 2;
+                disp('Discovered unbounded direction. You should add bounds on variables')
+            end
+        end                                        
         x_opt = [x_opt xi];
-        waitbar(i/n_,h)
+        if ~waitbar_created
+            if etime(clock,t0)>waitbar_starts_at;
+             h = waitbar(0,['Please wait, solving ' num2str(n_) ' problems using ' internalmodel.solver.tag]);
+             waitbar_created = 1;
+            end
+        end
+        if waitbar_created & etime(clock,lastdraw)>1/10
+            waitbar(i/n_,h)
+            lastdraw = clock;
+        end
         i=i+1;
     end
     
@@ -299,12 +304,24 @@ try % Try to ensure that we close h
                 angles = [angles(1:pos(pick)) phii  angles((pos(pick))+1:end)];
                 x_opt = [x_opt(:,1:pos(pick)) xi  x_opt(:,(pos(pick))+1:end)];
             end
+            if ~waitbar_created
+            if etime(clock,t0)>waitbar_starts_at;
+                h = waitbar(0,['Please wait, solving ' num2str(n_) ' problems using ' internalmodel.solver.tag]);
+                waitbar_created = 1;
+            end
+            end
+            if waitbar_created
             waitbar((ceil(n_*mu)+i)/n_,h);
+            end
         end
     end
+    if waitbar_created        
     close(h);
+    end
 catch
+    if waitbar_created
     close(h);
+    end
 end
 
 function pLP = extractLP(p);

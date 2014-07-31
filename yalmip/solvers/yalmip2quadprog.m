@@ -1,4 +1,4 @@
-function [Q,c,A,b,Aeq,beq,lb,ub,ops] = yalmip2quadprog(interfacedata);
+function model = yalmip2quadprog(interfacedata);
 
 options = interfacedata.options;
 F_struc = interfacedata.F_struc;
@@ -53,3 +53,15 @@ if isfield(options.quadprog,'LargeScale')
 end
 
 ops = options.quadprog;
+
+model.Q = 2*Q;
+model.c = c;
+model.A = A;
+model.b = b;
+model.Aeq = Aeq;
+model.beq = beq;
+model.lb = lb;
+model.ub = ub;
+model.ops = ops;
+model.x0 = interfacedata.x0;
+model.f = interfacedata.f;

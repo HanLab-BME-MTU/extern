@@ -139,10 +139,11 @@ switch class(varargin{1})
 
                         [H,K] = double(pwa_struct{1}.Pfinal);
                         S = unique(([reshape([pwa_struct{1}.Bi{:}]',length(x),[])' reshape([pwa_struct{1}.Ci{:}]',[],1)]),'rows');
-                        S = unique(round(S*1e10),'rows')/1e10;
+                       % S = unique(round(S*1e8),'rows')/1e8;
+                        
                         costs = S*[x;1];
                         %costs = reshape([pwa_struct{1}.Bi{:}]',length(x),[])'*x+reshape([pwa_struct{1}.Ci{:}]',[],1);
-                        F = set(H* x <= K) + set(costs< t,'Epigraph of pwa');
+                        F = set(H* x <= K) + set(costs<=t,'Epigraph of pwa');
 
                     case 'convexoverlapping'
 
@@ -176,7 +177,7 @@ switch class(varargin{1})
                             cost = reshape([pwa_struct{i}.Bi{jj}]',length(x),[])'*x+reshape([pwa_struct{i}.Ci{jj}]',[],1);
 
                             [M,m] = derivebounds(cost);
-                            F = F + set(cost < t + 2*(1+maxcost)*(1-d(i)));
+                            F = F + set(cost <= t + 2*(1+maxcost)*(1-d(i)));
                         end
                         [t_bounds] = yalmip('getbounds',getvariables(t));
                         bounds(t,max([t_bounds(1) mincost]),min([t_bounds(2) 3*maxcost]));

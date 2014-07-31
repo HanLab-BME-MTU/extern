@@ -24,7 +24,7 @@ void mexFunction( int nlhs, mxArray *plhs[],int nrhs, const mxArray*prhs[])
         i = 0;
         if (hashtable[0] > hashval)
         {
-            # No way, the number is smaller than lowest number in table
+            // No way, the number is smaller than lowest number in table
             position[0] = 0;
         }
         else if (hashtable[high] < hashval)
@@ -40,22 +40,22 @@ void mexFunction( int nlhs, mxArray *plhs[],int nrhs, const mxArray*prhs[])
                 i++;
                 if (i>=2*m)
                 {
-                    #  mexPrintf("What!! %i",mid);
+                    //mexPrintf("What!! %i",mid);
                     break;
                 }
                 if (hashtable[mid] < hashval)
                 {
-                    # mexPrintf("Low %i %i %i\n",low,mid,high);
+                    // mexPrintf("Low %i %i %i\n",low,mid,high);
                     low = mid;
                 }
                 else if (hashtable[mid] > hashval)
                 {
-                    #  mexPrintf("High %i %i %i\n",low,mid,high);
+                    // mexPrintf("High %i %i %i\n",low,mid,high);
                     high = mid;
                 }
                 else if  (hashtable[mid] == hashval)
                 {
-                    #  mexPrintf("Match %i %i %i\n",low,mid,high);
+                    // mexPrintf("Match %i %i %i\n",low,mid,high);
                     position[0] = mid+1;
                     break;
                 }

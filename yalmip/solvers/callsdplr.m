@@ -105,15 +105,17 @@ if ~isempty(lowrankdetails) | (options.sdplr.maxrank>0 & (K.s(1)>0))
     end
 end
 
+
 % *********************************************
 % CALL SDPLR
 % *********************************************
 if options.showprogress;showprogress(['Calling ' interfacedata.solver.tag],options.showprogress);end
 solvertime = clock;
 if isempty(lrA)    
-   [x_s,y_s,info] = sdplr(F_struc(:,2:end),c,F_struc(:,1),K,pars);
-else
-    [x_s,y_s,info] = sdplr(F_struc(:,2:end),c,F_struc(:,1),K,pars,lrA);
+   [x_s,y_s,info] = sdplr(F_struc(:,2:end),c,F_struc(:,1),K);
+else   
+   % pars.reduce = 0;
+    [x_s,y_s,info] = sdplr(F_struc(:,2:end),full(c),full(F_struc(:,1)),K,pars,lrA);
 end
 solvertime = etime(clock,solvertime);
 

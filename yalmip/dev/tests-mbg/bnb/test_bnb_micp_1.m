@@ -13,41 +13,41 @@ t = sdpvar(n,n,'full');
 e = P(:)-Z(:);
 ops = sdpsettings('solver','bnb','verbose',2);
 
-F = set(-t < P-Z < t);
+F = set(-t <= P-Z <= t);
 obj = sum(sum(t));
 sol = solvesdp(F,obj,ops);
 mbg_asserttolequal(sol.problem,0);
-mbg_asserttolequal(double(obj), 66.18236738983525, 1e-5);
+mbg_asserttolequal(double(obj), 66.18236738983525, 1e-4);
 
 F = set([]);
 obj = norm(e,1);
 sol = solvesdp(F,obj,ops);
 mbg_asserttolequal(sol.problem,0);
-mbg_asserttolequal(double(obj), 66.18236738983525, 1e-5);
+mbg_asserttolequal(double(obj), 66.18236738983525, 1e-4);
 
 obj = e'*e;
 F = set([]);
 sol = solvesdp(F,obj,ops);
 mbg_asserttolequal(sol.problem,0);
-mbg_asserttolequal(double(obj), 3.352603490492911e+002, 1e-5);
+mbg_asserttolequal(double(obj), 3.352603490492911e+002, 1e-4);
 
 t = sdpvar(1,1);
 obj = t;
 F = set(cone(e,t));
 sol = solvesdp(F,obj,ops);
 mbg_asserttolequal(sol.problem,0);
-mbg_asserttolequal(double(obj), 18.31011603130778, 1e-5);
+mbg_asserttolequal(double(obj), 18.31011603130778, 1e-4);
 
 t = sdpvar(1,1);
 obj = norm(e);
 F = set([]);
 sol = solvesdp(F,obj,ops);
 mbg_asserttolequal(sol.problem,0);
-mbg_asserttolequal(double(obj), 18.31011603130778, 1e-5);
+mbg_asserttolequal(double(obj), 18.31011603130778, 1e-4);
 
 obj = t;
-F = set([t e';e eye(length(e))]>0);
+F = set([t e';e eye(length(e))]>=0);
 sol = solvesdp(F,obj,ops);
 mbg_asserttolequal(sol.problem,0);
-mbg_asserttolequal(double(obj), 3.352603420494530e+002, 1e-5);
+mbg_asserttolequal(double(obj), 3.352603420494530e+002, 1e-4);
 

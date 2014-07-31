@@ -85,6 +85,18 @@ if options.savedebug
     save cplexintdebug H C A B LB UB QC VARTYPE INDEQ PARAM OPTIONS
 end
 
+if ~isempty(PARAM.double)
+     i = find(PARAM.double(:,1)==1025);
+     if ~isempty(i)
+         PARAM.double(i,2) = PARAM.double(i,2)-interfacedata.f;
+     end
+     i = find(PARAM.double(:,1)==1026);
+     if ~isempty(i)
+         PARAM.double(i,2) = PARAM.double(i,2)-interfacedata.f;
+     end
+end
+
+
 % Call mex-interface
 solvertime = clock; 
 [x,FMIN,SOLSTAT,DETAILS] = cplexint(H, C, A, B, INDEQ, QC, LB, UB,VARTYPE,PARAM,OPTIONS);

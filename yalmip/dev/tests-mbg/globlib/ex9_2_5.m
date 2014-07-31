@@ -36,7 +36,7 @@ F=[F,0<=x9];
 % Solve problem
 x = recover(F);
 sol = solvesdp(F,objvar,sdpsettings('solver','bmibnb','allownonconvex',1));
-sol = solvesdp(F+[-100<x<100],objvar,sdpsettings('solver','bmibnb','allownonconvex',1))
+sol = solvesdp(F+[-100<=x<=100],objvar,sdpsettings('solver','bmibnb','allownonconvex',1))
 
 mbg_assertfalse(sol.problem);
 mbg_asserttolequal(double(objvar),5, 1e-2);

@@ -16,7 +16,7 @@ F = set([]);
 % Solve problem
 F = set([]);
 x = recover(objective);
-sol = solvesdp(F+[-100<x<100],objective,sdpsettings('solver','bmibnb','allownonconvex',1))
+sol = solvesdp(F+[-100<=x<=100],objective,sdpsettings('solver','bmibnb','allownonconvex',1))
 
 mbg_asserttrue((sol.problem == 3) | (sol.problem == 0))
 mbg_asserttolequal(double(objective),0 , 1e-2);

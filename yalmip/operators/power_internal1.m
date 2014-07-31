@@ -1,9 +1,7 @@
-function varargout = power_internal(varargin)
+function varargout = power_internal1(varargin)
 %power_internal1
 % Used for cases such as 2^x, and is treated as evaluation-based operators
 
-% Author Johan Löfberg
-% $Id: power_internal1.m,v 1.7 2007-08-07 11:16:18 joloef Exp $
 switch class(varargin{1})
 
     case 'double'
@@ -33,6 +31,7 @@ switch class(varargin{1})
 
         operator.bounds = @bounds_power;
         operator.convexhull = @convexhull_power;
+        operator.derivative = @(x)derivative(x,Y);
 
         varargout{1} = F;
         varargout{2} = operator;
@@ -53,6 +52,13 @@ else
     disp('Not implemented yet. Report bug if you need this')
     error
 end
+
+function df = derivative(x,base)
+if length(base)~=length(x)
+    base = base*ones(size(x));
+end
+f = base.^x;
+df = log(base)*f;
 
 function [Ax, Ay, b] = convexhull_power(xL,xU,base)
 fL = base^xL;

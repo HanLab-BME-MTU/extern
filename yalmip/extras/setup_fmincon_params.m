@@ -18,7 +18,9 @@ if ~isempty(model.evalMap)
     % Speed up callbacks by removing last marker argument (only used in
     % expandmodel etc) and figuring out what R^m -> R^n operators computes
     for i = 1:length(model.evalMap)
-        model.evalMap{i}.prearg = {model.evalMap{i}.fcn,[],model.evalMap{i}.arg{2:end-1}};
+        %model.evalMap{i}.prearg = {model.evalMap{i}.fcn,[],model.evalMap{i}.arg{2:end-1}};
+        model.evalMap{i}.prearg = {model.evalMap{i}.fcn,model.evalMap{i}.arg{1:end-1}};
+        model.evalMap{i}.prearg{1+model.evalMap{i}.argumentIndex} = [];
         if isfield(model.evalMap{i},'computes')
 %             temp = zeros(1,length(model.evalMap{i}.computes));
 %             for j = 1:length(model.evalMap{i}.computes)
@@ -97,25 +99,67 @@ model.nonlinearequalities = ~isempty(model.Anonlineq);
     c = [];
     mtNonlinear = mtNonlinear(:,linearindicies);
     mtNonlinear = mtNonlinear';
-    for i = 1:length(linearindicies)
-        for j = 1:size(mtNonlinear,2)
-            if mtNonlinear(i,j);%mtNonlinear(j,linearindicies(i))
-                s=mtNonlinear(:,j);
-                %c = [c;s(linearindicies(i))];
-                c = [c;s((i))];
-                %s(linearindicies(i)) = s(linearindicies(i))-1;
-                s((i)) = s((i))-1;
-                %allDerivemt = [allDerivemt;s(linearindicies(:)')];
-                allDerivemt = [allDerivemt s(:)];
-                news = [news;j i];
-            end
-        end
+    
+    [jj,ii,val] = find(mtNonlinear');
+    for k = 1:length(ii)
+        i = ii(k);
+        j = jj(k);
+        s=mtNonlinear(:,j);
+        c = [c;s((i))];
+        s((i)) = s((i))-1;
+        allDerivemt = [allDerivemt s(:)];
+        news = [news;j i];
     end
+
+ 
+%     
+%     for i = 1:length(linearindicies)
+%         for j = 1:size(mtNonlinear,2)
+%             if mtNonlinear(i,j);
+%                 s=mtNonlinear(:,j);               
+%                 c = [c;s((i))];               
+%                 s((i)) = s((i))-1;                
+%                 allDerivemt = [allDerivemt s(:)];
+%                 news = [news;j i];
+%             end
+%         end
+%     end
+    
+    
     allDerivemt = allDerivemt';
     
     model.fastdiff.news = news;
     model.fastdiff.allDerivemt = allDerivemt;
     model.fastdiff.c = c;
+    model.fastdiff.univariateDifferentiates = 0;
+    
+    
+    a1 =  model.fastdiff.news(1:length(model.fastdiff.c),2); 
+    a2 =  model.nonlinearindicies(model.fastdiff.news(1:length(model.fastdiff.c),1))'; 
+    zzz = [ones(length(a1),1)]; 
+    nn = max(max(length(model.linearindicies)),max(news(:,2))); 
+    mm = max(max(linearindicies),max(model.nonlinearindicies(news(:,1))));
+    a1f = [a1(:);(1:length(model.linearindicies))']; 
+    a2f = [a2(:);model.linearindicies(:)];    
+    zzzf = [zzz;ones(length(linearindicies),1)]; 
+    model.fastdiff.newdxx = sparse(a1f,a2f,zzzf,nn,mm); 
+    model.fastdiff.linear_in_newdxx = sub2ind([nn mm],a1(:),a2(:));
+    
+    if all(sum(allDerivemt | allDerivemt,2)==1)
+        model.fastdiff.univariateDifferentiates = 1;
+        [i,j,k] = find(allDerivemt');
+        if any(diff(j)<0)
+            error;
+        end
+        model.fastdiff.univariateDiffMonom = i(:);
+        model.fastdiff.univariateDiffPower = k(:);
+    end
+ else
+      allA = [model.Anonlineq;model.Anonlinineq]; 
+      requested = any(allA',2); 
+      [i,j,k] = find((model.deppattern(find(requested),:))); 
+      requested(j) = 1; 
+      model.fastdiff.requested = requested;     
  end
     
     

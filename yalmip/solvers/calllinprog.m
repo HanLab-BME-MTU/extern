@@ -11,6 +11,7 @@ K       = interfacedata.K;
 Q       = interfacedata.Q;
 lb      = interfacedata.lb;
 ub      = interfacedata.ub;
+x0      = interfacedata.x0;
 
 showprogress('Calling LINPROG',options.showprogress);
 
@@ -37,8 +38,7 @@ otherwise
 end
 
 if isfield(options.linprog,'LargeScale')
-    if ~isequal(options.linprog.LargeScale,'on')
-        Q = full(Q);
+    if ~isequal(options.linprog.LargeScale,'on')       
         c = full(c);
         A = full(A);
         b = full(b);
@@ -47,28 +47,40 @@ if isfield(options.linprog,'LargeScale')
     end
 end
 
-if options.savedebug
-    ops = options.linprog;
-    save linprogdebug c A b Aeq beq lb ub ops
+if ~options.usex0
+    x0 = [];
 end
 
-[x,fmin,flag,output,lambda] = linprog(c, A, b, Aeq, beq, lb, ub, [],options.linprog);
+if options.savedebug
+    ops = options.linprog;
+    save linprogdebug c A b Aeq beq lb ub ops x0
+end
+
+[x,fmin,flag,output,lambda] = linprog(c, A, b, Aeq, beq, lb, ub, x0,options.linprog);
 solvertime = etime(clock,solvertime);
 problem = 0;
 
 % Internal format for duals
-D_struc = [lambda.eqlin;lambda.ineqlin];
+if isempty(lambda)
+    D_struc = [];
+else
+    D_struc = [lambda.eqlin;lambda.ineqlin];
+end
+if isempty(x)
+    x = zeros(length(c),1);
+end
 
 % Check, currently not exhaustive...
 if flag==0
     problem = 3;
+elseif flag == -2 | flag==-5
+    problem = 1;
+elseif flag == -3
+    problem = 2;
 else
     if flag>0
         problem = 0;
-    else
-        if isempty(x)
-            x = repmat(nan,length(c),1);
-        end
+    else 
         if any((A*x-b)>sqrt(eps)) | any( abs(Aeq*x-beq)>sqrt(eps))
             problem = 1; % Likely to be infeasible
         else

@@ -30,13 +30,13 @@ if ~unitary
     % analysis again.
 
     % Remove redundant constraints
-    [L,U,P] = lu(A_equ);
-    r = colspaces(U);
-    if ~(length(r) == size(U,1))
-        b_equ =  L\(P*b_equ);
-        A_equ = U(r,:);
-        b_equ = b_equ(r);
-    end
+      [L,U,P] = lu(A_equ);
+%     r = colspaces(U);
+%     if ~(length(r) == size(U,1))
+%         b_equ =  L\(P*b_equ);
+%         A_equ = U(r,:);
+%         b_equ = b_equ(r);
+%     end
 
     % Find a basis for the column space of A_equ
     [L,U,P] = lu(A_equ');

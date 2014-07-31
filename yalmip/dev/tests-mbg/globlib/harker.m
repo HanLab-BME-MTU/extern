@@ -60,6 +60,6 @@ F=[F,0<=x19];
 F=[F,0<=x20];
 
 % Solve problem
-sol = solvesdp([F,recover(depends(F))<1000],objective,sdpsettings('solver','bmibnb','allownonconvex',1))
+sol = solvesdp([F,recover(depends(F))<=1000],objective,sdpsettings('solver','bmibnb','allownonconvex',1))
 mbg_assertfalse(sol.problem)
 mbg_asserttolequal(double(objective),-986.5135 , 1);

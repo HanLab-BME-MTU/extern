@@ -15,6 +15,8 @@ if ~X_is_spdvar
     elseif isa(X,'intval')
         X_is_spdvar = 0;
         Y.basis = intval(Y.basis);
+    elseif isa(X,'uint8') || isa(X,'uint16') || isa(X,'uint32') || isa(X,'uint64')
+        X = double(X);  
     elseif ~isa(X,'double')
         error(['Cannot add SDPVAR object and ' upper(class(X)) ' object']);
     end
@@ -27,19 +29,21 @@ if ~Y_is_spdvar
     elseif isa(Y,'intval')
         Y_is_spdvar = 0;
         X.basis = intval(X.basis);
+    elseif isa(Y,'uint8') || isa(Y,'uint16') || isa(Y,'uint32') || isa(Y,'uint64')
+        Y = double(Y);          
     elseif ~isa(Y,'double')
         error(['Cannot add SDPVAR object and ' upper(class(Y)) ' object']);
     end
 end
 
-if isa(X,'sdpvar') 
-    if is(X,'gkyp') 
+if X_is_spdvar%isa(X,'sdpvar') 
+    if X.typeflag == 40%is(X,'gkyp') is(X,'gkyp') 
         y = addgkyp(X,Y);
         return
     end
 end
-if isa(Y,'sdpvar') 
-    if is(Y,'gkyp') 
+if Y_is_spdvar%isa(Y,'sdpvar') 
+    if Y.typeflag == 40%is(Y,'gkyp') 
         y = addgkyp(Y,X);
         return
     end
@@ -64,7 +68,7 @@ switch 2*X_is_spdvar+Y_is_spdvar
         y_isscalar = (n_Y*m_Y==1);
         any_scalar = x_isscalar | y_isscalar;
         
-        if x_isscalar & y_isscalar            
+        if x_isscalar && y_isscalar            
              y.basis(1) = y.basis(1)+X;
              % Reset info about conic terms
              y.conicinfo = [0 0];
@@ -73,7 +77,7 @@ switch 2*X_is_spdvar+Y_is_spdvar
              return
          end
          
-        if any_scalar | ([n_Y m_Y]==[n_X m_X])
+        if any_scalar || all([n_Y m_Y]==[n_X m_X])
             if y_isscalar
                 y.basis = repmat(y.basis,n_X*m_X,1);
                 y.dim(1) = n_X;
@@ -107,7 +111,7 @@ switch 2*X_is_spdvar+Y_is_spdvar
         any_scalar = x_isscalar | y_isscalar;
         
          % Special special case...
-         if x_isscalar & y_isscalar
+         if x_isscalar && y_isscalar
              y.basis(1) = y.basis(1)+Y;
              % Reset info about conic terms
              y.conicinfo = [0 0];
@@ -116,7 +120,7 @@ switch 2*X_is_spdvar+Y_is_spdvar
              return
          end
          
-        if any_scalar | ([n_Y m_Y]==[n_X m_X])
+        if any_scalar || all(([n_Y m_Y]==[n_X m_X]))
             if x_isscalar
                 y.basis = repmat(y.basis,n_Y*m_Y,1);
                 y.dim(1) = n_Y;
@@ -141,24 +145,43 @@ switch 2*X_is_spdvar+Y_is_spdvar
         y_isscalar = (n_Y*m_Y==1);
         any_scalar = x_isscalar | y_isscalar;
 
-        if (~((n_X==n_Y) & (m_X==m_Y))) & ~any_scalar
+        if (~((n_X==n_Y) && (m_X==m_Y))) && ~any_scalar
             error('Matrix dimensions must agree.')
         end
 
-        all_lmi_variables = uniquestripped([X.lmi_variables Y.lmi_variables]);
+        if isequal(X.lmi_variables,Y.lmi_variables)
+             all_lmi_variables = X.lmi_variables;
+             in_X_logical = ones(1,length(all_lmi_variables));
+             in_Y_logical = ones(1,length(all_lmi_variables));
+        else
+            if X.lmi_variables(end) < Y.lmi_variables(1)
+                all_lmi_variables = [X.lmi_variables Y.lmi_variables];
+                in_X_logical = [ones(1,length(X.lmi_variables)) zeros(1,length(Y.lmi_variables))];
+                in_Y_logical = [zeros(1,length(X.lmi_variables)) ones(1,length(Y.lmi_variables))];
+            elseif X.lmi_variables(1) > Y.lmi_variables(end)
+                all_lmi_variables = [Y.lmi_variables X.lmi_variables];
+                in_X_logical = [zeros(1,length(Y.lmi_variables)) ones(1,length(X.lmi_variables))];
+                in_Y_logical = [ones(1,length(Y.lmi_variables)) zeros(1,length(X.lmi_variables))];
+            else
+                all_lmi_variables = uniquestripped([X.lmi_variables Y.lmi_variables]);
+                in_X_logical = ismembcYALMIP(all_lmi_variables,X.lmi_variables);
+                in_Y_logical = ismembcYALMIP(all_lmi_variables,Y.lmi_variables);
+            end
+        end
+       % all_lmi_variables = uniquestripped([X.lmi_variables Y.lmi_variables]);
         y = X;
    %     X.basis = [];
         y.lmi_variables = all_lmi_variables;
 
         % ismembc faster (buggy?)
-        in_X_logical = ismembc(all_lmi_variables,X.lmi_variables);
-        in_Y_logical = ismembc(all_lmi_variables,Y.lmi_variables);
+      %  in_X_logical = ismembc(all_lmi_variables,X.lmi_variables);
+      %  in_Y_logical = ismembc(all_lmi_variables,Y.lmi_variables);
         in_X = find(in_X_logical);
         in_Y = find(in_Y_logical);
         % in_X = find(ismember(all_lmi_variables,X.lmi_variables));
         % in_Y = find(ismember(all_lmi_variables,Y.lmi_variables));
 
-        if isequal(X.lmi_variables,Y.lmi_variables) & n_Y==n_X & m_Y==m_X
+        if isequal(X.lmi_variables,Y.lmi_variables) && n_Y==n_X && m_Y==m_X
             y.basis = y.basis + Y.basis;
              if length(X.lmi_variables)==1
                  if all(y.basis(:,2)==0)
@@ -173,7 +196,7 @@ switch 2*X_is_spdvar+Y_is_spdvar
             end
         else
             if 1
-                if  max(X.lmi_variables) < min(Y.lmi_variables) & n_Y==n_X & m_Y==m_X
+                if  max(X.lmi_variables) < min(Y.lmi_variables) && n_Y==n_X && m_Y==m_X
                     % special case to speed up Lundback's code massivly
                     % Addition of expressions sharing no variables, with
                     % variables in specific sorted order
@@ -210,11 +233,19 @@ switch 2*X_is_spdvar+Y_is_spdvar
             if n_Y*m_Y<n_X*m_X
                 y.dim(1) = n_X;
                 y.dim(2) = m_X;
-                basis_Y = repmat(basis_Y,n_X*m_X,1);
+               % basis_Y = repmat(basis_Y,n_X*m_X,1);
+                y.basis = basis_X;basis_X = [];
+                try                        
+                    y.basis = bsxfun(@plus,y.basis,basis_Y);basis_Y = [];
+                catch
+                    basis_Y = repmat(basis_Y,n_X*m_X,1);
+                    y.basis = y.basis + basis_Y;basis_Y = [];
+                end
+            else
+                % OK, solution is...
+                y.basis = basis_X;basis_X = [];
+                y.basis = y.basis+basis_Y;basis_Y = [];
             end
-            % OK, solution is...
-            y.basis = basis_X;basis_X = [];
-            y.basis = y.basis+basis_Y;basis_Y = [];
         end
         % Reset info about conic terms
         y.conicinfo = [0 0];

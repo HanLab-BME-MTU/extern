@@ -59,16 +59,15 @@ for j = 1:length(varargin)
         this_uses = find(ismembc(all_lmi_variables,varargin{j}.lmi_variables));
         mindex = [1 this_uses+1];
 
-        [a,b,d] = find(varargin{j}.basis');
-        is = [is(:);mindex(a)'];
-        js = [js(:);nnindex(b)];
+        [a,b,d] = find(varargin{j}.basis.');
+        is = [is(:);reshape(mindex(a),[],1)];
+        js = [js(:);reshape(nnindex(b),[],1)];
         ss = [ss(:);d(:)];
     else
-        [a,b,d] = find( varargin{j}(:)');
+        [a,b,d] = find( varargin{j}(:).');
         is = [is;ones(length(a),1)];
-        js = [js;nnindex(b(:))];
-        ss = [ss(:);d(:)];
-        % basis(1,nnindex(:)) = varargin{j}(:)';
+        js = [js;reshape(nnindex(b),[],1)];
+        ss = [ss(:);d(:)];       
     end
 end
 

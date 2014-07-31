@@ -6,10 +6,12 @@ function sys = minus(X,Y)
 
 if isempty(X)
     sys = set([]);
+    return
 end
 
 if isempty(Y)
     sys = X;
+    return
 end
 
 idX = getlmiid(X);

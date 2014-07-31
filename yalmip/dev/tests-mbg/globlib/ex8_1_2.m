@@ -22,4 +22,4 @@ F=[F,0<=x1<=6.2832,y==yy,z==zz,w==ww];
 % Solve problem
 sol = solvesdp(F,objective,sdpsettings('solver','bmibnb','allownonconvex',1));
 mbg_assertfalse(sol.problem)
-mbg_asserttolequal(double(objective),-1.053 , 1e-2);
+mbg_asserttolequal(double(objective),-1.071 , 1e-2);

@@ -36,6 +36,7 @@ if ~isempty(p.F_struc)
         for i = 1:length(p.K.s)
             n = p.K.s(i);
             X = reshape(vecres(top:top+n^2-1),n,n);top = top+n^2;
+            X = (X+X')/2;
             if min(real(eig(X))) < -tol
                 return
             end

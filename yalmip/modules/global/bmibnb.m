@@ -1,5 +1,5 @@
 function output = bmibnb(p)
-%BMIBNB Branch-and-bound scheme for bilinear programs
+%BMIBNB Global solver based on branch-and-bound
 %
 % BMIBNB is never called by the user directly, but is called by YALMIP from
 % SOLVESDP, by choosing the solver tag 'bmibnb' in sdpsettings
@@ -25,7 +25,6 @@ function output = bmibnb(p)
 % bmibnb.maxtime        - Maximum CPU time (sec.) [int (3600)]
 
 % Author Johan Löfberg
-% $Id: bmibnb.m,v 1.83 2010-04-28 07:45:44 joloef Exp $
 
 bnbsolvertime = clock;
 showprogress('Branch and bound started',p.options.showprogress);
@@ -50,6 +49,10 @@ otherwise
     p.options.verbose = 0;
 end
 
+timing.total = tic;
+timing.uppersolve = 0;
+timing.lowersolve = 0;
+timing.domainreduce = 0;
 if ~isempty(p.F_struc)
     if any(isnan(p.F_struc) | isinf(p.F_struc))
         output = yalmip_default_output;
@@ -80,29 +83,46 @@ p = convert_perspective_log(p);
 n_in = length(p.c);
 
 % *************************************************************************
+% Save information about the applicability of some bound propagation
+% *************************************************************************
+p.boundpropagation.sepquad = 1;
+
+% *************************************************************************
 % Extract bounds from model using direct information available
 % *************************************************************************
+p = compile_nonlinear_table(p);
 p = presolve_bounds_from_domains(p);
 p = presolve_bounds_from_modelbounds(p);
+%p = presolve_eliminatelinearratios(p);
+p = presolve_bounds_from_quadratics(p);
 p = update_eval_bounds(p);
 p = update_monomial_bounds(p);
 
+
 % *************************************************************************
-% Improve the bounds by performing some standard presolve
+% Sort equalities in order to improve future bound propagation
 % *************************************************************************
-p = presolve_bounds_from_equalities(p); 
+p = presolve_sortrows(p);
+
+% *************************************************************************
+% Improve the bounds by performing some standard propagation
+% *************************************************************************
+p = propagate_bounds_from_equalities(p); 
 p = update_eval_bounds(p);
+p = update_sumsepquad_bounds(p);
 p = update_monomial_bounds(p);
 p = presolve_bounds_from_inequalities(p);
 p = update_eval_bounds(p);
 p = update_monomial_bounds(p);
-
 % *************************************************************************
 % For quadratic nonconvex programming over linear constraints, we
 % diagonalize the problem to obtain less number of bilinear terms. Not
 % theoretically any reason to do so, but practical performance is better
 % *************************************************************************
 p = diagonalize_quadratic_program(p);
+if p.diagonalized
+    p = compile_nonlinear_table(p);
+end
 
 % *************************************************************************
 % Try to generate a feasible solution, by using avialable x0 (if usex0=1),
@@ -110,7 +130,6 @@ p = diagonalize_quadratic_program(p);
 % that we do this here before the problem possibly is bilinearized, thus
 % avoiding to introduce possibly complicating bilinear constraints
 % *************************************************************************
-p = compile_nonlinear_table(p);
 [p,x_min,upper] = initializesolution(p);
 
 % *************************************************************************
@@ -125,13 +144,13 @@ if solver_can_solve(p.solver.uppersolver,p) & any(p.variabletype>2)
     p = preprocess_bilinear_bounds(p);
     p = update_eval_bounds(p);
     p = updateboundsfromupper(p,upper);
-    p = propagatecomplementary(p);
+    p = propagate_bounds_from_complementary(p);
     p = updatemonomialbounds(p);
-    p = presolve_bounds_from_equalities(p);
+    p = propagate_bounds_from_equalities(p);
     p = updatemonomialbounds(p);   
     p = updatemonomialbounds(p);    
     p = update_eval_bounds(p);    
-    [upper,p.x0,info_text,numglobals] = solve_upper_in_node(p,p,x_min,upper,x_min,p.solver.uppersolver.call,'',0);
+    [upper,p.x0,info_text,numglobals,timing] = solve_upper_in_node(p,p,x_min,upper,x_min,p.solver.uppersolver.call,'',0,timing);
     if numglobals > 0
         x_min = p.x0;
     end
@@ -152,6 +171,7 @@ p = convert_sigmonial_to_sdpfun(p);
 % solver might support general problems, so we should keep a copy of the
 % original problem also in that case
 % *************************************************************************
+original_variables = find(p.variabletype == 0);
 [p_bilin,changed] = convert_polynomial_to_quadratic(p);
 if (p.solver.uppersolver.constraint.equalities.polynomial &  p.solver.uppersolver.objective.polynomial)
     p_bilin.originalModel = p;
@@ -160,6 +180,14 @@ else
     p = p_bilin;
     p.originalModel = p_bilin;
 end
+if changed
+    p = compile_nonlinear_table(p);
+end
+
+p.EqualityConstraintState = ones(p.K.f,1);
+p.InequalityConstraintState = ones(p.K.l,1);
+p = propagatequadratics(p);
+    
 
 % *************************************************************************
 % Build an evaluation tree for computing nonlinear terms when running the
@@ -184,6 +212,7 @@ p = compile_nonlinear_table(p);
 % *************************************************************************
 p.branch_variables = decide_branch_variables(p);
 p.branch_variables = setdiff(p.branch_variables,p.evalVariables);
+p.branch_variables = intersect(p.branch_variables,original_variables);
 
 % *************************************************************************
 % Tighten bounds (might be useful after bilinearization?)
@@ -199,25 +228,9 @@ p = reduce_bilinear_branching_variables(p);
 
 % *************************************************************************
 % Simple pre-solve loop. The loop is needed for variables defined as w =
-% x*y, x = t*u,y=..
+% x*y, x = t*u,y=..db
 % ******************************************[******************************
 p = presolveloop(p,upper);
-% i = 0;
-% goon = 1;
-% while goon
-%      start = [p.lb;p.ub];
-%      i = i+1;
-%      p = updateboundsfromupper(p,upper);
-%      p = propagatecomplementary(p);
-%      p = updatemonomialbounds(p);
-%      p = presolve_bounds_from_equalities(p);
-%      p = updatemonomialbounds(p);   
-%      p = updatemonomialbounds(p);    
-%      p = update_eval_bounds(p);
-%      i = i+1;
-%      goon = (norm(start-[p.lb;p.ub],'inf') > 1e-2) & i < 150;
-%      start = [p.lb;p.ub];
-%  end
 
 % *************************************************************************
 % Try a little more root node tigthening
@@ -228,7 +241,7 @@ p.ub(close) = p.lb(close);
 p = root_node_tighten(p,upper);
 p = updatemonomialbounds(p);
 p = update_eval_bounds(p);
-p = presolve_bounds_from_equalities(p);
+p = propagate_bounds_from_equalities(p);
 p = updatemonomialbounds(p);
 output = yalmip_default_output;
 
@@ -250,35 +263,37 @@ end
 % Some code to extract bounds in complementary conditions, when the
 % complementary variables hasn't been defined
 for i = 1:size(p.complementary,1)
-    %    if 1%(isinf(p.lb(p.complementary(i,1))) |  isinf(p.ub(p.complementary(i,1)))) &
-    if ismember(p.complementary(i,1),p.branch_variables)
-        %x*y == 0 where x is unbounded. Hence x is either 0, or bounded by
-        %the value obtained when y is 0
-        pp=p;
-        pp.ub(p.complementary(i,2))=0;
-        pp = presolveloop(pp,upper);
-        if pp.feasible
-            p.ub(p.complementary(i,1)) = min(pp.ub(p.complementary(i,1)),p.ub(p.complementary(i,1)));
-            p.lb(p.complementary(i,1)) = max(pp.lb(p.complementary(i,1)),p.lb(p.complementary(i,1)));
-        else
-            p.ub(p.complementary(i,1))=0;
-            p.lb(p.complementary(i,1))=0;
+    if (isinf(p.lb(p.complementary(i,1))) |  isinf(p.ub(p.complementary(i,1))))
+        if ismember(p.complementary(i,1),p.branch_variables)
+            %x*y == 0 where x is unbounded. Hence x is either 0, or bounded by
+            %the value obtained when y is 0
+            pp=p;
+            pp.ub(p.complementary(i,2))=0;
+            pp = presolveloop(pp,upper);
+            if pp.feasible
+                p.ub(p.complementary(i,1)) = min(pp.ub(p.complementary(i,1)),p.ub(p.complementary(i,1)));
+                p.lb(p.complementary(i,1)) = max(pp.lb(p.complementary(i,1)),p.lb(p.complementary(i,1)));
+            else
+                p.ub(p.complementary(i,1))=0;
+                p.lb(p.complementary(i,1))=0;
+            end
         end
     end
-    %     %    if 1%(isinf(p.lb(p.complementary(i,2))) |  isinf(p.ub(p.complementary(i,2)))) &
-    if ismember(p.complementary(i,2),p.branch_variables)
-        %x*y == 0 where y is unbounded. Hence y is either 0, or bounded by
-        %the bounds obtained when x is 0
-        pp=p;
-        pp.ub(p.complementary(i,1))=0;
-        pp = presolveloop(pp,upper);
-        if pp.feasible
-            p.ub(p.complementary(i,2)) = min(pp.ub(p.complementary(i,2)),p.ub(p.complementary(i,2)));
-            p.lb(p.complementary(i,2)) = max(pp.lb(p.complementary(i,2)),p.lb(p.complementary(i,2)));
-        else
-            % This case is infeasible, hence the other term has to be zero
-            p.ub(p.complementary(i,2))=0;
-            p.lb(p.complementary(i,2))=0;
+    if (isinf(p.lb(p.complementary(i,2))) |  isinf(p.ub(p.complementary(i,2))))
+        if ismember(p.complementary(i,2),p.branch_variables)
+            %x*y == 0 where y is unbounded. Hence y is either 0, or bounded by
+            %the bounds obtained when x is 0
+            pp=p;
+            pp.ub(p.complementary(i,1))=0;
+            pp = presolveloop(pp,upper);
+            if pp.feasible
+                p.ub(p.complementary(i,2)) = min(pp.ub(p.complementary(i,2)),p.ub(p.complementary(i,2)));
+                p.lb(p.complementary(i,2)) = max(pp.lb(p.complementary(i,2)),p.lb(p.complementary(i,2)));
+            else
+                % This case is infeasible, hence the other term has to be zero
+                p.ub(p.complementary(i,2))=0;
+                p.lb(p.complementary(i,2))=0;
+            end
         end
     end
 end
@@ -315,7 +330,7 @@ if p.feasible
     % *******************************
     % RUN BILINEAR BRANCH & BOUND
     % *******************************
-    [x_min,solved_nodes,lower,upper] = branch_and_bound(p,x_min,upper);
+    [x_min,solved_nodes,lower,upper,lower_hist,upper_hist,timing] = branch_and_bound(p,x_min,upper,timing);
     
     % ********************************
     % CREATE SOLUTION AND DIAGNOSTICS
@@ -338,6 +353,15 @@ else
     x_min = repmat(nan,length(p.c),1);
     solved_nodes = 0;
     lower = inf;
+    lower_hist = [];
+    upper_hist = [];
+end
+
+timing.total = toc(timing.total);
+if p.options.bmibnb.verbose
+    disp(['* Timing: ' num2str(ceil(100*timing.uppersolve/timing.total)) '% spent in upper solver']);
+    disp(['*         ' num2str(ceil(100*timing.lowersolve/timing.total)) '% spent in lower solver']);
+    disp(['*         ' num2str(ceil(100*timing.domainreduce/timing.total)) '% spent in LP-based domain reduction']);
 end
 
 x_min = dediagonalize(p,x_min);
@@ -349,8 +373,11 @@ output.Primal        = zeros(length(p.kept),1);
 output.Primal(p.kept(1:n_in))= x_min(1:n_in);
 output.infostr      = yalmiperror(output.problem,'BMIBNB');
 output.solvertime   = etime(clock,bnbsolvertime);
+output.timing = timing;
 output.lower = lower;
 output.solveroutput.lower = lower;
+output.solveroutput.lower_hist = lower_hist;
+output.solveroutput.upper_hist = upper_hist;
 output.extra.propagatedlb = lb;
 output.extra.propagatedub = ub;
 
@@ -456,7 +483,7 @@ pnew.ub = inf(2*n,1);
 pnew.lb(1:n) = newlb;
 pnew.ub(1:n) = newub;
 if length(pnew.x0)>0
-    pnew.x0 = V*p.x0(1:2);
+    pnew.x0 = V*p.x0;
 end
 pnew.diagonalized = 1;
 
@@ -475,15 +502,17 @@ goon = 1;
 while goon
     start = [p.lb;p.ub];
     i = i+1;
+    % 2
     p = updateboundsfromupper(p,upper);
-    p = propagatecomplementary(p);
+    % 3
+    p = propagate_bounds_from_complementary(p);
     p = updatemonomialbounds(p);  
-    p = presolve_bounds_from_equalities(p);       
+    p = propagate_bounds_from_equalities(p);       
     p = updatemonomialbounds(p);
-    p = updatemonomialbounds(p);
+    p = updatemonomialbounds(p);        
     p = update_eval_bounds(p);
     i = i+1;
-    goon = (norm(start-[p.lb;p.ub],'inf') > 1e-2) & i < 150;
+    goon = (norm(start-[p.lb;p.ub],'inf') > 1e-2) & i < 15;
     start = [p.lb;p.ub];
 end
 

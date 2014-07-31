@@ -1,9 +1,24 @@
-function Y=sum(X,I)
+function Y=sum(X,I,dummy)
 %SUM (overloaded)
 
-% Author Johan Löfberg 
-% $Id: sum.m,v 1.9 2009-10-15 10:25:41 joloef Exp $   
-
+if length(X.dim)==2
+    if nargin == 1
+        I = 1;
+    end
+    if min(X.dim) == 1 & nargin == 1
+        Y = ones(1,max(X.dim))*reshape(X,[],1);
+        return
+    end
+    switch I
+        case 1
+            Y = ones(1,X.dim(1))*X;
+        case 2
+            Y = X*ones(X.dim(2),1);
+        otherwise
+            Y = X;
+    end
+    return
+end
 try
     n = X.dim(1);
     m = X.dim(2);

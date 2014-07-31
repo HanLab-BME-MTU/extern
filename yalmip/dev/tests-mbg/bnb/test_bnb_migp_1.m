@@ -27,7 +27,7 @@ D6 = R(6)*Cout6;
 D7 = R(7)*Cout7;
 
 % Constraints
-F = set(x > 1) + set(P < 20) + set(A < 100);
+F = set(x >= 1) + set(P <= 20) + set(A <= 100);
 
 % Objective
 D = max([(D1+D4+D6),(D1+D4+D7),(D2+D4+D6),(D2+D4+D7),(D2+D5+D7),(D3+D5+D6),(D3+D7)]);
