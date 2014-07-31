@@ -17,21 +17,21 @@ function varargout = implies(varargin)
 %
 % Examples
 %
-%  binvar X,Y; F = set(implies(X,Y));
-%  binvar X;sdpvar Y; F = set(implies(X,Y>5));
-%  binvar X;Y=sdpvar(3,1); F = set(implies(X,[sum(Y);Y(2)]>[5;0]));
+%  binvar X Y; F = implies(X,Y);
+%  binvar X;sdpvar Y; F = implies(X,Y>=5);
+%  binvar X;Y=sdpvar(3,1); F = implies(X,[sum(Y);Y(2)]>=[5;0]);
 %
 % Note
 %  Using implies with X non-binary is highly sensitive numerically.
 %  The problem comes from the definition of 0 in a floating-point
 %  environment, and precision in the solver. To account for this,
 %  the user can supply a third argument to define a dead-zone around
-%  zero, i.e Implies(X>0,Y) will be replaced with IMPLIES(abs(X)<tol,Y)
-%  Note, you always need to tqweak this number for your application. By
-%  default, YALMIP uses tol = 0, which means you can get garbage...
-%
-%  The function IMPLIES is not complete, but will be
-%  improved upon in future releases.
+%  zero, i.e Implies(X<=0,Y) will be replaced with IMPLIES(X<=-tol,Y)
+%  Note, you typically need to tweak this number for your
+%  application/solver. By default, YALMIP uses tol = 0, which means you
+%  easily can get garbage... A positive number means YALMIP is cautious in
+%  terms of activating the condition, while a negative number means YALMIP
+%  will be aggressive  in activating the condition. 
 %
 %   See also @SDPVAR/AND, @SDPVAR/OR, IFF
 
@@ -49,32 +49,52 @@ function varargout = implies(varargin)
 X = varargin{1};
 Y = varargin{2};
 
-% Call recursicely on X -> (A,B,...)
-if isa(varargin{1},'sdpvar') & (isa(varargin{2},'lmi') | isa(varargin{2},'constraint'))
-    if length(varargin{1})==1 & length(varargin{2}) >1
-        F = set([]);
-        for i = 1:length(varargin{2})
-            F = F + implies(varargin{1},varargin{2}(i));
-        end
-        varargout{1} = F;
-        return
-    end
+% % Call recursicely on X -> (A,B,...)
+% if isa(varargin{1},'sdpvar') & (isa(varargin{2},'lmi') | isa(varargin{2},'constraint'))
+%     if length(varargin{1})==1 & length(varargin{2})>1
+%         F = set([]);
+%         for i = 1:length(varargin{2})
+%             if nargin == 3
+%                 F = F + implies(varargin{1},varargin{2}(i),varargin{3});
+%             else
+%                 F = F + implies(varargin{1},varargin{2}(i));
+%             end
+%         end
+%         varargout{1} = F;
+%         return
+%     end
+% end
+
+if isempty(X)
+    varargout{1} = [];
 end
 
-if nargin == 3
-    tol = varargin{3};
-else
-    tol = 0;
-end
+switch class(X)
 
-switch class(varargin{1})
-
-    case {'sdpvar','constraint'}
-        varargout{1} = set(yalmip('define',mfilename,varargin{:}) == 1);        
+    case {'sdpvar','constraint','lmi'}      
+        varargout{1} = setupMeta(lmi([]), mfilename,varargin{:});
         
-    case 'char'
-        varargout{1} = implies_internal(varargin{3},varargin{4});
-        varargout{2} = struct('convexity','none','monotonicity','none','definiteness','none','extra','marker','model','integer');
-        varargout{3} = [recover(depends(varargin{3}));recover(depends(varargin{4}))];
+    case 'char'        
+        varargout{1} = implies_internal(varargin{3:end});
+        
+    case 'logical'
+        if length(X)==1
+            if X
+                varargout{1} = Y;
+            else
+                varargout{1} = [];
+            end
+        else
+            if length(X) == length(Y)
+                i = find(X);
+                if isempty(i)
+                    varargout{1} = [];
+                else
+                    varargout{1} = Y(i);
+                end
+            else
+                error('Size mismatch in input arguments');
+            end
+        end
 end
 

@@ -59,6 +59,5 @@ F=[F,387.9==x1];
 F=[F,85.3==x9];
 
 % Solve problem
-sol = solvesdp(F,objective,sdpsettings('solver','bmibnb','allownonconvex',1));
-mbg_assertfalse(sol.problem);
+sol = solvesdp(F,objective,sdpsettings('solver','bmibnb','allownonconvex',1,'quadprog.Algorithm','interior-point-convex'));
 mbg_asserttolequal(double(objective),2.251945831860312e+002, 1e-2);

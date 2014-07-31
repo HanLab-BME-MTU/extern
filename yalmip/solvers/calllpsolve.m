@@ -64,7 +64,24 @@ else
     e = -ones(size(A,1),1);
     options.saveduals = 0;
 end
+if ~isempty(semicont_variables)
+    redundant = find(LB<=0 & UB>=0);
+    semicont_variables = setdiff(semicont_variables,redundant);
+end
 
+% LPSOLVE assumes semi-continuous variables only can take negative values so
+% we negate semi-continuous violating this
+NegativeSemiVar = [];
+if ~isempty(semicont_variables)
+    NegativeSemiVar = find(UB(semicont_variables) < 0);
+    if ~isempty(NegativeSemiVar)
+        temp = UB(semicont_variables(NegativeSemiVar));
+        UB(semicont_variables(NegativeSemiVar)) = -LB(semicont_variables(NegativeSemiVar));
+        LB(semicont_variables(NegativeSemiVar)) = -temp;
+        A(:,semicont_variables(NegativeSemiVar)) = -A(:,semicont_variables(NegativeSemiVar));
+        f(semicont_variables(NegativeSemiVar)) = -f(semicont_variables(NegativeSemiVar));
+    end
+end
 if options.savedebug
     save mxlpsolvedebug f A b e UB LB xint 
 end
@@ -99,6 +116,15 @@ catch
     result = -1;
     mxlpsolve('delete_lp', lp);
 end
+
+
+% LPSOLVE assumes semi-continuous variables only can take negative values so
+% we negate semi-continuous violating this
+ if length(x) == length(c)
+     if ~isempty(NegativeSemiVar)
+        x(NegativeSemiVar) = -x(NegativeSemiVar);
+     end
+ end
 
 if options.saveduals & isempty(integer_variables)
     D_struc = duals;

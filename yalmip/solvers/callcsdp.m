@@ -26,7 +26,7 @@ solvertime = clock;
 if options.verbose==0 % to fix display bug reported from user
     evalc('[x_s,y_s,z_s,info]=csdp(-F_struc(:,2:end),-c,F_struc(:,1),K,pars);');
 else
-    [x_s,y_s,z_s,info]=csdp(-F_struc(:,2:end),-c,F_struc(:,1),K,pars);
+    [x_s,y_s,z_s,info]=csdp(-F_struc(:,2:end),-full(c),F_struc(:,1),K,pars);
 end
 solvertime = etime(clock,solvertime);
 

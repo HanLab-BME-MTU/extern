@@ -1,5 +1,5 @@
 function Z = addfactors(Z,X,Y)
-if isa(X,'double') | isa(X,'logical')
+if isa(X,'double') || isa(X,'logical')
     if length(Y.midfactors)==0
         return
     end
@@ -9,13 +9,13 @@ if isa(X,'double') | isa(X,'logical')
     Z.rightfactors = Y.rightfactors;
     Z.midfactors{end+1} = X;
     if length(X)>1
-        Z.leftfactors{end+1} = eye(size(X,1));
-        Z.rightfactors{end+1} = eye(size(X,2));
+        Z.leftfactors{end+1} = speye(size(X,1));
+        Z.rightfactors{end+1} = speye(size(X,2));
     else
         Z.leftfactors{end+1} = 1;
         Z.rightfactors{end+1} = 1;
     end
-elseif isa(Y,'double') | isa(Y,'logical')
+elseif isa(Y,'double') || isa(Y,'logical')
     if length(X.midfactors)==0
         return
     end
@@ -25,14 +25,14 @@ elseif isa(Y,'double') | isa(Y,'logical')
     Z.rightfactors = X.rightfactors;
     Z.midfactors{end+1} = Y;
     if length(Y)>1
-        Z.leftfactors{end+1} = eye(size(Y,1));
-        Z.rightfactors{end+1} = eye(size(Y,2));
+        Z.leftfactors{end+1} = speye(size(Y,1));
+        Z.rightfactors{end+1} = speye(size(Y,2));
     else
         Z.leftfactors{end+1} = 1;
         Z.rightfactors{end+1} = 1;
     end
 else
-    if length(X.midfactors)==0 | length(Y.midfactors)==0
+    if length(X.midfactors)==0 || length(Y.midfactors)==0
         Z.midfactors = [];
         Z.leftfactors = [];
         Z.rightfactors = [];
@@ -41,13 +41,13 @@ else
     %    X = refactor(X);
     %    Y = refactor(Y);
     
-    if prod(X.dim)>0 & prod(Y.dim)==1
+    if prod(X.dim)>0 &&  prod(Y.dim)==1
         for i = 1:length(Y.midfactors)
             Y.leftfactors{i} = repmat(Y.leftfactors{i},X.dim(1),1);
             Y.rightfactors{i} = repmat(Y.rightfactors{i},1,X.dim(2));
         end
     end
-      if prod(Y.dim)>0 & prod(X.dim)==1
+      if prod(Y.dim)>0 &&  prod(X.dim)==1
         for i = 1:length(X.midfactors)
             X.leftfactors{i} = repmat(X.leftfactors{i},Y.dim(1),1);
             X.rightfactors{i} = repmat(X.rightfactors{i},1,Y.dim(2));

@@ -42,6 +42,6 @@ F=[F,0<=x10];
 F=[F,0<=x11];
 
 % Solve problem
-sol = solvesdp(F+set(recover(depends(F))<100),objective,sdpsettings('solver','bmibnb','allownonconvex',1));
+sol = solvesdp(F+set(recover(depends(F))<=100),objective,sdpsettings('solver','bmibnb','allownonconvex',1));
 mbg_assertfalse(sol.problem)
 mbg_asserttolequal(double(objective), -16, 1e-2);

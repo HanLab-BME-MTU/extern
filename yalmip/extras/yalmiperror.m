@@ -11,9 +11,9 @@ function error_string = yalmiperror(errorcode,solver)
 %    -5 License problems in solver
 %    -4 Solver not applicable
 %    -3 Solver not found
-%    -2 No suitable solver
+%    -2 Successfully solved
 %    -1 Unknown error
-%     0 No problems detected
+%     0 Successfully solved
 %     1 Infeasible problem
 %     2 Unbounded objective function
 %     3 Maximum #iterations or time-limit exceeded
@@ -29,6 +29,7 @@ function error_string = yalmiperror(errorcode,solver)
 %    13 YALMIP cannot determine status in solver
 %    14 Convexity check failed.
 %    15 Problem either infeasible or unbounded
+%    16 User terminated
 %
 %   See also SOLVESDP
 
@@ -56,19 +57,19 @@ case -5
  case -4
   error_string = ['Solver not applicable ' solver];    
 case -3
-  error_string = 'Solver not found';
+  error_string = ['Solver not found ' solver];
  case -2
   error_string = 'No suitable solver';
  case -1
   error_string = 'Unknown error';
  case 0
-  error_string = ['No problems detected ' solver ];
+  error_string = ['Successfully solved ' solver ];
  case 1
   error_string = ['Infeasible problem ' solver ];
  case 2
   error_string = ['Unbounded objective function ' solver ];
  case 3
-  error_string = ['Maximum iterations exceeded ' solver ];
+  error_string = ['Maximum iterations or time limit exceeded ' solver ];
  case 4
   error_string = ['Numerical problems ' solver ];
  case 5
@@ -93,7 +94,8 @@ case -3
   error_string = ['Convexity check failed ' solver ]; 
  case 15
   error_string = ['Infeasible or unbounded problem ' solver ]; 
-  
+ case 16
+  error_string = ['User terminated ' solver ];         
   
  otherwise
 end

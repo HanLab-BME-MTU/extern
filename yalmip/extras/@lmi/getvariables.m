@@ -33,9 +33,14 @@ if endindex-startindex>50
     used = uniquestripped([used1 used2]);
 else
     used = [];
-    for i = startindex:endindex
-        Fivars = getvariables(F.clauses{i}.data);
-        used = [used Fivars(:)'];
+    if startindex <= length(F.clauses)
+        used = getvariables(F.clauses{startindex}.data);
+        for i = startindex+1:endindex
+            Fivars = getvariables(F.clauses{i}.data);
+            if ~isequal(used,Fivars(:)')
+                used = [used Fivars(:)'];
+            end
+        end
+        used = uniquestripped(used);
     end
-    used = uniquestripped(used); 
 end

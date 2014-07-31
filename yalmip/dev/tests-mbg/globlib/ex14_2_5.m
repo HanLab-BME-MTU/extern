@@ -27,5 +27,6 @@ F=[F,0<=x5];
 
 % Solve problem
 x = recover(F);
-sol = solvesdp(F + [-1000<x<1000],objective,sdpsettings('solver','bmibnb','allownonconvex',1));
-mbg_asserttrue(sol.problem == -6)
+sol = solvesdp(F + [-1000<=x<=1000],objective,sdpsettings('solver','bmibnb','allownonconvex',1));
+mbg_assertfalse(sol.problem);
+mbg_asserttolequal(double(objective), 0, 1e-3);

@@ -32,6 +32,9 @@ end
 nvars = length(b);
 x = sdpvar(nvars,1);
 
+% No reason to try to do factor tracking here
+x = flush(x);
+
 if size(At,2)~=length(b)
     At = At';
 end
@@ -73,11 +76,19 @@ if isvalidfield(K,'s')
         off = (ix-1)/(K.s(i)+1);
         if all(off == round(off))
             X = c(top:top+K.s(i)^2-1)-At(top:top+K.s(i)^2-1,:)*x;
-            F = F + set(diag(reshape(X,K.s(i),K.s(i))) > 0);
+            if isa(X,'sdpvar')
+                F = F + set(diag(reshape(X,K.s(i),K.s(i))) > 0);
+            else
+                X
+                i
+                'silly data!'
+            end
             top = top + K.s(i)^2;
         else
             X = c(top:top+K.s(i)^2-1)-At(top:top+K.s(i)^2-1,:)*x;
-            F = F + set(reshape(X,K.s(i),K.s(i)) > 0);
+            X = reshape(X,K.s(i),K.s(i));
+            X = (X+X')/2;
+            F = F + set(X > 0);
             top = top + K.s(i)^2;
         end
     end

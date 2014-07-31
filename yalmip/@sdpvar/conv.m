@@ -28,4 +28,5 @@ Z = clean(Z);
 % Reset info about conic terms
 if isa(Z,'sdpvar')
     Z.conicinfo = [0 0];
+    Z = flush(Z);
 end

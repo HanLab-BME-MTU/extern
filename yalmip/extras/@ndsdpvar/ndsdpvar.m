@@ -45,12 +45,18 @@ if nargin > d+1
     field = varargin{d+2};
 end
 
-X = [];
-for i = 1:prod(n(3:end))
-    x = sdpvar(n(1),n(2),type,field);
-    X = [X;x(:)];
-end
+v0 = yalmip('nvars');
+X = sdpvar(n(1),n(2),type,field);
+vars = getvariables(X);
+N = prod(n(3:end));
+nNewVars = length(vars)*N;
+usedNewVars = v0+(1:nNewVars);
+appendYALMIPvariables((vars(end)+1):usedNewVars(end));
+
 X = struct(X);
 X.dim = n;
+X.basis = [spalloc(size(X.basis,1)*N,1,0) kron(speye(N),X.basis(:,2:end))];
+X.lmi_variables = usedNewVars;
+
 X = class(X,'ndsdpvar');
 X = clean(X);

@@ -2,12 +2,12 @@ function massive
 
 yalmip('clear');
 
-ops{1} = sdpsettings('sos.cong',0,'sos.model',1,'verbose',0);
-ops{2} = sdpsettings('sos.cong',1,'sos.model',2,'verbose',0);
-ops{3} = sdpsettings('sos.cong',0,'sos.newton',0,'verbose',0,'sos.extlp',0);
+ops{1} = sdpsettings('sos.cong',0,'sos.model',1,'verbose',1);
+ops{2} = sdpsettings('sos.cong',1,'sos.model',2,'verbose',1);
+ops{3} = sdpsettings('sos.cong',0,'sos.newton',0,'verbose',1,'sos.extlp',0);
 
 sdpvar x s t;
-F = set(sos(1+x+(1-s)*x^2-s))+set(sos(2+2*x+x^4-8*t))+set(s>0.49)+set(s+t<0.55);
+F = set(sos(1+x+(1-s)*x^2-s))+set(sos(2+2*x+x^4-8*t))+set(s>=0.49)+set(s+t<=0.55);
 obj= -s-t
 
 for i = 1:length(ops)

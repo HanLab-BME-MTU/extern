@@ -1,4 +1,4 @@
-function micp
+function test_bnb_yongyouhu
 
 
 Loc_n=4;
@@ -38,7 +38,7 @@ P3(3,3)=1-sum(X(7:9));
 P3(4,4)=1-sum(X(10:12));
 
 
-F=set(P1>0)+set(P2>0)+set(diag(P3)>=0);
+F=set(P1>=0)+set(P2>=0)+set(diag(P3)>=0);
 
 %Objective
 cc=zeros(1,Nvar);

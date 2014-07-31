@@ -53,6 +53,8 @@ for pi = 1:size(pvec,1)
             end
         end
        
+        symb_p = strrep(symb_p,'*^0','');
+        symb_p = strrep(symb_p,'^0','');
         symb_p = strrep(symb_p,'+*','+');
         symb_p = strrep(symb_p,'-*','-');
         symb_pvec{pi,pj} = symb_p;

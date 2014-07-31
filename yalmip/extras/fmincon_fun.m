@@ -1,11 +1,19 @@
 function [f,df,xevaledout] = fmincon_fun(x,model)
 
-xevaled = zeros(1,length(model.c));
-xevaled(model.linearindicies) = x;
+global latest_xevaled
+global latest_x_xevaled
 
 % Apply the precomputed evaluation scheme (if necessary)
+xevaled = zeros(1,length(model.c));
+xevaled(model.linearindicies) = x;
 if ~model.SimpleLinearObjective
-    xevaled = apply_recursive_evaluation(model,xevaled);
+    if isequal(x,latest_x_xevaled)
+        xevaled = latest_xevaled;
+    else       
+        xevaled = apply_recursive_evaluation(model,xevaled);
+        latest_xevaled = xevaled;
+        latest_x_xevaled = x;
+    end
 end
 xevaledout=xevaled;
 
@@ -14,9 +22,13 @@ if model.SimpleLinearObjective
     f = model.f + model.c'*xevaled;
 else
     f = model.f + (model.c'+xevaled'*model.Q)*xevaled;
+    if isnan(f)
+        f = inf;
+    end
 end
-
-if nargout==1
+f=full(f);
+df = [];
+if nargout==1 || ~model.derivative_available
     return
 elseif model.SimpleLinearObjective
     df = model.c(model.linearindicies);
@@ -55,23 +67,17 @@ elseif model.SimpleNonlinearObjective
         end
     end
     df = real(df + 2*model.Q(model.linearindicies,model.linearindicies)*x);
+    df = full(df);
 elseif nargout > 1
     requested = model.c | any(model.Q,2);
     [i,j,k] = find((model.deppattern(find(requested),:)));
     requested(j) = 1;
-    dx = apply_recursive_differentiation(model,xevaled,requested,model.frecursivederivativeprecompute);
-%     dx2 = apply_oldrecursive_differentiation(model,xevaled,requested);
-%     
-%     if norm(dx(requested,:)-dx2(requested,:))>1e-14
-%         disp('DIFFERENTIATION WRONG')
-%         error('DIFFERENTIATION WRONG')
-%     end
-% %     
+    dx = apply_recursive_differentiation(model,xevaled,requested,model.frecursivederivativeprecompute); 
     df = model.c'*dx+2*xevaled'*model.Q*dx;
+    df = full(df);
 else
     df = [];
 end
-
 
 
 

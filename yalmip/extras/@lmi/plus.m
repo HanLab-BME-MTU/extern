@@ -29,14 +29,20 @@ if ~((isa(X,'lmi')) & (isa(Y,'lmi')))
     error('Both arguments must be SET objects')
 end
 
-nX = length(X.clauses);
-nY = length(Y.clauses);
-
-if nX+nY == 0
+nX = length(X.LMIid);
+nY = length(Y.LMIid);
+if nX==0
+    X = Y;
     return
 end
+if nY == 0
+    return;
+end
 
-X.clauses = {X.clauses{:},Y.clauses{:}};
+for i = 1:length(Y.clauses)
+    X.clauses{end+1} = Y.clauses{i};
+end
+
 X.LMIid = [X.LMIid Y.LMIid];
 
 % VERY FAST UNIQUE BECAUSE THIS IS CALLED A LOT OF TIMES....

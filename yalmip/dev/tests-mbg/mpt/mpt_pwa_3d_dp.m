@@ -39,13 +39,13 @@ for k = N-1:-1:1
     bounds(x{k+1},sysStruct.xmin,sysStruct.ymax);
     bounds(t,0,600);
 
-    F =     set(sysStruct.umin < u{k}     < sysStruct.umax);
-    F = F + set(sysStruct.xmin < x{k}     < sysStruct.xmax);
-    F = F + set(sysStruct.xmin < x{k+1}   < sysStruct.xmax);
-    F = F + set(sysStruct.ymin < sysStruct.C{1}*x{k}   < sysStruct.ymax);
-    F = F + set(sysStruct.ymin < sysStruct.C{1}*x{k+1} < sysStruct.ymax);
+    F =     set(sysStruct.umin <= u{k}     <= sysStruct.umax);
+    F = F + set(sysStruct.xmin <= x{k}     <= sysStruct.xmax);
+    F = F + set(sysStruct.xmin <= x{k+1}   <= sysStruct.xmax);
+    F = F + set(sysStruct.ymin <= sysStruct.C{1}*x{k}   <= sysStruct.ymax);
+    F = F + set(sysStruct.ymin <= sysStruct.C{1}*x{k+1} <= sysStruct.ymax);
 
-    F = F + set(-t < [x{k};u{k}] < t) ;
+    F = F + set(-t <= [x{k};u{k}] <= t) ;
 
     % PWA Dynamics
     for i = 1:length(sysStruct.A)

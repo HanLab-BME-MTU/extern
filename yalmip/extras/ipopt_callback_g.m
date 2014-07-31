@@ -3,11 +3,10 @@ function g = ipopt_callback_g(x,model)
 global latest_x_g
 global latest_G
 global latest_g
-
 x = x(:);
 
-% Compute the nonlinear terms in the constraints and Jacobians for later
-[g,geq,dg,dgeq] = fmincon_con(x,model);
+% Compute the nonlinear terms in the constraints and Jacobians for later   
+[g,geq,dg,dgeq] = fmincon_con(x,model);    
 
 % Append with linear constraints
 g = [g;geq];

@@ -1,47 +1,24 @@
-function output = callqpip(interfacedata)
+function output = callqpas(interfacedata)
 
 % Author Johan Löfberg
 % $Id: callqpas.m,v 1.3 2007-09-12 14:28:30 joloef Exp $
 
 % Retrieve needed data
 options = interfacedata.options;
-F_struc = interfacedata.F_struc;
-c       = interfacedata.c;
-K       = interfacedata.K;
-x0      = interfacedata.x0;
-Q       = interfacedata.Q;
-lb      = interfacedata.lb;
-ub      = interfacedata.ub;
+model = yalmip2quadprog(interfacedata);
 
-[Q,c,A,b,Aeq,beq,lb,ub,ops] = yalmip2quadprog(interfacedata);
-
-% [R,p] = chol(Q);
-% if p
-%     % Standard interface
-%     output.Primal      = x0*0;
-%     output.Dual        = [];
-%     output.Slack       = [];
-%     output.problem     = -4;
-%     output.infostr     = yalmiperror(-4,'QPAS');
-%     output.solverinput = [];
-%     output.solveroutput= [];
-%     output.solvertime  = 0;
-%     return
-% end
-
-if size(Aeq,1)==0
-    Aeq = [];
-    beq = [];
+if size(model.Aeq,1)==0
+    model.Aeq = [];
+    model.beq = [];
 end
 
 if options.savedebug
-    ops = options.qpip;
-    save qpasdebug Q c A b Aeq beq lb ub x0 ops
+    save debugfile model
 end
 
 if options.showprogress;showprogress(['Calling ' interfacedata.solver.tag],options.showprogress);end
 solvertime = clock;
-[x,flag,lm] = qpas(2*Q, c, A, b, Aeq, beq, lb, ub, options.verbose);
+[x,flag,lm] = qpas(model.Q, model.c, model.A, model.b, model.Aeq, model.beq, model.lb, model.ub, options.verbose);
 if interfacedata.getsolvertime solvertime = etime(clock,solvertime);else solvertime = 0;end
 
 % Internal format for duals
@@ -65,17 +42,11 @@ else
     end
 end
 
-infostr = yalmiperror(problem,'QPIP');
+infostr = yalmiperror(problem,interfacedata.solver.tag);
 
 % Save all data sent to solver?
 if options.savesolverinput
-    solverinput.A = A;
-    solverinput.b = b;
-    solverinput.Aeq = Aq;
-    solverinput.beq = beq;
-    solverinput.c = c;
-    solverinput.H = Q;
-    solverinput.options = options.quadprog;
+    solverinput = model;
 else
     solverinput = [];
 end

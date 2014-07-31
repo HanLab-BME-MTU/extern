@@ -43,6 +43,6 @@ F = F + set( 211.4823*x1 - (1 - x1*x2)*x4*(exp(x6*(0.191267*x9 - 0.0202153*x7 - 
 F = F + set( x1*x3 - x2*x4 == 0);
 
 
-F = F + set(0 < [x1 x2 x3 x4 x5 x6 x7 x8 x9] < 10);
+F = F + set(0 <= [x1 x2 x3 x4 x5 x6 x7 x8 x9] <= 10);
 
 solvesdp(F,objvar,sdpsettings('solver','bmibnb','bmibnb.upper','none','allownon',1,'bmibnb.maxiter',10))

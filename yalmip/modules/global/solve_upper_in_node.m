@@ -1,6 +1,6 @@
-function [upper,x_min,info_text,numglobals] = solve_upper_in_node(p,p_upper,x,upper,x_min,uppersolver,info_text,numglobals);
+function [upper,x_min,info_text,numglobals,timing] = solve_upper_in_node(p,p_upper,x,upper,x_min,uppersolver,info_text,numglobals,timing);
 
-output = global_solve_upper(p,p_upper,x,p.options,uppersolver);
+[output,timing] = global_solve_upper(p,p_upper,x,p.options,uppersolver,timing);
 output.Primal(p_upper.integer_variables) = round(output.Primal(p_upper.integer_variables));
 output.Primal(p_upper.binary_variables) = round(output.Primal(p_upper.binary_variables));
 
@@ -16,9 +16,5 @@ if feasible
         upper = this_upper;
         info_text = 'Improved solution';
         numglobals = numglobals + 1;
-%         if nnz(p.Q)==0 & nnz(p.c) == 1
-%             i = find(p.c);
-%             p.ub(i) = min(p.ub(i),upper+1e-4);
-%         end
     end
 end

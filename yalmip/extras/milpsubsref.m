@@ -31,7 +31,13 @@ switch class(varargin{1})
                 end
             case 2
                 index1 = varargin{2}.subs{1};
+                if isa(index1,'char')
+                    index1 = 1:size(varargin{1},1);
+                end
                 index2 = varargin{2}.subs{2};
+                if isa(index2,'char')
+                    index2 = 1:size(varargin{1},2);
+                end
                 y = [];
                 for i = 1:length(index1)
                     temp = [];
@@ -94,9 +100,13 @@ switch class(varargin{1})
                     F = F + set(-(max(Mx)-min(mx))*(1-di) <= Y-X(i,j) <= (max(Mx)-min(mx))*(1-di));
                     if isa(i1,'sdpvar')
                         F = F + set(-(1+M1-m1)*(1-di) <= i1-i <= (1+M1-m1)*(1-di));
+                    elseif i1~=i
+                        F = [F, sum(d(i,:))==0];
                     end
                     if isa(i2,'sdpvar')
                         F = F + set(-(1+M2-m2)*(1-di) <= i2-j <= (1+M2-m2)*(1-di));
+                    elseif i2~=j
+                        F = [F, sum(d(:,j))==0];
                     end
                 end
             end

@@ -5,24 +5,16 @@ function output = callqpip(interfacedata)
 
 % Retrieve needed data
 options = interfacedata.options;
-F_struc = interfacedata.F_struc;
-c       = interfacedata.c;
-K       = interfacedata.K;
-x0      = interfacedata.x0;
-Q       = interfacedata.Q;
-lb      = interfacedata.lb;
-ub      = interfacedata.ub;
-
-[Q,c,A,b,Aeq,beq,lb,ub,ops] = yalmip2quadprog(interfacedata);
+model = yalmip2quadprog(interfacedata);
 
 if options.savedebug
-    ops = options.qpip;
-    save qpipdebug Q c A b Aeq beq lb ub x0 ops
+    model.ops = options.qpip;
+    save debugfile model
 end
 
 if options.showprogress;showprogress(['Calling ' interfacedata.solver.tag],options.showprogress);end
 solvertime = clock;
-[x,flag,lm] = qpip(2*Q, c, A, b, Aeq, beq, lb, ub, options.verbose,options.qpip.mu,options.qpip.method);
+[x,flag,lm] = qpip(model.Q, model.c, model.A, model.b, model.Aeq, model.beq, model.lb, model.ub, options.verbose,options.qpip.mu,options.qpip.method);
 if interfacedata.getsolvertime solvertime = etime(clock,solvertime);else solvertime = 0;end
 
 % Internal format for duals
@@ -46,13 +38,7 @@ infostr = yalmiperror(problem,'QPIP');
 
 % Save all data sent to solver?
 if options.savesolverinput
-    solverinput.A = A;
-    solverinput.b = b;
-    solverinput.Aeq = Aq;
-    solverinput.beq = beq;
-    solverinput.c = c;
-    solverinput.H = Q;
-    solverinput.options = options.quadprog;
+    solverinput = model;
 else
     solverinput = [];
 end

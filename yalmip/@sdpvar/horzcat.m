@@ -88,8 +88,14 @@ basis_j = [];
 basis_s = [];
 shft = 0;
 for j = 1:nblocks
-    if isasdpvar(j)
-        in_this = find(ismembc(all_lmi_variables,varargin{j}.lmi_variables));
+    if isasdpvar(j)        
+        if length(all_lmi_variables)==length(varargin{j}.lmi_variables) && all_lmi_variables(1)==varargin{j}.lmi_variables(1) &&  all_lmi_variables(end)==varargin{j}.lmi_variables(end)
+            % Avoid call to ismember and find
+            in_this = 1:length(all_lmi_variables);
+        else
+            members = ismembcYALMIP(all_lmi_variables,varargin{j}.lmi_variables);
+            in_this = find(members);
+        end        
         dummy = [1 1+in_this];
         [i2,j2,s2] = find(varargin{j}.basis);
         j2 = dummy(j2);
@@ -114,31 +120,58 @@ y.conicinfo = [0 0];
 y.extra.opname='';
 y = unfactor(y);
 % Update the factors
-doublehere = [];
+% But first, check to see that factors exist in all terms, if not simply
+% exit
 for i = 1:length(varargin)
     if isa(varargin{i},'sdpvar')
         if length(varargin{i}.leftfactors)==0
             y = flush(y);
             return
         end
+    end
+end
+doublehere = [];
+for i = 1:length(varargin)
+    if isa(varargin{i},'sdpvar')       
         for j = 1:length(varargin{i}.leftfactors)
             h = size(varargin{i}.rightfactors{j},1);
-            y.rightfactors{end+1} = [zeros(h,sum(m(1:1:i-1))) varargin{i}.rightfactors{j} zeros(h,sum(m(i+1:1:end)))];
+            y.rightfactors{end+1} = [spalloc(h,sum(m(1:1:i-1)),0) varargin{i}.rightfactors{j} spalloc(h,sum(m(i+1:1:end)),0)];
             y.midfactors{end+1} = varargin{i}.midfactors{j};
             y.leftfactors{end+1} = varargin{i}.leftfactors{j};
         end
     elseif isa(varargin{i},'double')
         if ~all(varargin{i}==0)
-        %  if ~doublehere
-        here = length(y.midfactors)+1;
-       % doublehere = [doublehere here];
-        %  end
-        y.rightfactors{here} = [zeros(m(i),sum(m(1:1:i-1))) eye(m(i)) zeros(m(i),sum(m(i+1:1:end)))];
-        y.midfactors{here}  = varargin{i};
-        y.leftfactors{here}  = eye(size(varargin{i},1));
+            %  if ~doublehere
+            here = length(y.midfactors)+1;
+            % doublehere = [doublehere here];
+            %  end
+            y.rightfactors{here} = [spalloc(m(i),sum(m(1:1:i-1)),0) speye(m(i)) spalloc(m(i),sum(m(i+1:1:end)),0)];
+            y.midfactors{here}  = varargin{i};
+            y.leftfactors{here}  = speye(size(varargin{i},1));
         end
     end
 end
 y = cleandoublefactors(y);
 y = flushmidfactors(y);
+
+% if length(y.midfactors)>1
+%     keep = ones(1,length(y.midfactors));
+%     for i = 1:length(y.midfactors)-1
+%         for j = 2:length(y.midfactors)
+%             if keep(j)
+%                 if isequal(y.midfactors{j},y.midfactors{i})
+%                     if isequal(y.leftfactors{j},y.leftfactors{i})
+%                         keep(j) = 0;
+%                         y.rightfactors{i} = y.rightfactors{i}+y.rightfactors{j};
+%                     end
+%                 end
+%             end
+%         end
+%     end
+%     if ~all(keep)
+%         y.leftfactors = {y.leftfactors{find(keep)}};
+%         y.midfactors = {y.midfactors{find(keep)}};
+%         y.rightfactors = {y.rightfactors{find(keep)}};
+%     end        
+% end
 

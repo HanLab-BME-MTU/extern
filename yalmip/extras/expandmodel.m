@@ -1,4 +1,4 @@
-function [F,failure,cause,ALREADY_MODELLED] = expandmodel(F,h,options)
+function [F,failure,cause,ALREADY_MODELLED] = expandmodel(F,h,options,w)
 % Author Johan Löfberg
 % $Id: expandmodel.m,v 1.93 2008-05-06 18:08:16 joloef Exp $
 
@@ -8,6 +8,16 @@ function [F,failure,cause,ALREADY_MODELLED] = expandmodel(F,h,options)
 % If it wasn't for polynomials and sigmonials, it would be trivial, but the
 % code is extremely messy since we want to have this functionality too
 
+global LUbounds
+global ALREADY_MODELLED
+global MARKER_VARIABLES
+global DUDE_ITS_A_GP
+global ALREADY_MODELLED
+global ALREADY_MODELLED_INDEX
+global REMOVE_THESE_IN_THE_END
+global OPERATOR_IN_POLYNOM
+global CONSTRAINTCUTSTATE
+
 % All extended variables in the problem. It is expensive to extract this
 % one so we will keep it and pass it along in the recursion
 extendedvariables = yalmip('extvariables');
@@ -15,90 +25,110 @@ extendedvariables = yalmip('extvariables');
 % We keep track of all auxilliary variables introduced by YALMIP
 nInitial = yalmip('nvars');
 
-% Assume success
-failure = 0;
-cause = '';
-global ALREADY_MODELLED 
+boundsAlreadySet = 0;
+% Meta constraints are expanded first (iff, implies, alldifferent etc)
+if ~isempty(F)
+    meta = find(is(F,'meta'));
+    if ~isempty(meta)
+        LUbounds=setupBounds(F,options,extendedvariables);
+        boundsAlreadySet = 1;
+        F = expandmeta(F);
+    end
+end
 
-global LUbounds
-
-ALREADY_MODELLED = [];
-
-% Early bail out
-if isempty(extendedvariables)
-    return
+if isa(F,'constraint')
+    F = lmi(F);
 end
 
 if nargin < 3
     options = sdpsettings;
 end
 
+if isempty(options)
+    options = sdpsettings;
+end
+
+if isfield(options,'reusemodel')
+    
+else
+    
+    ALREADY_MODELLED = [];
+    
+    % Temporary hack to deal with a bug in CPLEX. For the implies operator (and
+    % some more) YALMIP creates a dummy variable x with set(x==1). Cplex fails
+    % to solve problem with these stupid variables kept, hence we need to
+    % remove these variables and constraints...
+    MARKER_VARIABLES = [];
+    
+    % Temporary hack to deal with geometric programs. GPs are messy here,
+    % becasue we can by mistake claim nonconvexity, since we may have no
+    % sigmonial terms but indefinite quadratic term, but the whole problem is
+    % meant to be solved using a GP solver. YES, globals suck, but this is
+    % only temporary...hrm.
+    DUDE_ITS_A_GP = 0;
+    
+    % Keep track of expressions that already have been modelled. Note that if a
+    % graph-model already has been constructed but we now require a milp, for
+    % numerical reasons, we should remove the old graph descriptions (important
+    % for MPT models in particular)
+    % FIX: Pre-parse the whole problem etc (solves the issues with GP also)
+    ALREADY_MODELLED = {};
+    ALREADY_MODELLED_INDEX = [];
+    REMOVE_THESE_IN_THE_END = [];
+    
+    % Nonlinear operator variables are not allowed to be used in polynomial
+    % expressions, except if they are exactly modelled, i.e. modelled using
+    % MILP models. We will expand the model and collect variables that are in
+    % polynomials, and check in the end if they are exaclty modelled
+    OPERATOR_IN_POLYNOM = [];
+end
+% Assume success
+failure = 0;
+cause = '';
+
+% Early bail out
+if isempty(extendedvariables)
+    return
+end
+
+if nargin < 4
+    w = [];
+end
+
+if isempty(F) & isempty(h)
+    return
+end
+
 % Check if it already has ben expanded in robustify or similar
-already_expanded = expanded(F);
-if all(already_expanded)
-    if isempty(setdiff(getvariables(h),expanded(h)))
-        return
-    end
-end
-
-% Extract all simple bounds from the model, and update the internal bounds
-% in YALMIP. This is done in order to get tighter big-M models
+F_alreadyexpanded = [];
 if ~isempty(F)
-    nv = yalmip('nvars');
-    yalmip('setbounds',1:nv,repmat(-inf,nv,1),repmat(inf,nv,1));
-    
-    % This is a hack to avoid bound propagation when this function is
-    % called from optimizer.m
-    if isfield(options,'avoidequalitybounds')
-        LU = getbounds(F,0);
-    else
-        LU = getbounds(F);
+    F_alreadyexpanded = [];
+    already_expanded = expanded(F);
+    if all(already_expanded)
+        if isempty(setdiff(getvariables(h),expanded(h)))
+            return
+        end
+    elseif any(already_expanded)
+        F_alreadyexpanded = F(find(already_expanded));
+        F = F(find(~already_expanded));
     end
-    
-    % In models with nonconvex terms including x, but where bounds only are
-    % set on abs(x), we have to use the bound on abs(x) to improve the
-    % bound on x. Sort of ugly...The problem is that we only get operator
-    % knowledge when we model the operator, nor before we start the whole
-    % algorithm
-    LU = extract_bounds_from_abs_operator(LU,yalmip('extstruct'),extendedvariables);
-    
-    yalmip('setbounds',1:nv,LU(:,1),LU(:,2));    
-    LUbounds = LU;
 end
 
-% Temporary hack to deal with a bug in CPLEX. For the implies operator (and
-% some more) YALMIP creates a dummy variable x with set(x==1). Cplex fails
-% to solve problem with these stupid variables kept, hence we need to
-% remove these variables and constraints...
-global MARKER_VARIABLES
-MARKER_VARIABLES = [];
-
-% Temporary hack to deal with geometric programs. GPs are messy here,
-% becasue we can by mistake claim nonconvexity, since we may have no
-% sigmonial terms but indefinite quadratic term, but the whole problem is
-% meant to be solved using a GP solver. YES, globals suck, but this is
-% only temporary...hrm.
-global DUDE_ITS_A_GP
-DUDE_ITS_A_GP = 0;
-
-% Keep track of expressions that already have been modelled. Note that if a
-% graph-model already has been constructed but we now require a milp, for
-% numerical reasons, we should remove the old graph descriptions (important
-% for MPT models in particular)
-% FIX: Pre-parse the whole problem etc (solves the issues with GP also)
-global ALREADY_MODELLED 
-global ALREADY_MODELLED_INDEX
-global REMOVE_THESE_IN_THE_END 
-ALREADY_MODELLED = {};
-ALREADY_MODELLED_INDEX = [];
-REMOVE_THESE_IN_THE_END = [];
-
-% Nonlinear operator variables are not allowed to be used in polynomial
-% expressions, except if they are exactly modelled, i.e. modelled using
-% MILP models. We will expand the model and collect variables that are in
-% polynomials, and check in the end if they are exaclty modelled
-global OPERATOR_IN_POLYNOM
-OPERATOR_IN_POLYNOM = [];
+if ~isempty(F)
+    % Extract all simple bounds from the model, and update the internal bounds
+    % in YALMIP. This is done in order to get tighter big-M models
+    
+    if boundsAlreadySet == 0;
+        LUbounds = setupBounds(F,options,extendedvariables);
+    end
+    
+    % Expand equalities first, since these might generate nonconvex models,
+    % thus making it unnecessaryu to generate epigraphs etc
+    equalities = is(F,'equality');
+    if any(equalities)
+        F = [F(find(equalities));F(find(~equalities))];
+    end
+end
 
 % All variable indicies used in the problem
 v1 = getvariables(F);
@@ -108,13 +138,13 @@ v4 = depends(h);
 
 % HACK: Performance for LARGE-scale dualizations
 if isequal(v3,v4) & isequal(v1,v2)
-    variables = uniquestripped([v1 v3]);    
+    variables = uniquestripped([v1 v3]);
 else
     variables = uniquestripped([v1 v2 v3 v4]);
 end
 
 % Index to variables modeling operators
-extended = find(ismembc(variables,extendedvariables));
+extended = find(ismembcYALMIP(variables,extendedvariables));
 
 if nargin < 3
     options = sdpsettings;
@@ -128,21 +158,21 @@ if ~isfield(options,'expandbilinear')
     options.expandbilinear = 0;
 end
 
-% Monomial information. Expensive to retrieve, so we pass this along 
+% Monomial information. Expensive to retrieve, so we pass this along
 [monomtable,variabletype] = yalmip('monomtable');
 
 % Is this trivially a GP, or meant to be at least?
 if strcmpi(options.solver,'gpposy') | strcmpi(options.solver,'fmincon-geometric') | strcmpi(options.solver,'mosek-geometric')
     DUDE_ITS_A_GP = 1;
 else
-   if ~isequal(options.solver,'fmincon') & ~isequal(options.solver,'snopt') & ~isequal(options.solver,'ipopt') & ~isequal(options.solver,'') &  ~isequal(options.solver,'mosek')
-       % User has specified some other solver, which does not
-       % support GPs, hence it cannot be intended to be a GP
-       DUDE_ITS_A_GP = 0;
-   else
-       % Check to see if there are any sigmonial terms on top-level
-       DUDE_ITS_A_GP = ~isempty(find(variabletype(variables) == 4));
-   end
+    if ~isequal(options.solver,'fmincon') & ~isequal(options.solver,'snopt') & ~isequal(options.solver,'ipopt') & ~isequal(options.solver,'') &  ~isequal(options.solver,'mosek')
+        % User has specified some other solver, which does not
+        % support GPs, hence it cannot be intended to be a GP
+        DUDE_ITS_A_GP = 0;
+    else
+        % Check to see if there are any sigmonial terms on top-level
+        DUDE_ITS_A_GP = ~isempty(find(variabletype(variables) == 4));
+    end
 end
 
 % Constraints generated during recursive process to model operators
@@ -168,17 +198,17 @@ else
 end
 
 if DUDE_ITS_A_GP == 1
-   options.allowmilp = 0;
-   method = 'graph'; 
+    options.allowmilp = 0;
+    method = 'graph';
 end
 
 % *************************************************************************
 % OK, looks good. Apply recursive expansion on the objective
 % *************************************************************************
-index_in_extended = find(ismembc(variables,extendedvariables));
+index_in_extended = find(ismembcYALMIP(variables,extendedvariables));
 allExtStructs = yalmip('extstruct');
 if ~isempty(index_in_extended)
-    [F_expand,failure,cause] = expand(index_in_extended,variables,h,F_expand,extendedvariables,monomtable,variabletype,'objective',0,options,method,[],allExtStructs);
+    [F_expand,failure,cause] = expand(index_in_extended,variables,h,F_expand,extendedvariables,monomtable,variabletype,'objective',0,options,method,[],allExtStructs,w);
 end
 
 % *************************************************************************
@@ -187,32 +217,38 @@ end
 constraint = 1;
 all_extstruct = yalmip('extstruct');
 while constraint <=length(F) & ~failure
-
+    
     if ~already_expanded(constraint)
         variables = uniquestripped([depends(F(constraint)) getvariables(F(constraint))]);
+        
+        % If constraint is a cut, all generated constraints must be marked
+        % as cuts too
+        CONSTRAINTCUTSTATE =  getcutflag(F(constraint));
         [ix,jx,kx] = find(monomtable(variables,:));
         if ~isempty(jx) % Bug in 6.1
             if any(kx>1)
                 OPERATOR_IN_POLYNOM = [OPERATOR_IN_POLYNOM extendedvariables(jx(find(kx>1)))];
             end
         end
-
-        index_in_extended = find(ismembc(variables,extendedvariables));
+        
+        index_in_extended = find(ismembcYALMIP(variables,extendedvariables));
         if ~isempty(index_in_extended)
             if is(F(constraint),'equality')
-                if options.allowmilp
-                    [F_expand,failure,cause] = expand(index_in_extended,variables,-sdpvar(F(constraint)),F_expand,extendedvariables,monomtable,variabletype,['constraint #' num2str(constraint)],0,options,'exact',[],allExtStructs);
+                if options.allowmilp | options.allownonconvex
+                    [F_expand,failure,cause] = expand(index_in_extended,variables,-sdpvar(F(constraint)),F_expand,extendedvariables,monomtable,variabletype,['constraint #' num2str(constraint)],0,options,'exact',[],allExtStructs,w);
                 else
                     failure = 1;
                     cause = ['integer model required for equality in constraint #' num2str(constraint)];
                 end
             else
-                [F_expand,failure,cause] = expand(index_in_extended,variables,-sdpvar(F(constraint)),F_expand,extendedvariables,monomtable,variabletype,['constraint #' num2str(constraint)],0,options,method,[],allExtStructs);
+                [F_expand,failure,cause] = expand(index_in_extended,variables,-sdpvar(F(constraint)),F_expand,extendedvariables,monomtable,variabletype,['constraint #' num2str(constraint)],0,options,method,[],allExtStructs,w);
             end
         end
     end
     constraint = constraint+1;
 end
+
+CONSTRAINTCUTSTATE = 0;
 
 % *************************************************************************
 % Temporary hack to fix the implies operator (cplex has some problem on
@@ -227,7 +263,7 @@ if ~isempty(MARKER_VARIABLES)
     for j = equalities
         v = getvariables(F(j));
         if length(v)==1
-            if ismembc(v,MARKER_VARIABLES)
+            if ismembcYALMIP(v,MARKER_VARIABLES)
                 remove = [remove j];
             end
         end
@@ -241,9 +277,9 @@ nNow = yalmip('nvars');
 if nNow > nInitial
     % YALMIP has introduced auxilliary variables
     % We mark these as auxilliary
-    yalmip('addauxvariables',nInitial:nNow);
+    yalmip('addauxvariables',nInitial+1:nNow);
 end
-    
+
 
 F_expand = lifted(F_expand,1);
 % *************************************************************************
@@ -254,7 +290,7 @@ F_expand = lifted(F_expand,1);
 % creates a integer model.
 % *************************************************************************
 if ~failure
-    F = F + F_expand;    
+    F = F + F_expand;
     if length(REMOVE_THESE_IN_THE_END) > 0
         F = F(find(~ismember(getlmiid(F),REMOVE_THESE_IN_THE_END)));
     end
@@ -283,10 +319,12 @@ if ~failure
     end
 end
 
-% declare this model as expanded
+% Append the previously appended
+F = F + F_alreadyexpanded;
+% Declare this model as expanded
 F = expanded(F,1);
 
-function [F_expand,failure,cause] = expand(index_in_extended,variables,expression,F_expand,extendedvariables,monomtable,variabletype,where,level,options,method,extstruct,allExtStruct)
+function [F_expand,failure,cause] = expand(index_in_extended,variables,expression,F_expand,extendedvariables,monomtable,variabletype,where,level,options,method,extstruct,allExtStruct,w)
 global DUDE_ITS_A_GP ALREADY_MODELLED ALREADY_MODELLED_INDEX REMOVE_THESE_IN_THE_END OPERATOR_IN_POLYNOM
 
 % *************************************************************************
@@ -297,7 +335,7 @@ if ~DUDE_ITS_A_GP
     [ix,jx,kx] = find(monomtable(variables,:));
     if ~isempty(jx) % Bug in 6.1
         if any(kx>1)
-            OPERATOR_IN_POLYNOM = [OPERATOR_IN_POLYNOM extendedvariables(jx(find(kx>1)))];          
+            OPERATOR_IN_POLYNOM = [OPERATOR_IN_POLYNOM extendedvariables(jx(find(kx>1)))];
         end
     end
 end
@@ -311,28 +349,36 @@ try
     expression_basis = getbase(expression);
     expression_vars  = getvariables(expression);
     [yesno,location] = ismember(variables(index_in_extended),expression_vars);
+    ztemp = recover(variables(index_in_extended));
     while j<=length(index_in_extended) & ~failure
-        i = index_in_extended(j);
+        % i = index_in_extended(j);
+        % zi = recover(variables(i));
+        zi = ztemp(j);%recover(variables(i));
         basis = expression_basis(:,1 + location(j));
-        if 0%all(basis == 0) % The nonlinear term is inside a monomial
-            [F_expand,failure,cause] = expandrecursive(recover(variables(i)),F_expand,extendedvariables,monomtable,variabletype,where,level+1,options,method,[],'convex',allExtStruct);
+        if all(basis == 0) % The nonlinear term is inside a monomial
+            if options.allownonconvex
+                [F_expand,failure,cause] = expandrecursive(zi,F_expand,extendedvariables,monomtable,variabletype,where,level+1,options,'exact',[],'exact',allExtStruct,w);
+            else
+                failure = 1;
+                cause = 'Possible nonconvexity due to operator in monomial';
+            end
+            %[F_expand,failure,cause] = expandrecursive(zi,F_expand,extendedvariables,monomtable,variabletype,where,level+1,options,method,[],'exact',allExtStruct,w);
         elseif all(basis >= 0)
-            [F_expand,failure,cause] = expandrecursive(recover(variables(i)),F_expand,extendedvariables,monomtable,variabletype,where,level+1,options,method,[],'convex',allExtStruct);
+            [F_expand,failure,cause] = expandrecursive(zi,F_expand,extendedvariables,monomtable,variabletype,where,level+1,options,method,[],'convex',allExtStruct,w);
         else
-            [F_expand,failure,cause] = expandrecursive(recover(variables(i)),F_expand,extendedvariables,monomtable,variabletype,where,level+1,options,method,[],'concave',allExtStruct);
+            [F_expand,failure,cause] = expandrecursive(zi,F_expand,extendedvariables,monomtable,variabletype,where,level+1,options,method,[],'concave',allExtStruct,w);
         end
         j=j+1;
     end
-catch   
+catch
     while j<=length(index_in_extended) & ~failure
         i = index_in_extended(j);
         basis = getbasematrix(expression,variables(i));
         if all(basis >= 0)
-            [F_expand,failure,cause] = expandrecursive(recover(variables(i)),F_expand,extendedvariables,monomtable,variabletype,where,level+1,options,method,[],'convex',allExtStruct);
+            [F_expand,failure,cause] = expandrecursive(recover(variables(i)),F_expand,extendedvariables,monomtable,variabletype,where,level+1,options,method,[],'convex',allExtStruct,w);
         else
-            [F_expand,failure,cause] = expandrecursive(recover(variables(i)),F_expand,extendedvariables,monomtable,variabletype,where,level+1,options,method,[],'concave',allExtStruct);
+            [F_expand,failure,cause] = expandrecursive(recover(variables(i)),F_expand,extendedvariables,monomtable,variabletype,where,level+1,options,method,[],'concave',allExtStruct,w);
         end
         j=j+1;
-    end  
+    end
 end
-

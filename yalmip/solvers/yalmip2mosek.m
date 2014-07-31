@@ -58,8 +58,8 @@ end
 
 if K.q(1)>0
     nof_new = sum(K.q);
-    prob.a = [prob.a [zeros(K.f,nof_new);zeros(K.l,nof_new);eye(nof_new)]];
-    prob.a(1+K.f+K.l:end,1:length(c)) = prob.a(1+K.f+K.l:end,1:length(c));
+    prob.a = [prob.a [spalloc(K.f,nof_new,0);spalloc(K.l,nof_new,0);speye(nof_new)]];
+    %prob.a(1+K.f+K.l:end,1:length(c)) = prob.a(1+K.f+K.l:end,1:length(c));
     prob.blc(1+K.f+K.l:end) = prob.buc(1+K.f+K.l:end);
     prob.buc(1+K.f+K.l:end) = prob.buc(1+K.f+K.l:end);
     prob.c = [prob.c;zeros(nof_new,1)];
@@ -77,7 +77,7 @@ if ~isempty(integer_variables)
     prob.ints.sub = integer_variables;
 end
 
-prob.param = options.mosek.param;
+prob.param = options.mosek;
 
 function prob = create_mosek_geometric(options,F_struc,c,Q,K,ub,lb,mt,linear_variables,extended_variables);
 

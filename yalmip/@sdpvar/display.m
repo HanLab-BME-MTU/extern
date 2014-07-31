@@ -32,15 +32,16 @@ switch(X.typeflag)
             if is(X,'compound')
                 classification = [classification ', derived'];
                 if ~isequal(X.extra.opname,'')
-                classification = [classification ', models ''' X.extra.opname ''''];
+                    classification = [classification ', models ''' X.extra.opname ''''];
                 end
             end
 
             if ~islinear(X)
                 variables = getvariables(X);
                 monomtable = yalmip('monomtable');
-                s = sum(full(monomtable(variables,:)),2);
-                if ((nnz(getbasematrix(X,0))==0) ) & all(s==s(1))
+                s = sum((monomtable(variables,:)),2);
+               % s = sum(full(monomtable(variables,:)),2);
+                if ((nnz(getbasematrix(X,0))==0) ) && all(s==s(1))
                     classification = [classification ', homogeneous'];
                 end
             end
@@ -147,7 +148,7 @@ switch(X.typeflag)
             n = X.dim(1);
             m = X.dim(2);
             
-            if (n<100) & (n==m)
+            if (n<100) && (n==m)
                 x = recover(xvars);
                 if ~any(any(isnan(double(x))))
                     doubleX = double(X);

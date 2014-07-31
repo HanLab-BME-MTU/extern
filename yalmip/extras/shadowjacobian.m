@@ -4,6 +4,15 @@ function dfdx = shadowjacobian(f,x)
 % Author Johan Löfberg
 % $Id: shadowjacobian.m,v 1.7 2007-08-10 08:34:30 joloef Exp $
 
+if isa(f,'double')
+    dfdx = zeros(size(f,1),length(x));
+    return
+end
+
+if ~isempty(intersect(deepdepends(f),depends(x)))    
+    % Under development   
+end
+
 if nargin==1
     if isa(f,'sdpvar')
         x = recover(depends(f));
@@ -14,10 +23,6 @@ else
     if length(getvariables(x))<length(x)
       error('x should be a vector of scalar independant variables');
     end
-end
-
-if isa(f,'double')
-    dfdx = zeros(size(f,1),length(x));
 end
 
 [n,m]=size(f);
@@ -53,8 +58,6 @@ end
 
 function [dfdx,dummy] = scalar_jacobian(f,x,AllVars)
 
-% Aaaaaah, horrible code. FIX!
-
 if isa(f,'double')
     dfdx = zeros(1,length(x));
     return
@@ -62,7 +65,10 @@ end
 
 if nargin==2
     AllVars = recover(uniquestripped([depends(f) getvariables(x)]));
+    %AllVars = recover(uniquestripped([deepdepends(f) depends(f) getvariables(x)]));
 end
+
+
 
 exponent_p = exponents(f,AllVars);
 
@@ -80,8 +86,7 @@ AllDeriv2 = [];
 for k = 1:length(x)
     wrt = find(ismembc(AllVars_variables,x_variables(k)));
     deriv = exponent_p;
-    deriv(:,wrt) = deriv(:,wrt)-1;    
-   % AllDeriv = [AllDeriv;deriv];
+    deriv(:,wrt) = deriv(:,wrt)-1;     
     keep{k} = find(deriv(:,wrt)~=-1);
     AllDeriv2 = [AllDeriv2;deriv(keep{k},:)];        
 end
@@ -103,19 +108,6 @@ for k = 1:length(x)
     else
         poly = 0;
     end
-%         %else
-%         %    poly = 0;
-%         %end
-%         tip = tip + LengthUsed{k};%size(exponent_p,1);
-%     end
-    %j = find(AllDeriv(top:top+size(exponent_p,1)-1,wrt)~=-1);
-    %if ~isempty(j)
-    %    poly = sum(coefficients(j).*exponent_p(j,wrt).*dummy(top+j-1));
-    %else
-    %    poly = 0;
-    %end
-    %top = top + size(exponent_p,1);
-
     dfdx = [dfdx ; poly];
 end
 dfdx = dfdx';

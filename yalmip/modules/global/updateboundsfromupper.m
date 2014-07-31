@@ -17,20 +17,22 @@ if ~isinf(upper)
         if ~isempty(quad_v) & ~any(isinf(p.lb(quad_x))) & ~any(isinf(p.ub(quad_x)))
             % x'*D*x + c'*x + f + h(x) < U
             D = diag(p.c(quad_v));
-            c = p.c(quad_x);
-            h = p.c;
-            h(quad_x) = 0;
-            h(quad_v) = 0;
-            % Complete
-            % (x + D^-0.5*c/2)'*D*(x + D^-0.5*c/2) - c'*D*c/4 + f + h(x) < U
-            xc = -(D^-1)*c/2;
-            rhs = upper - p.f - (h(h<0)'*p.ub(h<0) + h(h>=0)'*p.lb(h>=0)) + xc'*D*xc;
-            if rhs>0
-                D = D/rhs;
-                % (x-xc)'*D*(x-xc) <= 1
-                for i = 1:length(quad_x)
-                    p.lb(quad_x(i)) = max(p.lb(quad_x(i)),xc(i) - 1/sqrt(D(i,i)));
-                    p.ub(quad_x(i)) = min(p.ub(quad_x(i)),xc(i) + 1/sqrt(D(i,i)));
+            if all(diag(D)>0)
+                c = p.c(quad_x);
+                h = p.c;
+                h(quad_x) = 0;
+                h(quad_v) = 0;
+                % Complete
+                % (x + D^-0.5*c/2)'*D*(x + D^-0.5*c/2) - c'*D*c/4 + f + h(x) < U
+                xc = -(D^-1)*c/2;
+                rhs = upper - p.f - (h(h<0)'*p.ub(h<0) + h(h>=0)'*p.lb(h>=0)) + xc'*D*xc;
+                if rhs>0
+                    D = D/rhs;
+                    % (x-xc)'*D*(x-xc) <= 1
+                    for i = 1:length(quad_x)
+                        p.lb(quad_x(i)) = max(p.lb(quad_x(i)),xc(i) - 1/sqrt(D(i,i)));
+                        p.ub(quad_x(i)) = min(p.ub(quad_x(i)),xc(i) + 1/sqrt(D(i,i)));
+                    end
                 end
             end
         end

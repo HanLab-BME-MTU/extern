@@ -14,8 +14,8 @@ F = F + set( 2*sqr(x4) + 3.40735417883143e-5*x2*x4 - 40*x5 - x6 <= 0);
 F = F + set( (-2*sqr(x4)) - 3.40735417883143e-5*x2*x4 + 40*x5 - x6 <= 0);
 F = F + set( 9.615e-7*sqr(x2) + 4.4975e-7*x2 + 0.193*sqr(x3) + 0.000410621754172864*x3 + sqr(x4) + x1*x2 + x1 + 0.000545176668613029*x2*x3 + 3.40735417883143e-5 *x2*x4 + x2*sqr(x3) - x6 <= 1);
 F = F + set( (-9.615e-7*sqr(x2)) - 4.4975e-7*x2 - 0.193*sqr(x3) - 0.000410621754172864 *x3 - sqr(x4) - x1*x2 - x1 - 0.000545176668613029*x2*x3 - 3.40735417883143e-5*x2*x4 - x2*sqr(x3) - x6 <= -1);
-F = F + set(0.0001 < [x1 x2 x3 x4 x5] < 100);
-F = F + set(0.0001*ones(1,5) < [x1 x2 x3 x4 x5] < 100);
+F = F + set(0.0001 <= [x1 x2 x3 x4 x5] <= 100);
+F = F + set(0.0001*ones(1,5) <= [x1 x2 x3 x4 x5] <= 100);
 
 sol = solvesdp(F,objvar,sdpsettings('solver','bmibnb'));
 mbg_asserttolequal(sol.problem,0);

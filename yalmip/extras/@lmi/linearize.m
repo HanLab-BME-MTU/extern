@@ -1,7 +1,7 @@
 function [F,changed] = linearize(F)
-%catsdp          Linearizes all constraints
+%LINEARIZE Linearizes all constraints
 
-% Author Johan Löfberg 
+% Author Johan Löfberg
 % $Id: linearize.m,v 1.3 2005-02-04 10:10:27 johanl Exp $
 
 changed = 0;

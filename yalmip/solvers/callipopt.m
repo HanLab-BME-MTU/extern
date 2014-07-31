@@ -1,9 +1,13 @@
 function output = callipopt(model)
 
-% Author Johan Löfberg
-% $Id: callipopt.m,v 1.6 2009-09-29 10:30:15 joloef Exp $
+options = [];
+try
+    options.ipopt = optiRemoveDefaults(model.options.ipopt,ipoptset());
+catch
+    options.ipopt = model.options.ipopt;
+end
+options.ipopt.print_level = 2+model.options.verbose;
 
-options = model.options;
 model = yalmip2nonlinearsolver(model);
 
 if ~model.derivative_available
@@ -25,40 +29,20 @@ Flow = [ repmat(-inf,length(model.bnonlinineq),1);
     repmat(-inf,length(model.b),1);
     repmat(0,length(model.beq),1)];
 
-usrf = 'ipopt_callback_f';
-usrdf = 'ipopt_callback_df';
-usrg = 'ipopt_callback_g';
-usrdg = 'ipopt_callback_dg';
-
-if length(model.bnonlineq) == 0
-    jac_c_constant = 'yes';
-else
-    jac_c_constant = 'no';
+if isempty(Flow)
+    Flow = [];
+    Fupp = [];
 end
-if length(model.bnonlinineq) == 0
-    jac_d_constant = 'yes';
-else
-    jac_d_constant = 'no';
-end
-
-fields = fieldnames(options.ipopt);
-values = struct2cell(options.ipopt);
-ops = cell(2*length(fields),1);
-for i = 1:length(fields)
-    ops{2*i-1} = fields{i};
-    ops{2*i} = values{i};
-end
-ops{end+1} = 'print_level';
-ops{end+1} = 3*options.verbose;
 
 % Since ipopt react strangely on lb>ub, we should bail if that is detected
 % (ipopt creates an exception)
 if ~isempty(model.lb)
-    if any(model.lb<model.ub)
+    if any(model.lb>model.ub)
         problem = 1;   
         solverinput = [];
         solveroutput = [];  
-        output = createoutput(model.lb*0,[],[],problem,'IPOPT',solverinput,solveroutput,0);
+        output = createoutput(model.c*0,[],[],problem,'IPOPT',solverinput,solveroutput,0);
+        return
     end
 end
 
@@ -70,29 +54,54 @@ global latest_df
 global latest_f
 global latest_G
 global latest_g
+global latest_xevaled
+global latest_x_xevaled
 latest_G= [];
 latest_g = [];
 latest_x_f = [];
 latest_x_g = [];
-
-
-solvertime = clock;
+latest_xevaled = [];
+latest_x_xevaled = [];
 
 funcs.objective = @(x)ipopt_callback_f(x,model);
 funcs.gradient = @(x)ipopt_callback_df(x,model);
-funcs.constraints = @(x)ipopt_callback_g(x,model);
-funcs.jacobian  = @(x)ipopt_callback_dg(x,model);
+if ~isempty(Fupp)
+    funcs.constraints = @(x)ipopt_callback_g(x,model);
+    funcs.jacobian  = @(x)ipopt_callback_dg(x,model);
+end
 
-options.lb = model.lb;
-options.ub = model.ub;
-options.cl = Flow;
-options.cu = Fupp;
-options.ipopt.print_level = options.verbose;
+options.lb = model.lb(:)';
+options.ub = model.ub(:)';
+if ~isempty(Fupp)
+    options.cl = Flow;
+    options.cu = Fupp;
+end
 
-n = length(Flow);
-m = length(model.lb);
-funcs.jacobianstructure = @() sparse(ones(n,m));
-%eval(['@(x)sparse(ones(' num2str(n) ',' num2str(m) '));']);
+if ~isempty(Fupp)
+    Z = jacobiansparsityfromnonlinear(model);
+    funcs.jacobianstructure = @() Z;
+end
+
+if ~model.options.usex0
+    model.x0 = (options.lb+options.ub)/2;
+    model.x0(isinf(options.ub)) = options.lb(isinf(options.ub))+1;
+    model.x0(isinf(options.lb)) = options.ub(isinf(options.lb))-1;
+    model.x0(isinf(model.x0)) = 0;
+end
+
+% If quadratic objective and no nonlinear constraints, we can supply an
+% Hessian of the Lagrangian
+usedinObjective = find(model.c | any(model.Q,2));
+if ~any(model.variabletype(usedinObjective)) & any(model.Q)
+    if  length(model.bnonlinineq)==0 & length(model.bnonlineq)==0
+        H = model.Q(:,model.linearindicies);
+        H = H(model.linearindicies,:);
+        funcs.hessian = @(x,s,l) tril(2*H);
+        funcs.hessianstructure = @()tril(sparse(double(H | H)));      
+        options.ipopt.hessian_approximation = 'exact';
+    end
+end
+
 solvertime = clock;
 [xout,info] = ipopt(model.x0,funcs,options);
 solvertime = etime(clock,solvertime);
@@ -123,17 +132,15 @@ end
 D_struc = [];
 
 % Save all data sent to solver?
-if options.savesolverinput
+if model.options.savesolverinput
     solverinput.model = model;
 else
     solverinput = [];
 end
 
 % Save all data from the solver?
-if options.savesolveroutput
-    solveroutput.x = xout;
-    solveroutput.lambda = lambda;
-    solveroutput.iters = iters;
+if model.options.savesolveroutput
+    solveroutput.x = xout;  
     solveroutput.info = info;
 else
     solveroutput = [];
@@ -141,3 +148,5 @@ end
 
 % Standard interface
 output = createoutput(x,D_struc,[],problem,'IPOPT',solverinput,solveroutput,solvertime);
+
+

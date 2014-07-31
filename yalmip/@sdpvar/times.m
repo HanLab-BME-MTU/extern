@@ -6,8 +6,8 @@ function y = times(X,Y)
 
 % Check dimensions
 [n,m]=size(X);
-if ~((prod(size(X))==1) | (prod(size(Y))==1))
-    if ~((n==size(Y,1) & (m ==size(Y,2))))
+if ~((prod(size(X))==1) || (prod(size(Y))==1))
+    if ~((n==size(Y,1) && (m ==size(Y,2))))
         error('Matrix dimensions must agree.')
     end
 end;
@@ -32,10 +32,10 @@ elseif isempty(Y)
     return
 end
 
-if (isa(X,'sdpvar') & isa(Y,'sdpvar'))
+if (isa(X,'sdpvar') && isa(Y,'sdpvar'))
     X = flush(X);
     Y = flush(Y);
-    if (X.typeflag==5) & (Y.typeflag==5)
+    if (X.typeflag==5) && (Y.typeflag==5)
         error('Product of norms not allowed');
     end
 
@@ -44,6 +44,67 @@ if (isa(X,'sdpvar') & isa(Y,'sdpvar'))
         y = check_for_special_case(Y,X);
         if ~isempty(y)
             return
+        end
+        
+        % Check for the case x.*y where x and y are unit variables
+        [mt,variable_type,hashedMT,hash] = yalmip('monomtable');
+        if length(X.lmi_variables)==numel(X) 
+            if length(Y.lmi_variables) == numel(Y) 
+                if numel(X)==numel(Y)
+                    if nnz(X.basis)==numel(X)
+                        if nnz(Y.basis)==numel(Y)
+                            D = [spalloc(numel(Y),1,0) speye(numel(Y))];
+                            if isequal(X.basis,D)
+                                if isequal(Y.basis,D)
+                                    % Pew.
+                                    Z = X;                                    
+                                    generated_monoms = mt(X.lmi_variables,:) +  mt(Y.lmi_variables,:);
+                                    generated_hash = generated_monoms*hash;
+                                    keep = zeros(1,numel(X));
+                                    for i = 1:numel(X)
+                                        if generated_hash(i)
+                                            before = find(abs(hashedMT-generated_hash(i))<eps);
+                                            if isempty(before)
+                                                %  mt = [mt;generated_monoms(i,:)];
+                                                keep(i) = 1;
+                                                Z.lmi_variables(i) = size(mt,1)+nnz(keep);
+                                            else
+                                                Z.lmi_variables(i) = before;
+                                            end
+                                        else
+                                            Z.lmi_variables(i) = 0;
+                                        end
+                                    end
+                                    
+                                    if any(keep)
+                                        keep = find(keep);
+                                        mt = [mt;generated_monoms(keep,:)];
+                                        yalmip('setmonomtable',mt);
+                                    end
+                                                                                                             
+                                    if any(diff(Z.lmi_variables)<0)
+                                        [i,j]=sort(Z.lmi_variables);
+                                        Z.lmi_variables = Z.lmi_variables(j);
+                                        Z.basis(:,2:end) = Z.basis(:,j+1);
+                                    end
+                                    
+                                    if Z.lmi_variables(1)==0
+                                        i = find(Z.lmi_variables == 0);
+                                        Z.basis(:,1) = sum(Z.basis(:,1+i),2);
+                                        Z.basis(:,1+i)=[];
+                                    end
+                                    
+                                    Z.conicinfo = [0 0];
+                                    Z.extra.opname='';
+                                    Z = flush(Z);
+                                    y = clean(Z);
+                                    return
+                                end
+                            end
+                        end
+                    end
+                end
+            end
         end
         
         
@@ -89,10 +150,10 @@ if (isa(X,'sdpvar') & isa(Y,'sdpvar'))
         y_base_not_zero = nnz(Ybase)>0;
         for i = 1:length(all_lmi_variables)
             base = 0;
-            if index_Y(i) & x_base_not_zero
+            if index_Y(i) && x_base_not_zero
                 base = Xbase.*getbasematrixwithoutcheck(Y,index_Y(i));
             end
-            if index_X(i) & y_base_not_zero
+            if index_X(i) && y_base_not_zero
                 base = base + getbasematrixwithoutcheck(X,index_X(i)).*Ybase;
             end
             Z.basis(:,i+1) = base(:);
@@ -103,7 +164,7 @@ if (isa(X,'sdpvar') & isa(Y,'sdpvar'))
         ix=1;
 
         new_mt = [];
-        mt = yalmip('monomtable');
+        %mt = yalmip('monomtable');
         nvar = length(all_lmi_variables);
         local_mt = mt(all_lmi_variables,:);
         theyvars = find(index_Y);
@@ -123,9 +184,9 @@ if (isa(X,'sdpvar') & isa(Y,'sdpvar'))
 
             y_basis = Y.basis(:,1+index_Y(theyvars));
             x_basis = repmat(Xibase,1,length(theyvars(:)'));
-            if y_isscalar & ~x_isscalar
+            if y_isscalar && ~x_isscalar
                 y_basis = repmat(y_basis,nx*mx,1);
-            elseif  x_isscalar & ~y_isscalar
+            elseif  x_isscalar && ~y_isscalar
                 x_basis = repmat(x_basis,ny*my,1);
             end
             allBase = x_basis.*y_basis;
@@ -179,7 +240,7 @@ if (isa(X,'sdpvar') & isa(Y,'sdpvar'))
 
         yalmip('setmonomtable',mt);
 
-        if ~(x_isscalar | y_isscalar)
+        if ~(x_isscalar || y_isscalar)
             Z.dim(1) = X.dim(1);
             Z.dim(2) = Y.dim(2);
         else
@@ -192,8 +253,8 @@ if (isa(X,'sdpvar') & isa(Y,'sdpvar'))
     % Reset info about conic terms
     Z.conicinfo = [0 0];
     Z.extra.opname='';
+    Z = flush(Z);
     y = clean(Z);
-    y = flush(y);
     return
 end
 
@@ -208,7 +269,7 @@ if prod(Y.dim)==1
     y.basis = X(:)*(y.basis);
     y.dim = size(X);
 else 
-    y.basis = [Y.basis'*diag(sparse(X(:)))]';
+    y.basis = [(Y.basis.')*diag(sparse(X(:)))].';
 end
 
 % Reset info about conic terms
@@ -222,7 +283,7 @@ y = clean(y);
 function y = check_for_special_case(Y,X);
 y = [];
 
-if (min(size(X))>1) | (min(size(Y))>1)
+if (min(size(X))>1) || (min(size(Y))>1)
     return
 end
 
@@ -233,12 +294,18 @@ end
 entropies = zeros(length(Y),1);
 if is(X,'linear')
     argst = yalmip('getarguments',Y);
+    if length(argst)~=length(X)
+        return
+    end
     if length(argst) == 1
         args{1} = argst;
     else
         args = argst;
     end
     for i = 1:length(args)
+        if isempty(args{i})
+            return
+        end
         if isequal(args{i}.fcn,'log')
             S(1).subs={i};
             S(1).type='()';
@@ -253,7 +320,6 @@ if is(X,'linear')
 end
 if all(entropies)
     y = -ventropy(X);
-
 end
 
 

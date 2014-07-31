@@ -8,11 +8,11 @@ P2 = sdpvar(2,2);
 
 P = P1*t1 + P2*t2;
 
-C = [A'*P + P*A < -eye(2), P>0, t1+t2 == 1, t1>0, t2>0, uncertain([t1 t2])]
+C = [A'*P + P*A <= -eye(2), P>=0, t1+t2 == 1, t1>=0, t2>=0, uncertain([t1 t2])]
 
 sol = solvesdp(C,trace(P),sdpsettings('robust.polya',1));
 
-mbg_assertfalse(sol.problem);
+mbg_asserttolequal(sol.problem,0,1e-5);
 mbg_asserttolequal(max([double(trace(P1)) double(trace(P2))]), 1.8203, 1e-2);
 
 

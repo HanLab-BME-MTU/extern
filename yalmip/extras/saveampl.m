@@ -12,13 +12,12 @@ function solution = saveampl(varargin)
 % are called x, binary are called y while z denotes integer variables.
 
 % Author Johan Löfberg
-% $Id: saveampl.m,v 1.7 2006-06-02 12:18:07 joloef Exp $
 
 F = varargin{1};
 h = varargin{2};
 
 % Expand nonlinear operators
-[F,failure,cause] = expandmodel(F,h,sdpsettings);
+[F2,failure,cause] = expandmodel(F,h,sdpsettings);
 if failure % Convexity propgation failed
     interfacedata = [];
     recoverdata = [];
@@ -29,8 +28,20 @@ if failure % Convexity propgation failed
     return
 end
 
+%% FIXME: SYNC with expandmodel etc. Same in compileinterfacedata
+nv = yalmip('nvars');
+yalmip('setbounds',1:nv,repmat(-inf,nv,1),repmat(inf,nv,1));
+LU = getbounds(F);
+LU = extract_bounds_from_abs_operator(LU,yalmip('extstruct'),yalmip('extvariables'));
+yalmip('setbounds',1:nv,LU(:,1),LU(:,2));
+solver.constraint.equalities.polynomial=0;
+solver.constraint.binary=1;
+solver.constraint.integer=0;
+[F] = modelComplementarityConstraints(F,solver,[]);
+        
+        
+%%
 nvars = yalmip('nvars');
-
 vars = depends(F);
 vars = unique([vars depends(h)]);
 
@@ -48,8 +59,6 @@ end
 binvars = intersect(binvars,vars);
 integervars = intersect(integervars,vars);
 
-%binvars = setdiff(binvars,vars);
-%integervars = setdiff(integervars,vars);
 vars = setdiff(vars,union(integervars,binvars));
 integervars = setdiff(integervars,binvars);
 obj = amplexpr(h,vars,binvars,integervars);
@@ -61,8 +70,10 @@ if ~isempty(F)
             C = sdpvar(F(i));C=C(:);
             dummy = amplexpr(C,vars,binvars,integervars);
             for j = 1:length(C)
-                constraints{end+1} = ['0 <= ' dummy{j}];
-            end
+                if ~isempty(dummy{j})
+                    constraints{end+1} = ['0 <= ' dummy{j}];
+                end
+            end           
         elseif is(F(i),'socp')
             C = sdpvar(F(i));C=C(:);
             dummy = amplexpr(C(1)^2-C(2:end)'*C(2:end),vars,binvars,integervars);
@@ -77,7 +88,7 @@ if ~isempty(F)
                 constraints{end+1} = ['0 == ' dummy{j}];
             end
         end
-    end
+    end   
 end
 
 % Is a filename supplied
@@ -142,18 +153,21 @@ fclose(fid);
 
 function symb_pvec = amplexpr(pvec,vars,binvars,integervars)
 
+extVariables = yalmip('extvariables');
 for pi = 1:size(pvec,1)
     for pj = 1:size(pvec,2)
         p = pvec(pi,pj);
 
         if isa(p,'double')
             symb_p = num2str(p,12);
+        elseif isinf(getbasematrix(p,0))
+            symb_p = [];
         else
             LinearVariables = depends(p);
             x = recover(LinearVariables);
             exponent_p = full(exponents(p,x));
             names = cell(length(LinearVariables),1);
-            for i = 1:length(LinearVariables)
+            for i = 1:length(LinearVariables)               
                 v1 = find(vars==LinearVariables(i));
                 if ~isempty(v1)
                     names{i}=['x[' num2str(find(vars==LinearVariables(i))) ']'];
@@ -164,6 +178,15 @@ for pi = 1:size(pvec,1)
                     else
                         names{i}=['z[' num2str(find(integervars==LinearVariables(i))) ']'];
                     end
+                end
+            end
+            for i = 1:length(LinearVariables)                
+                v1 = find(extVariables==LinearVariables(i));
+                if ~isempty(v1)
+                    e = yalmip('extstruct',extVariables(v1));
+                    inner = amplexpr(e.arg{1},depends(e.arg{1}),binvars,integervars);
+                    names{i} = [e.fcn '(' inner{1} ')'];   
+                    names{1} = strrep(names{i},'mpower_internal','');
                 end
             end
 
@@ -197,9 +220,10 @@ for pi = 1:size(pvec,1)
                 symb_p = symb_p(2:end);
             end
         end
-
+    if ~isempty(symb_p)
         symb_p = strrep(symb_p,'+*','+');
         symb_p = strrep(symb_p,'-*','-');
+    end
         symb_pvec{pi,pj} = symb_p;
     end
 end
@@ -207,15 +231,16 @@ end
 function s = symbmonom(names,monom)
 s = '';
 for j = 1:length(monom)
-    if monom(j)>0
+    if monom(j)
         if strcmp(s,'')
             s = [s names{j}];
         else
             s = [s '*' names{j}];
         end
-    end
-    if monom(j)>1
-        s = [s '^' num2str(monom(j))];
+        
+        if monom(j)~=1
+            s = [s '^' num2str(monom(j))];
+        end
     end
 end
 

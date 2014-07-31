@@ -1,28 +1,45 @@
 function model = build_recursive_scheme(model);
 
 model.evaluation_scheme = [];
-model.monomials = find(model.variabletype);
 model.deppattern = model.monomtable | model.monomtable;
 
-if ~isempty(model.evalMap)
+% Figure out arguments in all polynomials & sigmonials. This info is
+% used on several places, so we might just as well save it
+model.monomials = find(model.variabletype);
+model.monomialMap = cell(length(model.monomials),1);
+model.evaluation_scheme = [];
+%M = model.monomtable(model.monomials,:);
+MM= model.monomtable(model.monomials,:)';
+for i = 1:length(model.monomials)
+ %   model.monomialMap{i}.variableIndex = find(model.monomtable(model.monomials(i),:));
+ %   model.monomialMap{i}.variableIndex = find(M(i,:));
+    model.monomialMap{i}.variableIndex = find(MM(:,i));
+end
 
-    % Figure out arguments in all polynomials & sigmonials
-    for i = 1:length(model.monomials)
-        model.monomialMap{i}.variableIndex = find(model.monomtable(model.monomials(i),:));
-    end
+if ~isempty(model.evalMap)
 
     remainingEvals  = ones(1,length(model.evalVariables));
     remainingMonoms = ones(1,length(model.monomials));
     model = recursive_call(model,remainingEvals,remainingMonoms);
 
-    % Define the dependency structure (used to speed up jacobian
-    % computations etc)
-    for i = 1:size(model.monomtable,1)
+    % Define a dependency structure 
+    % (used to speed up Jacobian computations etc)
+    model.isevalVariable = zeros(1,size(model.monomtable,1));
+    model.isevalVariable(model.evalVariables) = 1;
+    compute_depenedency = 1:size(model.monomtable,1);
+    % remove purely linear variables, dependency is already computed
+    compute_depenedency = setdiff(compute_depenedency,setdiff(find(model.variabletype==0),model.evalVariables));
+    if isequal(model.evaluation_scheme{1}.group,'monom')
+        % This first level of monomials are simply defined by the monomial
+        % table, hence dependency is already computed
+        compute_depenedency = setdiff(compute_depenedency,model.monomials(model.evaluation_scheme{1}.variables));        
+    end
+    for i = compute_depenedency
         k = depends_on(model,i);
         model.deppattern(i,k) = 1;
     end
 else
-    % Only polynomials
+    % Only monomials
     model.evaluation_scheme{1}.group = 'monom';
     model.evaluation_scheme{1}.variables = 1:nnz(model.variabletype);
 end
@@ -34,12 +51,11 @@ if model.variabletype(k)
     for i = 1:length(vars)
         r = [r depends_on(model,vars(i))];
     end
-elseif ismember(k,model.evalVariables)
+elseif model.isevalVariable(k)%ismember(k,model.evalVariables)
     j = find(k == model.evalVariables);
     r = [];
     for i = 1:length(model.evalMap{j}.variableIndex)
-        argument = model.evalMap{j}.variableIndex(i);
-        % ???? really add argument in all cases
+        argument = model.evalMap{j}.variableIndex(i);        
         r = [r argument depends_on(model,argument)];
     end
 else
@@ -52,20 +68,29 @@ if ~any(remainingEvals) & ~any(remainingMonoms)
     return
 end
 
-% Yep, this code can be sped up significantly...
-
+stillE = find(remainingEvals);
+stillM = find(remainingMonoms);
+    
 % Extract arguments in first layer
 if any(remainingEvals)
     for i = 1:length(model.evalMap)
-        composite_eval_expression(i) = any(ismember(model.evalMap{i}.variableIndex,model.evalVariables(find(remainingEvals))));
-        composite_eval_expression(i) = composite_eval_expression(i) | any(ismember(model.evalMap{i}.variableIndex,model.monomials(find(remainingMonoms))));
+        composite_eval_expression(i) = any(ismembcYALMIP(model.evalMap{i}.variableIndex,model.evalVariables(stillE)));
+        composite_eval_expression(i) = composite_eval_expression(i) | any(ismembcYALMIP(model.evalMap{i}.variableIndex,model.monomials(stillM)));
     end
 end
-
-if any(remainingMonoms)
+if any(remainingMonoms)    
+    if issorted(model.evalVariables(stillE))
+        for i = 1:length(model.monomials)
+    %    composite_monom_expression(i) = any(ismember(model.monomialMap{i}.variableIndex,model.monomials(stillM)));
+    %    composite_monom_expression(i) = composite_monom_expression(i) | any(ismember(model.monomialMap{i}.variableIndex,model.evalVariables(stillE)));    
+        composite_monom_expression(i) = any(ismembcYALMIP(model.monomialMap{i}.variableIndex,model.evalVariables(stillE)));
+    end
+    else
     for i = 1:length(model.monomials)
-        composite_monom_expression(i) = any(ismember(model.monomialMap{i}.variableIndex,model.monomials(find(remainingMonoms))));
-        composite_monom_expression(i) = composite_monom_expression(i) | any(ismember(model.monomialMap{i}.variableIndex,model.evalVariables(find(remainingEvals))));
+    %    composite_monom_expression(i) = any(ismember(model.monomialMap{i}.variableIndex,model.monomials(stillM)));
+    %    composite_monom_expression(i) = composite_monom_expression(i) | any(ismember(model.monomialMap{i}.variableIndex,model.evalVariables(stillE)));    
+        composite_monom_expression(i) = any(ismember(model.monomialMap{i}.variableIndex,model.evalVariables(stillE)));
+    end
     end
 end
 

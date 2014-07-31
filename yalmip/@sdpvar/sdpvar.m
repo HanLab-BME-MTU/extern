@@ -69,6 +69,7 @@ end
 % To speed up dualization, we keep track of primal SDP cones
 % [0 0] :  Nothing known (cleared in some operator, or none-cone to start with)
 % [1 0] :  Primal cone
+% [i 0] :  Hermitian cone
 % [1 1] :  Primal cone + DOUBLE
 % [1 2 x] :  Primal cone + SDPVAR
 % [-1 1] : -Primal cone + DOUBLE
@@ -91,12 +92,12 @@ if ischar(varargin{1})
                 varcmd{k}='(1,1)';
                 lp=findstr(varargin{k},'(');
                 rp=findstr(varargin{k},')');
-                if isempty(lp) & isempty(rp)
+                if isempty(lp) && isempty(rp)
                     if ~isvarname(varargin{k})
                         error('Not a valid variable name.')
                     end
                 else
-                    if (~isempty(lp))&(~isempty(rp))
+                    if (~isempty(lp)) && (~isempty(rp))
                         if min(lp)<max(rp)
                             varnames{k} = varargin{k}(1:lp-1);
                             varcmd{k}=varargin{k}(lp:rp);
@@ -109,7 +110,7 @@ if ischar(varargin{1})
                 end
             end
             for k = 1:n
-                if isequal(varnames{k},'i') | isequal(varnames{k},'j')
+                if isequal(varnames{k},'i') || isequal(varnames{k},'j')
                     if length(dbstack) == 1
                         assignin('caller',varnames{k},eval(['sdpvar' varcmd{k}]));
                     else
@@ -126,9 +127,11 @@ end
 % *************************************************************************
 % Maybe new NDSDPVAR syntax
 % *************************************************************************
-if nargin > 2 & isa(varargin{3},'double') & ~isempty(varargin{3})
-    sys = ndsdpvar(varargin{:});
-    return
+if nargin > 2
+    if isa(varargin{3},'double') && ~isempty(varargin{3})
+        sys = ndsdpvar(varargin{:});
+        return
+    end
 end
 
 
@@ -346,6 +349,7 @@ switch nargin
                     else
                         matrix_type = 'hermitian complex';
                         nvar = n*(n+1)/2+(n*(n+1)/2-n);
+                        conicinfo = [sqrt(-1) 0];
                     end
 
                 otherwise
@@ -446,14 +450,14 @@ switch nargin
         error('Wrong number of arguments in sdpvar creation');
 end
 
-if isempty(n) | isempty(m)
+if isempty(n) || isempty(m)
     error('Size must be integer valued')
 end;
 if ~((abs((n-ceil(n)))+ abs((m-ceil(m))))==0)
     error('Size must be integer valued')
 end
 
-[mt,variabletype] = yalmip('monomtable');
+[mt,variabletype,hashed_monoms,current_hash] = yalmip('monomtable');
 lmi_variables = (1:nvar)+size(mt,1);
 
 for blk = 1:length(n)
@@ -466,26 +470,10 @@ for blk = 1:length(n)
             basis = [spalloc(n*m,1,0) speye(nvar/2) speye(nvar/2)*sqrt(-1)];
 
         case 'symmetric'
-            if 0
-                basis = spalloc(n^2,1+nvar,n^2);
-                l = 2;
-                an_empty = spalloc(n,n,2);
-                for i=1:n
-                    temp = an_empty;
-                    temp(i,i)=1;
-                    basis(:,l)=temp(:);
-                    l = l+1;
-                    for j=i+1:n,
-                        temp = an_empty;
-                        temp(i,j)=1;
-                        temp(j,i)=1;
-                        basis(:,l)=temp(:);
-                        l = l+1;
-                    end
-                end
+            if n(blk)==1
+                basis{blk} = sparse([0 1]);
             else
                 % Hrm...fast but completely f*d up
-
                 Y = reshape(1:n(blk)^2,n(blk),n(blk));
                 Y = tril(Y);
                 Y = (Y+Y')-diag(sparse(diag(Y)));
@@ -495,7 +483,6 @@ for blk = 1:length(n)
                 else
                     basis{blk} = lazybasis(n^2,1+(n*(n+1)/2),1:n(blk)^2,pp+1,ones(n(blk)^2,1));
                 end
-
             end
 
         case 'symm complex'
@@ -532,29 +519,23 @@ for blk = 1:length(n)
         case 'hermitian complex'
             basis = spalloc(n^2,1+nvar,2);
             l = 2;
-            an_empty = spalloc(n,n,2);
+            an_empty = spalloc(n,n,2);            
+            Y = reshape(1:n^2,n,n);
+            Y = tril(Y);
+            Y = (Y+Y')-diag(sparse(diag(Y)));
+            [uu,oo,pp] = unique(Y(:));
+            BasisReal = sparse(1:n(blk)^2,pp+1,1);
+                        
+            BasisImag = [spalloc(n^2,n*(n-1)/2,n)];
+            l = 1;
             for i=1:n
-                temp = an_empty;
-                temp(i,i)=1;
-                basis(:,l)=temp(:);
-                l = l+1;
-                for j=i+1:n,
-                    temp = an_empty;
-                    temp(i,j)=1;
-                    temp(j,i)=1;
-                    basis(:,l)=temp(:);
+                for j=i+1:n,                                                                                  
+                    BasisImag(i+(j-1)*n,l)=sqrt(-1);
+                    BasisImag(j+(i-1)*n,l)=-sqrt(-1);
                     l = l+1;
                 end
             end
-            for i=1:n
-                for j=i+1:n,
-                    temp = an_empty;
-                    temp(i,j)=sqrt(-1);
-                    temp(j,i)=-sqrt(-1);
-                    basis(:,l)=temp(:);
-                    l = l+1;
-                end
-            end
+            basis = [BasisReal BasisImag];
 
         case 'skew'
             basis = spalloc(n^2,1+nvar,2);
@@ -595,14 +576,6 @@ for blk = 1:length(n)
 
         case 'toeplitz'
             basis = [spalloc(n(blk)*1,1,0) speye(n(blk)*1)];
-%            basis = spalloc(n^2,1+nvar,2);
-%            an_empty = spalloc(n,1,1);
-%            for i=1:n,
-%                v = an_empty;
-%                v(i)=1;
-%                temp = sparse(toeplitz(v));
-%                basis(:,i+1) = temp(:);
-%            end
 
             % Notice, complex Toeplitz not Hermitian
         case 'toeplitz complex'
@@ -624,14 +597,6 @@ for blk = 1:length(n)
         case 'hankel'
             % Create a vector. We will hankelize it later
             basis = [spalloc(n(blk)*1,1,0) speye(n(blk)*1)];
-%            basis = spalloc(n^2,1+nvar,2);
-%            an_empty = spalloc(n,1,1);
-%            for i=1:n,
-%               v = an_empty;
-%               v(i)=1;
-%               temp = sparse(hankel(v));
-%               basis(:,i+1) = temp(:);
-%           end
 
         case 'diagonal'
             j = 2:n+1;
@@ -686,20 +651,38 @@ for blk = 1:length(n)
 
 end
 
-% Update monomtable and pre-calculated variable type
-n_mt = size(mt,1);
-m_mt = size(mt,2);
-if min(lmi_variables)>m_mt % New variables
-    if size(mt,1)~=size(mt,2)
-        mt(size(mt,1),size(mt,1))=0;
-    end
-    fill=spalloc(size(mt,1),length(lmi_variables),0);
-    mt=[mt fill;fill' speye(length(lmi_variables))];
-else
-    mt(lmi_variables,lmi_variables) = speye(length(lmi_variables));
-end
-variabletype(1,size(mt,1)) = 0;
-yalmip('setmonomtable',mt,variabletype);
+appendYALMIPvariables(lmi_variables,mt,variabletype,hashed_monoms,current_hash);
+% % Update monomtable and pre-calculated variable type
+% n_mt = size(mt,1);
+% m_mt = size(mt,2);
+% newmt = [];
+% if min(lmi_variables)>m_mt % New variables
+%     if size(mt,1)~=size(mt,2)
+%         mt(size(mt,1),size(mt,1))=0;
+%     end
+%     % This was faster before. However in recent versions of matlab, there
+%     % is a compiled version of blkdiag available
+%     % fill=spalloc(size(mt,1),length(lmi_variables),0);   
+%     % mt=[mt fill;fill' speye(length(lmi_variables))]; 
+%     if isempty(mt)        
+%         mt = speye(length(lmi_variables));
+%         newmt = mt;
+%     else
+%         newmt = speye(length(lmi_variables));
+%         mt=blkdiag(mt,speye(length(lmi_variables)));
+%     end
+% else
+%     mt(lmi_variables,lmi_variables) = speye(length(lmi_variables));
+% end
+% variabletype(1,size(mt,1)) = 0;
+% if ~isempty(newmt)
+%     new_hash = 3*rand_hash(size(mt,2),size(newmt,2),1);
+%     hashed_monoms = [hashed_monoms;newmt*new_hash];
+%     current_hash = [current_hash;new_hash];
+%     yalmip('setmonomtable',mt,variabletype,hashed_monoms,current_hash);
+% else 
+%     yalmip('setmonomtable',mt,variabletype);
+% end
 
 % Create an object
 if isa(basis,'cell')
@@ -744,16 +727,6 @@ else
     sys.midfactors{1} = [];
     sys = class(sys,'sdpvar');
     sys.midfactors{1} = sys;
-    if ~isreal(basis)
-        % Add internal information about complex pairs
-        complex_elements = find(any(imag(basis),2));
-        complex_pairs = [];
-        for i = 1:length(complex_elements)
-            complex_pairs = [complex_pairs;lmi_variables(find(basis(complex_elements(i),:))-1)];
-        end
-        complex_pairs = uniquesafe(complex_pairs,'rows');
-        yalmip('addcomplexpair',complex_pairs);
-    end
     if isequal(matrix_type,'hankel')
         % To speed up generation, we have just created a vector, and now
         % hankelize it
@@ -770,13 +743,3 @@ else
         sys.rightfactors{1} = eye(sys.dim(1));
     end
 end
-
-% Typeflags
-% 0 Standard variable
-% 1 Inequality (LMI)
-% 2 Inequality (element)
-% 3 Equality
-% 4 Cone
-% 5 norm object (osbolete)
-% 6 logdet object
-% 8 KYP object

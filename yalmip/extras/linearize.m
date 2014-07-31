@@ -16,7 +16,7 @@ if isa(p,'double')
     return
 end
 
-if is(p,'linear')
+if is(p,'linear') & ~is(p,'compound')
     plin = p;
     return
 end

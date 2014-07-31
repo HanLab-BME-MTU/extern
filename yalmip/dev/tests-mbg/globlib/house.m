@@ -32,6 +32,6 @@ F=[F,56<=x6<=100];
 F=[F,x7<=3000];
 
 % Solve problem
-sol = solvesdp(F+set(-5000<recover(depends(F))<5000),objective,sdpsettings('solver','bmibnb','allownonconvex',1));
+sol = solvesdp(F+set(-5000<=recover(depends(F))<=5000),objective,sdpsettings('solver','bmibnb','allownonconvex',1));
 mbg_assertfalse(sol.problem)
 mbg_asserttolequal(double(objective), -4500, 1e-2);

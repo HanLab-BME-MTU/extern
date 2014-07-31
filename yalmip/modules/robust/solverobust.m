@@ -23,7 +23,7 @@ function sol = solverobust(varargin)
 %    the constraints H and G are general conic sets.
 %
 %   INPUT
-%    F         : SET object with constraints and uncertainty description
+%    F         : Object with constraints and uncertainty description
 %    h         : scalar SDPVAR object (can be [])
 %    options   : options structure obtained from SDPSETTINGS (can be [])
 %    uncertain : SDPVAR object defining uncertain variables

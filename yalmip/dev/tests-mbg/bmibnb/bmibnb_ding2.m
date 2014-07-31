@@ -16,7 +16,7 @@ A2 = A1;
 b1 = [10;10;10;10];
 b2 = b1;
 obj = x'*C*y;
-F = [x>0,y>0,A1*x==b1,A2*y==b2];
+F = [x>=0,y>=0,A1*x==b1,A2*y==b2];
 sol = solvesdp(F,obj,sdpsettings('solver','bmibnb','bmibnb.upper','none'))
 
 mbg_assertfalse(sol.problem);

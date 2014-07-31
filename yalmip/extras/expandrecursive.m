@@ -1,8 +1,8 @@
-function [F_expand,failure,cause] = expandrecursive(variable,F_expand,extendedvariables,monomtable,variabletype,where,level,options,method,extstruct,goal_vexity,allExtStruct)
+function [F_expand,failure,cause] = expandrecursive(variable,F_expand,extendedvariables,monomtable,variabletype,where,level,options,method,extstruct,goal_vexity,allExtStruct,w)
 
 % Some crazy stuff to help out when hand;ling nonocnvex and other
 % non-standard problems
-global DUDE_ITS_A_GP ALREADY_MODELLED ALREADY_MODELLED_INDEX REMOVE_THESE_IN_THE_END MARKER_VARIABLES OPERATOR_IN_POLYNOM LUbounds
+global DUDE_ITS_A_GP ALREADY_MODELLED ALREADY_MODELLED_INDEX REMOVE_THESE_IN_THE_END MARKER_VARIABLES OPERATOR_IN_POLYNOM LUbounds CONSTRAINTCUTSTATE
 
 % Assume no failure due to failed model or convexity propagation
 cause = '';
@@ -16,7 +16,7 @@ if  ~alreadydone(getvariables(variable),method,goal_vexity)
     ext_index = find(getvariables(variable) == extendedvariables);
 
     % [F_graph,properties,arguments,fcn] = model(variable,method,options,extstruct);
-    [properties,F_graph,arguments,fcn] = model(variable,method,options,allExtStruct(ext_index));
+    [properties,F_graph,arguments,fcn] = model(variable,method,options,allExtStruct(ext_index),w);
 
     % If properties has length longer than one, it means that several
     % definitions have been returned. We should now compare the bounds
@@ -79,8 +79,9 @@ if  ~alreadydone(getvariables(variable),method,goal_vexity)
             method = 'exact';
         else
             if failure & options.allowmilp
-                [properties,F_graph,arguments] = model(variable,'exact',options); 
-                
+               % [properties,F_graph,arguments] = model(variable,'exact',options,[],w); 
+                [properties,F_graph,arguments] = model(variable,'exact',options,allExtStruct(ext_index),w); 
+                               
                 if ~isempty(properties)
                     properties = properties{1};
                 end
@@ -116,8 +117,16 @@ if  ~alreadydone(getvariables(variable),method,goal_vexity)
    end
 
     % Now we might have to recurse
-    if max(size(arguments))>1
-        arguments = reshape(arguments,prod(size(arguments)),1);
+    if isa(arguments,'sdpvar')
+        if max(size(arguments))>1
+            arguments = reshape(arguments,prod(size(arguments)),1);
+        else
+            try
+            %arguments = recover(depends(arguments)) ;     
+            arguments = recover(getvariables(arguments)); 
+            catch
+            end
+        end
     end
 
     [ix,jx,kx] = find(monomtable(getvariables(variable),:));
@@ -156,7 +165,7 @@ if  ~alreadydone(getvariables(variable),method,goal_vexity)
             expression = arguments(j);
             expressionvariables = unique([depends(expression) getvariables(expression)]);
         end
-        index_in_expression = find(ismembc(expressionvariables,extendedvariables));
+        index_in_expression = find(ismembcYALMIP(expressionvariables,extendedvariables));
 
         if ~isempty(index_in_expression)
             for i = index_in_expression
@@ -193,14 +202,14 @@ if  ~alreadydone(getvariables(variable),method,goal_vexity)
 %                     end
                         
                     if go_convex
-                        [F_expand,failure,cause] = expandrecursive(recover(expressionvariables(i)),F_expand,extendedvariables,monomtable,variabletype,where,level+1,options,method,[],'convex',allExtStruct);
+                        [F_expand,failure,cause] = expandrecursive(recover(expressionvariables(i)),F_expand,extendedvariables,monomtable,variabletype,where,level+1,options,method,[],'convex',allExtStruct,w);
                     elseif go_concave
-                        [F_expand,failure,cause] = expandrecursive(recover(expressionvariables(i)),F_expand,extendedvariables,monomtable,variabletype,where,level+1,options,method,[],'concave',allExtStruct);
+                        [F_expand,failure,cause] = expandrecursive(recover(expressionvariables(i)),F_expand,extendedvariables,monomtable,variabletype,where,level+1,options,method,[],'concave',allExtStruct,w);
                     elseif isequal(properties.monotonicity,'exact')
-                        [F_expand,failure,cause] = expandrecursive(recover(expressionvariables(i)),F_expand,extendedvariables,monomtable,variabletype,where,level+1,options,method,[],goal_vexity,allExtStruct);
+                        [F_expand,failure,cause] = expandrecursive(recover(expressionvariables(i)),F_expand,extendedvariables,monomtable,variabletype,where,level+1,options,method,[],goal_vexity,allExtStruct,w);
                     else
                         if options.allownonconvex%milp
-                            [F_expand,failure,cause] = expandrecursive(recover(expressionvariables(i)),F_expand,extendedvariables,monomtable,variabletype,where,level+1,options,'exact',[],'none',allExtStruct);
+                            [F_expand,failure,cause] = expandrecursive(recover(expressionvariables(i)),F_expand,extendedvariables,monomtable,variabletype,where,level+1,options,'exact',[],'none',allExtStruct,w);
                         else
                             failure = 1;
                             cause = ['Monotonicity required at ' where ' at level ' num2str(level)];
@@ -242,5 +251,12 @@ if  ~alreadydone(getvariables(variable),method,goal_vexity)
         end
         j = j+1;
     end
+    
+    % If the variable modelled originates in a constraint which is a cut in
+    % the global solver, all defined constraints are also cuts
+    if isa(F_graph,'lmi') | isa(F_graph,'constraint') & CONSTRAINTCUTSTATE
+        F_graph = setcutflag(lmi(F_graph),CONSTRAINTCUTSTATE);
+    end
+    
     F_expand = F_expand + F_graph;
 end

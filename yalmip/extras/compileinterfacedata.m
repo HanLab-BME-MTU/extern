@@ -1,4 +1,4 @@
-function [interfacedata,recoverdata,solver,diagnostic,F,Fremoved] = compileinterfacedata(F,aux_obsolete,logdetStruct,h,options,findallsolvers,parametric)
+function [interfacedata,recoverdata,solver,diagnostic,F,Fremoved,ForiginalQuadratics] = compileinterfacedata(F,aux_obsolete,logdetStruct,h,options,findallsolvers,parametric)
 
 persistent CACHED_SOLVERS
 persistent EXISTTIME
@@ -10,7 +10,8 @@ interfacedata = [];
 recoverdata = [];
 solver = [];
 Fremoved  = [];
-        
+ForiginalQuadratics = [];
+
 %% Did we make the call from SOLVEMP
 if nargin<7
     parametric = 0;
@@ -58,7 +59,7 @@ if isa(options.radius,'sdpvar') | ~isinf(options.radius)
     if length(x)>1
         F = F + set(cone(x,options.radius));
     else
-        F = F + set(-options.radius < x < options.radius);
+        F = F + set(-options.radius <= x <= options.radius);
     end
 end
 
@@ -80,20 +81,31 @@ if options.expand
     % quadratic dynamic programming with MPT.
     % FIX: Clean up and generalize
     try
-        variables = uniquestripped([depends(h) getvariables(h)]);
+        h1v = depends(h);
+        h2v = getvariables(h);
+        if ~isequal(h1v,h2v)            
+            variables = uniquestripped([h1v h2v]);
+        else
+            variables = h1v;
+        end
         extendedvariables = yalmip('extvariables');
-        index_in_extended = find(ismembc(variables,extendedvariables));
+        index_in_extended = find(ismembcYALMIP(variables,extendedvariables));
         if ~isempty(index_in_extended)
             extstruct = yalmip('extstruct',variables(index_in_extended));
-            if isequal(extstruct.fcn ,'pwq_yalmip')
-                [properties,Fz,arguments]=model(extstruct.var,'integer',options,extstruct);
-                if iscell(properties)
-                    properties = properties{1};
+            if ~isa(extstruct,'cell')
+                extstruct = {extstruct};
+            end
+            for i = 1:length(extstruct)
+                if isequal(extstruct{i}.fcn ,'pwq_yalmip')
+                    [properties,Fz,arguments]=model(extstruct{i}.var,'integer',options,extstruct{i});
+                    if iscell(properties)
+                        properties = properties{1};
+                    end
+                    gain = getbasematrix(h,getvariables(extstruct{i}.var));
+                    h = replace(h,extstruct{i}.var,0);
+                    h = h + gain*properties.replacer;
+                    F = F + Fz;
                 end
-                gain = getbasematrix(h,getvariables(extstruct.var));
-                h = replace(h,extstruct.var,0);
-                h = h + gain*properties.replacer;
-                F = F + Fz;
             end
         end
     catch
@@ -118,51 +130,6 @@ if options.expand
 else
     evalVariables = [];
     evaluation_based = 0;    
-end
-
-% *************************************************************************
-%% CONVERT CONVEX QUADRATIC CONSTRAINTS
-% We do not convert quadratic constraints to SOCPs if we have have
-% sigmonial terms (thus indicating a GP problem), if we have relaxed
-% nonlinear expressions, or if we have specified a nonlinear solver.
-% Why do we convert them already here? Don't remember, should be cleaned up
-% *************************************************************************
-[monomtable,variabletype] = yalmip('monomtable');
-F_vars = getvariables(F);
-do_not_convert = any(variabletype(F_vars)==4);
-do_not_convert = do_not_convert | strcmpi(options.solver,'snopt');
-do_not_convert = do_not_convert | strcmpi(options.solver,'snopt-geometric') | strcmpi(options.solver,'snopt-standard');
-do_not_convert = do_not_convert | strcmpi(options.solver,'ipopt');
-do_not_convert = do_not_convert | strcmpi(options.solver,'ipopt-geometric') | strcmpi(options.solver,'ipopt-standard');
-do_not_convert = do_not_convert | strcmpi(options.solver,'pennon');
-do_not_convert = do_not_convert | strcmpi(options.solver,'pennon-geometric') | strcmpi(options.solver,'pennon-standard');
-do_not_convert = do_not_convert | strcmpi(options.solver,'pennlp') | strcmpi(options.solver,'penbmi');
-do_not_convert = do_not_convert | strcmpi(options.solver,'fmincon') | strcmpi(options.solver,'lindo') | strcmpi(options.solver,'sqplab');
-do_not_convert = do_not_convert | strcmpi(options.solver,'fmincon-geometric') | strcmpi(options.solver,'fmincon-standard');
-do_not_convert = do_not_convert | strcmpi(options.solver,'bmibnb');
-do_not_convert = do_not_convert | (options.convertconvexquad == 0);
-do_not_convert = do_not_convert | (options.relax == 1);
-if ~do_not_convert & any(variabletype(F_vars))
-    [F,socp_changed,infeasible] = convertquadratics(F);
-    if infeasible
-        diagnostic.solvertime = 0;
-        diagnostic.problem = 1;
-        diagnostic.info = yalmiperror(diagnostic.problem,'YALMIP');
-        return        
-    end
-    if socp_changed % changed holds the number of QC -> SOCC conversions
-        options.saveduals = 0; % We cannot calculate duals since we changed the problem
-        F_vars = []; % We have changed model so we cannot use this in categorizemodel
-    end
-else
-    socp_changed = 0;
-end
-
-% CHEAT FOR QC
-if socp_changed>0 & length(find(is(F,'socc')))==socp_changed
-    socp_are_really_qc = 1;
-else
-    socp_are_really_qc = 0;
 end
 
 % *************************************************************************
@@ -218,17 +185,92 @@ if isempty(solvers)
 end
 
 % *************************************************************************
+%% CONVERT CONVEX QUADRATIC CONSTRAINTS
+% We do not convert quadratic constraints to SOCPs if we have have
+% sigmonial terms (thus indicating a GP problem), if we have relaxed
+% nonlinear expressions, or if we have specified a nonlinear solver.
+% Why do we convert them already here? Don't remember, should be cleaned up
+% *************************************************************************
+[monomtable,variabletype] = yalmip('monomtable');
+F_vars = getvariables(F);
+do_not_convert = any(variabletype(F_vars)==4);
+%do_not_convert = do_not_convert | ~solverCapable(solvers,options.solver,'constraint.inequalities.secondordercone');
+do_not_convert = do_not_convert | strcmpi(options.solver,'bmibnb');
+do_not_convert = do_not_convert | strcmpi(options.solver,'snopt');
+do_not_convert = do_not_convert | strcmpi(options.solver,'knitro');
+do_not_convert = do_not_convert | strcmpi(options.solver,'snopt-geometric'); 
+do_not_convert = do_not_convert | strcmpi(options.solver,'snopt-standard');
+do_not_convert = do_not_convert | strcmpi(options.solver,'ipopt');
+do_not_convert = do_not_convert | strcmpi(options.solver,'bonmin');
+do_not_convert = do_not_convert | strcmpi(options.solver,'nomad');
+do_not_convert = do_not_convert | strcmpi(options.solver,'ipopt-geometric');
+do_not_convert = do_not_convert | strcmpi(options.solver,'ipopt-standard');
+do_not_convert = do_not_convert | strcmpi(options.solver,'filtersd');
+do_not_convert = do_not_convert | strcmpi(options.solver,'filtersd-dense');
+do_not_convert = do_not_convert | strcmpi(options.solver,'filtersd-sparse');
+do_not_convert = do_not_convert | strcmpi(options.solver,'pennon');
+do_not_convert = do_not_convert | strcmpi(options.solver,'pennon-geometric');
+do_not_convert = do_not_convert | strcmpi(options.solver,'pennon-standard');
+do_not_convert = do_not_convert | strcmpi(options.solver,'pennlp');
+do_not_convert = do_not_convert | strcmpi(options.solver,'penbmi');
+do_not_convert = do_not_convert | strcmpi(options.solver,'fmincon');
+do_not_convert = do_not_convert | strcmpi(options.solver,'lindo');
+do_not_convert = do_not_convert | strcmpi(options.solver,'sqplab');
+do_not_convert = do_not_convert | strcmpi(options.solver,'fmincon-geometric');
+do_not_convert = do_not_convert | strcmpi(options.solver,'fmincon-standard');
+do_not_convert = do_not_convert | strcmpi(options.solver,'bmibnb');
+do_not_convert = do_not_convert | strcmpi(options.solver,'moment');
+do_not_convert = do_not_convert | strcmpi(options.solver,'sparsepop');
+do_not_convert = do_not_convert | strcmpi(options.solver,'baron');
+do_not_convert = do_not_convert | (options.convertconvexquad == 0);
+do_not_convert = do_not_convert | (options.relax == 1);
+if ~do_not_convert & any(variabletype(F_vars))
+    [F,socp_changed,infeasible,ForiginalQuadratics] = convertquadratics(F);
+    if infeasible
+        diagnostic.solvertime = 0;
+        diagnostic.problem = 1;
+        diagnostic.info = yalmiperror(diagnostic.problem,'YALMIP');
+        return        
+    end
+    if socp_changed % changed holds the number of QC -> SOCC conversions
+        options.saveduals = 0; % We cannot calculate duals since we changed the problem
+        F_vars = []; % We have changed model so we cannot use this in categorizemodel
+    end
+else
+    socp_changed = 0;
+end
+
+% CHEAT FOR QC
+if socp_changed>0 & length(find(is(F,'socc')))==socp_changed
+    socp_are_really_qc = 1;
+else
+    socp_are_really_qc = 0;
+end
+
+% *************************************************************************
 %% WHAT KIND OF PROBLEM DO WE HAVE NOW?
 % *************************************************************************
 [ProblemClass,integer_variables,binary_variables,parametric_variables,uncertain_variables,semicont_variables,quad_info] = categorizeproblem(F,logdetStruct,h,options.relax,parametric,evaluation_based,F_vars);
 
+% Ugly fix to short-cut any decision on GP. min -x-y cannot be cast as GP,
+% while min -x can, as we can invert the objective
+ProblemClass.gppossible = 1;
+if ~isempty(h)
+    c = getbase(h);c = c(2:end);
+    if nnz(c)>1
+     if any(c<0)
+         ProblemClass.gppossible = 0;
+     end
+    end
+end
+   
 % *************************************************************************
 %% SELECT SUITABLE SOLVER
 % *************************************************************************
 [solver,problem] = selectsolver(options,ProblemClass,solvers,socp_are_really_qc);
 if isempty(solver)
     diagnostic.solvertime = 0;
-    if problem == -4
+    if problem == -4 | problem == -3 
         diagnostic.info = yalmiperror(problem,options.solver);
     else
         diagnostic.info = yalmiperror(problem,'YALMIP');
@@ -244,6 +286,45 @@ if length(solver.version)>0
     solver.tag = [solver.tag '-' solver.version];
 end
 
+if ProblemClass.constraint.complementarity.variable | ProblemClass.constraint.complementarity.linear | ProblemClass.constraint.complementarity.nonlinear
+    if ~(solver.constraint.complementarity.variable | solver.constraint.complementarity.linear | solver.constraint.complementarity.nonlinear)               
+        % Extract the terms in the complementarity constraints x^Ty==0,
+        % x>=0, y>=0, since these involves bounds that should be appended
+        % to the list of constraints from which we do bound propagation
+        Fc = F(find(is(F,'complementarity')));      
+        Ftemp = F;
+        for i = 1:length(Fc)
+            [Cx,Cy] = getComplementarityTerms(Fc(i));
+            Ftemp = [Ftemp, Cx>=0, Cy >=0];
+        end
+        % FIXME: SYNC with expandmodel       
+        setupBounds(Ftemp,options,extendedvariables);
+                        
+        [F] = modelComplementarityConstraints(F,solver,ProblemClass);  
+        % FIXME Reclassify should be possible to do manually!
+        oldProblemClass = ProblemClass;
+        [ProblemClass,integer_variables,binary_variables,parametric_variables,uncertain_variables,semicont_variables,quad_info] = categorizeproblem(F,logdetStruct,h,options.relax,parametric,evaluation_based,F_vars);
+        ProblemClass.gppossible = oldProblemClass.gppossible;
+    elseif solver.constraint.complementarity.variable
+        % Solver supports x(i)*x(j)==0
+        Fok = [];
+        Freform = [];
+        Fc = F(find(is(F,'complementarity')));              
+        for i = 1:length(Fc)
+            [Cx,Cy] = getComplementarityTerms(Fc(i));
+            if (islinear(Cx) & islinear(Cy) & is(Cx,'lpcone') &  is(Cy,'lpcone'))
+             Fok = [Fok, Fc(i)];
+            else
+                s1 = sdpvar(length(Cx),1);
+                s2 = sdpvar(length(Cy),1);                
+                Freform = [Freform,complements(s1>=0,s2>=0),s1 == Cx, s2 == Cy];
+            end            
+        end   
+        F = F-Fc;
+        F = F + Fok + Freform;
+    end
+end
+
 % *************************************************************************
 %% DID WE SELECT THE INTERNAL BNB SOLVER
 % IN THAT CASE, SELECT LOCAL SOLVER
@@ -252,19 +333,10 @@ end
 localsolver.qc = 0;
 localsolver = solver;
 if strcmpi(solver.tag,'bnb')
-    temp_options = options;
-    temp_options.solver = options.bnb.solver;
-    tempProblemClass = ProblemClass;
-    tempProblemClass.constraint.binary  = 0;
-    tempProblemClass.constraint.integer = 0;
-    localsolver = selectsolver(temp_options,tempProblemClass,solvers,socp_are_really_qc);
-    if isempty(localsolver) | strcmpi(localsolver.tag,'bnb')
-        diagnostic.solvertime = 0;
-        diagnostic.info = yalmiperror(-2,'YALMIP');
-        diagnostic.problem = -2;
+    [solver,diagnostic] = setupBNB(solver,ProblemClass,options,solvers,socp_are_really_qc,F,h,logdetStruct,parametric,evaluation_based,F_vars);
+    if ~isempty(diagnostic)
         return
-    end
-    solver.lower = localsolver;
+    end 
 end
 
 if findstr(lower(solver.tag),'sparsecolo')
@@ -375,137 +447,10 @@ end
 % (UNLESS ALREADY SPECIFIED IN OPTIONS)
 % *************************************************************************
 if strcmpi(solver.tag,'bmibnb')
-
-    % Relax problem for lower solver
-    tempProblemClass = ProblemClass;
-
-    sdp = tempProblemClass.constraint.inequalities.semidefinite;
-    tempProblemClass.constraint.inequalities.semidefinite.linear = sdp.linear | sdp.quadratic | sdp.polynomial;
-    tempProblemClass.constraint.inequalities.semidefinite.quadratic = 0;
-    tempProblemClass.constraint.inequalities.semidefinite.polynomial = 0;
-
-    lp = tempProblemClass.constraint.inequalities.elementwise;
-    tempProblemClass.constraint.inequalities.elementwise.linear = lp.linear | lp.quadratic.convex | lp.quadratic.nonconvex | sdp.polynomial;
-    tempProblemClass.constraint.inequalities.elementwise.quadratic.convex = 0;
-    tempProblemClass.constraint.inequalities.elementwise.quadratic.nonconvex = 0;
-    tempProblemClass.constraint.inequalities.elementwise.polynomial = 0;
-    tempProblemClass.constraint.inequalities.elementwise.sigmonial = 0;
-
-    equ = tempProblemClass.constraint.equalities;
-    tempProblemClass.constraint.equalities.linear = equ.linear | equ.quadratic | equ.polynomial;
-    tempProblemClass.constraint.equalities.quadratic = 0;
-    tempProblemClass.constraint.equalities.polynomial = 0;
-    tempProblemClass.constraint.equalities.sigmonial = 0;
-
-    tempProblemClass.objective.quadratic.nonconvex = 0;
-    tempProblemClass.objective.polynomial = 0;
-    tempProblemClass.objective.sigmonial = 0;
-
-    tempProblemClass.constraint.inequalities.rank  = 0;
-    tempProblemClass.evaluation  = 0;
-
-    temp_options = options;
-    temp_options.solver = options.bmibnb.lowersolver;
-
-    % If the problem actually is quadratic, try to get a convex problem
-    % this will typically allow us to solver better lower bounding problems
-    % (we don't have to linearize the cost)
-    [lowersolver,problem] = selectsolver(temp_options,tempProblemClass,solvers,socp_are_really_qc);
-    if isempty(lowersolver)| strcmpi(lowersolver.tag,'bmibnb') | strcmpi(lowersolver.tag,'bnb')
-        % No, probably non-convex cost. Pick a linear solver instead and go
-        % for lower bound based on a complete "linearization"
-        tempProblemClass.objective.quadratic.convex = 0;
-        [lowersolver,problem] = selectsolver(temp_options,tempProblemClass,solvers,socp_are_really_qc);
-    end
-
-    if isempty(lowersolver)| strcmpi(lowersolver.tag,'bmibnb') | strcmpi(lowersolver.tag,'bnb')
-        tempbinary = tempProblemClass.constraint.binary;
-        tempinteger = tempProblemClass.constraint.integer;
-        tempsemicont = tempProblemClass.constraint.semicont;
-        tempProblemClass.constraint.binary = 0;
-        tempProblemClass.constraint.integer = 0;
-        tempProblemClass.constraint.semicont = 0;
-        [lowersolver,problem] = selectsolver(temp_options,tempProblemClass,solvers,socp_are_really_qc);
-        tempProblemClass.constraint.binary = tempbinary;
-        tempProblemClass.constraint.integer = tempinteger;
-         tempProblemClass.constraint.semicont = tempsemicont;
-    end
-
-    if isempty(lowersolver) | strcmpi(lowersolver.tag,'bmibnb') | strcmpi(lowersolver.tag,'bnb')
-        diagnostic.solvertime = 0;
-        diagnostic.info = yalmiperror(-2,'YALMIP');
-        diagnostic.problem = -2;
+    [solver,diagnostic] = setupBMIBNB(solver,ProblemClass,options,solvers,socp_are_really_qc,F,h,logdetStruct,parametric,evaluation_based,F_vars);
+    if ~isempty(diagnostic)
         return
-    end
-    solver.lowercall = lowersolver.call;
-    solver.lowersolver = lowersolver;
-
-    temp_options = options;
-    temp_options.solver = options.bmibnb.uppersolver;
-    temp_ProblemClass = ProblemClass;
-    temp_ProblemClass.constraint.binary = 0;
-    temp_ProblemClass.constraint.integer = 0;
-    temp_ProblemClass.constraint.semicont = 0;
-    [uppersolver,problem] = selectsolver(temp_options,temp_ProblemClass,solvers,socp_are_really_qc);
-    if ~isempty(uppersolver) & strcmpi(uppersolver.tag,'bnb')
-        temp_options.solver = 'none';
-        [uppersolver,problem] = selectsolver(temp_options,temp_ProblemClass,solvers,socp_are_really_qc);
-    end
-    if isempty(uppersolver) | strcmpi(uppersolver.tag,'bmibnb')
-        diagnostic.solvertime = 0;
-        diagnostic.info = yalmiperror(-2,'YALMIP');
-        diagnostic.problem = -2;
-        return
-    end
-    if isequal(uppersolver.version,'geometric') &  isequal(uppersolver.tag,'fmincon')
-        uppersolver.version = 'standard';
-        uppersolver.call = 'callfmincon';
-    end
-    if isequal(uppersolver.version,'geometric') &  isequal(uppersolver.tag,'ipopt')
-        uppersolver.version = 'standard';
-        uppersolver.call = 'callipoptmex';
-    end    
-    if isequal(uppersolver.version,'geometric') &  isequal(uppersolver.tag,'snopt')
-        uppersolver.version = 'standard';
-        uppersolver.call = 'callsnopt';
-    end     
-    if isequal(uppersolver.version,'geometric') &  isequal(uppersolver.tag,'pennon')
-        uppersolver.version = 'standard';
-        uppersolver.call = 'callpennonm';
-    end     
-    
-    solver.uppercall = uppersolver.call;
-    solver.uppersolver = uppersolver;
-
-    temp_options = options;
-    temp_options.solver = options.bmibnb.lpsolver;
-    tempProblemClass.constraint.inequalities.semidefinite.linear = 0;
-    tempProblemClass.constraint.inequalities.semidefinite.quadratic = 0;
-    tempProblemClass.constraint.inequalities.semidefinite.polynomial = 0;
-    tempProblemClass.constraint.inequalities.secondordercone = 0;
-    tempProblemClass.objective.quadratic.convex = 0;
-    tempProblemClass.objective.quadratic.nonconvex = 0;
-    tempProblemClass.objective.quadratic.nonconvex = 0;
-    tempProblemClass.objective.polynomial = 0;
-    tempProblemClass.objective.sigmonial = 0;
-
-    [lpsolver,problem] = selectsolver(temp_options,tempProblemClass,solvers,socp_are_really_qc);
-
-    if isempty(lowersolver)| strcmpi(lowersolver.tag,'bmibnb')
-        tempbinary = tempProblemClass.constraint.binary;
-        tempProblemClass.constraint.binary = 0;
-        [lpsolver,problem] = selectsolver(temp_options,tempProblemClass,solvers,socp_are_really_qc);
-        tempProblemClass.constraint.binary = tempbinary;
-    end
-
-    if isempty(lpsolver) | strcmpi(lpsolver.tag,'bmibnb')
-        diagnostic.solvertime = 0;
-        diagnostic.info = yalmiperror(-2,'YALMIP');
-        diagnostic.problem = -2;
-        return
-    end
-    solver.lpsolver = lpsolver;
-    solver.lpcall = lpsolver.call;
+    end   
 end
 
 % *************************************************************************
@@ -517,16 +462,24 @@ if strcmpi(solver.tag,'cutsdp')
 
     % Relax problem for lower solver
     tempProblemClass = ProblemClass;
-    tempProblemClass.constraint.inequalities.elementwise.linear =  tempProblemClass.constraint.inequalities.elementwise.linear |     tempProblemClass.constraint.inequalities.semidefinite.linear | tempProblemClass.constraint.inequalities.secondordercone;
+    tempProblemClass.constraint.inequalities.elementwise.linear =  tempProblemClass.constraint.inequalities.elementwise.linear |     tempProblemClass.constraint.inequalities.semidefinite.linear | tempProblemClass.constraint.inequalities.secondordercone.linear;
     tempProblemClass.constraint.inequalities.semidefinite.linear = 0;
-    tempProblemClass.constraint.inequalities.secondordercone = 0;
+    tempProblemClass.constraint.inequalities.secondordercone.linear = 0;
     tempProblemClass.objective.quadratic.convex = 0;
     
     temp_options = options;
     temp_options.solver = options.cutsdp.solver;
 
+    if strcmp(options.cutsdp.solver,'bnb')
+        error('BNB can not be used in CUTSDP. Please install and use a better MILP solver');
+    end
+    
     [lowersolver,problem] = selectsolver(temp_options,tempProblemClass,solvers,socp_are_really_qc);
 
+    if ~isempty(lowersolver) & strcmpi(lowersolver.tag,'bnb')
+        error('BNB can not be used in CUTSDP. Please install and use a better MILP solver');
+    end
+        
     if isempty(lowersolver) | strcmpi(lowersolver.tag,'cutsdp') |strcmpi(lowersolver.tag,'bmibnb') | strcmpi(lowersolver.tag,'bnb')
         diagnostic.solvertime = 0;
         diagnostic.info = yalmiperror(-2,'YALMIP');
@@ -551,9 +504,9 @@ showprogress(['Solver chosen : ' solver.tag],options.showprogress);
 % MAXDET using geometric mean construction
 if ~isempty(logdetStruct)
     if isequal(solver.tag,'BNB')
-        can_solve_maxdet = solver.lower.objective.maxdet;
+        can_solve_maxdet = solver.lower.objective.maxdet.convex;
     else
-        can_solve_maxdet = solver.objective.maxdet;
+        can_solve_maxdet = solver.objective.maxdet.convex;
     end
     if ~can_solve_maxdet
         t = sdpvar(1,1);
@@ -584,8 +537,6 @@ if ~isempty(logdetStruct)
     end
 end
 
-
-
 % % *************************************************************************
 % %% Change SOS2 to binary model
 % % *************************************************************************
@@ -596,6 +547,9 @@ end
 %     integer_variables = union(binary_variables,integer_variables);
 %     binary_variables = [];
 % end
+% if  ProblemClass.constraint.semicont & ~solver.constraint.semivar
+%      [F,binary_variables] = convertsos2(F,binary_variables);
+% end
 
 % *************************************************************************
 %% Change binary variables to integer?
@@ -603,7 +557,7 @@ end
 old_binary_variables = binary_variables;
 if ~isempty(binary_variables) & (solver.constraint.binary==0)
     x_bin = recover(binary_variables(ismember(binary_variables,unique([getvariables(h) getvariables(F)]))));
-    F = F + set(x_bin<1)+set(x_bin>0);
+    F = F + set(x_bin<=1)+set(x_bin>=0);
     integer_variables = union(binary_variables,integer_variables);
     binary_variables = [];
 end
@@ -650,8 +604,12 @@ end
 %   3. Solver supports SOCC
 if ~((solver.constraint.inequalities.elementwise.quadratic.convex == 1) & socp_are_really_qc)
     if ~(strcmp(solver.tag,'bnb') & socp_are_really_qc & localsolver.constraint.inequalities.elementwise.quadratic.convex==1 )
-        if ((solver.constraint.inequalities.secondordercone == 0) | (strcmpi(solver.tag,'bnb') & localsolver.constraint.inequalities.secondordercone==0))
-            [F,changed] = convertsocp(F);
+        if ((solver.constraint.inequalities.secondordercone.linear == 0) | (strcmpi(solver.tag,'bnb') & localsolver.constraint.inequalities.secondordercone.linear==0))
+            if solver.constraint.inequalities.semidefinite.linear
+                [F,changed] = convertsocp(F);
+            else
+                [F,changed] = convertsocp2NONLINEAR(F);
+            end
             if changed
                 options.saveduals = 0; % We cannot calculate duals since we change the problem
             end
@@ -663,9 +621,9 @@ end
 %% Add logaritmic barrier cost/constraint for MAXDET and SDPT3-4. Note we
 % have to add it her in order for a complex valued matrix to be converted.
 % *************************************************************************
-if ~isempty(logdetStruct) & solver.objective.maxdet==1
+if ~isempty(logdetStruct) & solver.objective.maxdet.convex==1 & solver.constraint.inequalities.semidefinite.linear
     for i = 1:length(logdetStruct.P)
-        F = F + set(logdetStruct.P{i} > 0);
+        F = F + set(logdetStruct.P{i} >= 0);
         if ~isreal(logdetStruct.P{i})
             logdetStruct.gain(i) = logdetStruct.gain(i)/2;
             ProblemClass.complex = 1;
@@ -689,7 +647,7 @@ end
 % *************************************************************************
 %% CREATE OBJECTIVE FUNCTION c'*x+x'*Q*x
 % *************************************************************************
-showprogress('Processing objective h(x)',options.showprogress);
+showprogress('Processing objective function',options.showprogress);
 try
     % If these solvers, the Q term is placed in c, hence quadratic terms
     % are treated as any other nonlinear term
@@ -700,7 +658,7 @@ try
             geometric = 1;
         end
     end
-    if strcmpi(solver.tag,'bmibnb') | strcmpi(solver.tag,'pennlp-standard') | geometric | evaluation_based ;
+    if strcmpi(solver.tag,'bmibnb') | strcmpi(solver.tag,'sparsepop') | strcmpi(solver.tag,'pennlp-standard') | geometric | evaluation_based ;
         tempoptions = options;
         tempoptions.relax = 1;
         [c,Q,f]=createobjective(h,logdetStruct,tempoptions,quad_info);
@@ -714,7 +672,7 @@ end
 % *************************************************************************
 %% Convert {F(x),G(x)} to a numerical SeDuMi-like format
 % *************************************************************************
-showprogress('Processing F(x)',options.showprogress);
+showprogress('Processing constraints',options.showprogress);
 F = lmi(F);
 [F_struc,K,KCut,schur_funs,schur_data,schur_variables] = lmi2sedumistruct(F);
 % We add a field to remember the dimension of the logarithmic cost.
@@ -746,7 +704,11 @@ K.schur_variables = schur_variables;
 % Which sdpvar variables are actually in the problem
 used_variables_LMI = find(any(F_struc(:,2:end),1));
 used_variables_obj = find(any(c',1) | any(Q));
-used_variables = uniquestripped([used_variables_LMI used_variables_obj]);
+if isequal(used_variables_LMI,used_variables_obj)
+    used_variables = used_variables_LMI;
+else
+    used_variables = uniquestripped([used_variables_LMI used_variables_obj]);
+end
 if ~isempty(K.sos)
     for i = 1:length(K.sos.type)
         used_variables = uniquestripped([used_variables K.sos.variables{i}(:)']);
@@ -763,7 +725,7 @@ else
     nonlinearvariables = find(variabletype);
     linearvariables = used_variables(find(variabletype(used_variables)==0));
 end
-needednonlinear = nonlinearvariables(ismembc(nonlinearvariables,used_variables));
+needednonlinear = nonlinearvariables(ismembcYALMIP(nonlinearvariables,used_variables));
 linearinnonlinear = find(sum(abs(monomtable(needednonlinear,:)),1));
 missinglinear = setdiff(linearinnonlinear(:),linearvariables);
 used_variables = uniquestripped([used_variables(:);missinglinear(:)]);
@@ -791,6 +753,16 @@ if ~isempty(evalMap)
             evalMap{i}.computes(j) = find(evalMap{i}.computes(j) == used_variables);
         end
     end
+    
+    % Add information about which argument is the variable
+    for i = 1:length(evalMap)
+        for j = 1:length(evalMap{i}.arg)-1
+            if isa(evalMap{i}.arg{j},'sdpvar')
+                evalMap{i}.argumentIndex = j;
+                break
+            end
+        end
+    end
 end
 
 % *************************************************************************
@@ -798,7 +770,21 @@ end
 % *************************************************************************
 if length(used_variables)<yalmip('nvars')
     c = c(used_variables);
-    Q = Q(:,used_variables);Q = Q(used_variables,:);
+    if 0
+        % very slow in some extreme cases
+        Q = Q(:,used_variables);Q = Q(used_variables,:);
+    else
+        [i,j,s] = find(Q);
+        keep = ismembcYALMIP(i,used_variables) & ismembcYALMIP(j,used_variables);
+        i = i(keep);
+        j = j(keep);
+        s = s(keep);
+        [ii,jj] = ismember(1:length(Q),used_variables);
+        i = jj(i);
+        j = jj(j);
+        Q = sparse(i,j,s,length(used_variables),length(used_variables));
+    end
+                        
     if ~isempty(F_struc)
         F_struc = sparse(F_struc(:,[1 1+used_variables]));
     end
@@ -828,7 +814,7 @@ end
 if (options.relax==1) | (options.relax==3)
     nonlins = [];
 end
-if (options.relax) | (options.relax==2)
+if (options.relax == 1) | (options.relax==2)
     integer_variables = [];
     binary_variables  = [];
     semicont_variables  = [];
@@ -886,7 +872,7 @@ if (K.f>0)
         F_struc = F_struc(K.f+1:end,:);
         K.f = 0;
         Fold = F;
-        [nlmi neq]=size(F);
+        [nlmi neq]=sizeOLD(F);
         iseq = is(Fold(1:(nlmi+neq)),'equality');
         F = Fold(find(~iseq));
         Fremoved = Fold(find(iseq));
@@ -949,11 +935,14 @@ if options.usex0
         x0_used = relaxdouble(recover(used_variables));
     else
         %FIX : Do directly using yalmip('solution')
+        %solution = yalmip('getsolution');
         x0_used = double(recover(used_variables));
     end
     x0 = zeros(sdpvar('nvars'),1);
     x0(used_variables)  = x0_used(:);
-    x0(isnan(x0))=0;
+    if ~solver.supportsinitialNAN
+        x0(isnan(x0))=0;
+    end
 end
 if ~isempty(x0)
     % Get a coordinate in the reduced space
@@ -969,8 +958,9 @@ end
 % In local variables
 mt = mt(used_variables,used_variables);
 variabletype = variabletype(used_variables);
-if (options.relax)|(options.relax==3)
-    mt = eye(length(used_variables));
+if (options.relax == 1)|(options.relax==3)
+    mt = speye(length(used_variables));
+    variabletype = variabletype*0;
 end
 
 % FIX : Make sure these things work...
@@ -987,6 +977,33 @@ ub(old_binary_variables) = min(ub(old_binary_variables),1);
 if ~isempty(oldc)
     lb = [];
     ub = [];
+end
+
+% Sanity check
+if ~isempty(c)
+    if any(isnan(c) )
+        error('You have NaNs in your objective!. Read more: http://users.isy.liu.se/johanl/yalmip/pmwiki.php?n=Extra.NANInModel')
+    end
+end
+if ~isempty(Q)
+    if any(any(isnan(Q)))
+        error('You have NaNs in your quadratic objective!. Read more: http://users.isy.liu.se/johanl/yalmip/pmwiki.php?n=Extra.NANInModel')
+    end
+end
+if ~isempty(lb)
+    if any(isnan(lb))
+        error('You have NaNs in a lower bound!. Read more: http://users.isy.liu.se/johanl/yalmip/pmwiki.php?n=Extra.NANInModel')
+    end
+end
+if ~isempty(ub)
+    if any(isnan(ub))
+        error('You have NaNs in an upper bound!.Read more: http://users.isy.liu.se/johanl/yalmip/pmwiki.php?n=Extra.NANInModel')
+    end
+end
+if ~isempty(F_struc)
+    if any(any(isnan(F_struc)))
+        error('You have NaNs in your constraints!. Read more: http://users.isy.liu.se/johanl/yalmip/pmwiki.php?n=Extra.NANInModel')        
+    end
 end
 
 % *************************************************************************
@@ -1007,6 +1024,7 @@ interfacedata.variabletype = variabletype;
 interfacedata.integer_variables   = integer_variables;
 interfacedata.binary_variables    = binary_variables;
 interfacedata.semicont_variables    = semicont_variables;
+interfacedata.semibounds = [];
 interfacedata.uncertain_variables = [];
 interfacedata.parametric_variables= parametric_variables;
 interfacedata.extended_variables  = extended_variables;
@@ -1024,8 +1042,13 @@ interfacedata.factors = factors;
 interfacedata.Fremoved = Fremoved;
 interfacedata.evalMap = evalMap;
 interfacedata.evalVariables = evalVariables;
-interfacedata.evalVariables = evalVariables;
 interfacedata.evaluation_scheme = [];
+if strcmpi(solver.tag,'bmibnb')
+    interfacedata.equalitypresolved = 0;
+else
+    interfacedata.equalitypresolved = 1;
+end
+interfacedata.ProblemClass = ProblemClass;
 
 % *************************************************************************
 %% GENERAL DATA EXCANGE TO RECOVER SOLUTION AND UPDATE YALMIP VARIABLES
@@ -1064,8 +1087,16 @@ if ~isempty(evalVariables)
         % Find all variables used in the arguments of these functions
         hidden = [];
         for i = 1:length(evalMap)
-            n = length(evalMap{i}.arg{1});
-            if isequal(getbase(evalMap{i}.arg{1}),[zeros(n,1) eye(n)])% & is(evalMap{i}.arg{1},'linear')
+            % Find main main argument (typically first argument, but this
+            % could be different in a user-specified sdpfun object) 
+            for aux = 1:length(evalMap{i}.arg)-1
+                if isa(evalMap{i}.arg{aux},'sdpvar')
+                    X = evalMap{i}.arg{aux};
+                    break
+                end
+            end
+            n = length(X);
+            if isequal(getbase(X),[zeros(n,1) eye(n)])% & is(evalMap{i}.arg{1},'linear')
                 for j = 1:length(evalMap{i}.arg)-1
                     % The last argument is the help variable z in the
                     % transformation from f(ax+b) to f(z),z==ax+b. We should not
@@ -1094,7 +1125,7 @@ if ~isempty(evalVariables)
             nonlinearvariables = find(variabletype);
             linearvariables = used_variables(find(variabletype(used_variables)==0));
         end
-        needednonlinear = nonlinearvariables(ismembc(nonlinearvariables,used_variables));
+        needednonlinear = nonlinearvariables(ismembcYALMIP(nonlinearvariables,used_variables));
         linearinnonlinear = find(sum(abs(monomtable(needednonlinear,:)),1));
         missinglinear = setdiff(linearinnonlinear(:),linearvariables);
         used_variables = uniquestripped([used_variables(:);missinglinear(:)]);
@@ -1108,9 +1139,15 @@ if ~isempty(evalVariables)
         evalVariables = usedEvalVariables;
 
         for i = 1:length(evalMap)
-            n = length(evalMap{i}.arg{1});
-            if isequal(getbase(evalMap{i}.arg{1}),[zeros(n,1) eye(n)])
-                index = ismember(used_variables,getvariables(evalMap{i}.arg{1}));
+            for aux = 1:length(evalMap{i}.arg)-1
+                if isa(evalMap{i}.arg{aux},'sdpvar')
+                    X = evalMap{i}.arg{aux};
+                    break
+                end
+            end
+            n = length(X);
+            if isequal(getbase(X),[zeros(n,1) eye(n)])
+                index = ismember(used_variables,getvariables(X));
                 evalMap{i}.variableIndex = find(index);
             else
                 index = ismember(used_variables,getvariables(evalMap{i}.arg{end}));
@@ -1150,3 +1187,22 @@ for i = 1:length(F)
         Fout = [Fout,lambda(end)<r(end)];
     end
 end
+
+
+function [Fnew,changed] = convertsocp2NONLINEAR(F);
+changed = 0;
+socps = find(is(F,'socp'));
+Fsocp = F(socps);
+Fnew = F;
+if length(socps) > 0
+    changed = 1;
+    Fnew(socps) = [];
+    for i = 1:length(Fsocp)
+        z = sdpvar(Fsocp(i));
+        Fnew = [Fnew, z(1)>=0, z(1)^2 >= z(2:end)'*z(2:end)];
+    end
+end
+
+
+
+

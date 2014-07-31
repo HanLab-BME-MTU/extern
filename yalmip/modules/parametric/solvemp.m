@@ -19,7 +19,7 @@ function varargout = solvemp(F,h,ops,x,y)
 % ZPWF       : The optimal decision variable as a pfw function
 %
 % Input
-%    F        : SET object describing the constraints.
+%    F        : Object describing the constraints.
 %    h        : SDPVAR object describing the objective function h(x,z).
 %    options  : solver options. See SDPSETTINGS. Can be [].
 %    x        : Parametric variables
@@ -92,6 +92,10 @@ if length(F) > 0
             error('Derivation of robust counter-part failed')
         end
     end
+end
+
+if max(size(h))>1
+    error('Objective function must be scalar or empty');
 end
 
 sol = solvesdp(F,h,ops,x,y);

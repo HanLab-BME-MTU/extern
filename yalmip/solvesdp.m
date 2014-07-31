@@ -6,10 +6,10 @@ function diagnostic = solvesdp(varargin)
 %
 %    min        h
 %    subject to
-%            F >(=) 0
+%            F >=(<=,==) 0
 %
 %   NOTES
-%    Desptite the name, SOLVESDP is the interface for solving all
+%    Despite the name, SOLVESDP is the interface for solving all
 %    supported problem classes (LP, QP, SOCP, SDP, BMI, MILP, MIQP,...)
 %
 %    To obtain solution for a variable, use DOUBLE.
@@ -22,14 +22,14 @@ function diagnostic = solvesdp(varargin)
 %     diagnostic : Diagnostic information
 %
 %   INPUT
-%     F          : SET object describing the constraints. Can be [].
+%     F          : Object describing the constraints. Can be [].
 %     h          : SDPVAR object describing the objective h(x). Can be [].
 %     options    : Options structure. See SDPSETTINGS. Can be [].
 %
 %   EXAMPLE
 %    A = randn(15,5);b = rand(15,1)*5;c = randn(5,1);
 %    x = sdpvar(5,1);
-%    solvesdp(set(A*x<b),c'*x);double(x)
+%    solvesdp(set(A*x<=b),c'*x);double(x)
 %
 %   See also DUAL, @SDPVAR/DOUBLE, SDPSETTINGS, YALMIPERROR
 
@@ -39,8 +39,18 @@ function diagnostic = solvesdp(varargin)
 yalmiptime = clock; % Let us see how much time we spend
 
 % Avoid warning
-if length(varargin)>=2 & isa(varargin{2},'double')
-	varargin{2} = [];
+if length(varargin)>=2
+    if isa(varargin{2},'double')
+        varargin{2} = [];
+    end
+end
+
+if length(varargin)>=2
+    if isa(varargin{2},'sdpvar') && prod(size(varargin{2}))>1
+        % Several objectives
+        diagnostic = solvesdp_multiple(varargin{:});
+        return
+    end
 end
 
 % Arrrgh, new format with logdet much better, but we have to
@@ -109,14 +119,14 @@ if nargin>=2
     if isa(h,'logdet')
         logdetStruct.P     = getP(h);
         logdetStruct.gain  = getgain(h);
-        if any(logdetStruct.gain>0)
-            warning('Nonconvex terms! Perhaps you mean -logdet(P)...')
-            diagnostic.yalmiptime = etime(clock,yalmiptime);
-            diagnostic.solvertime = 0;
-            diagnostic.info = yalmiperror(-2,'YALMIP');
-            diagnostic.problem = -2;
-            return
-        end
+%         if any(logdetStruct.gain>0)
+%             warning('Nonconvex terms! Perhaps you mean -logdet(P)...')
+%             diagnostic.yalmiptime = etime(clock,yalmiptime);
+%             diagnostic.solvertime = 0;
+%             diagnostic.info = yalmiperror(-2,'YALMIP');
+%             diagnostic.problem = -2;
+%             return
+%         end
         h = getcx(h);
         if isempty(F)
             F = set([]);
@@ -131,8 +141,14 @@ end
 
 if ~isempty(F)
     if any(is(F,'sos'))        
-        varargout = solvesos(varargin{:});
+        diagnostic = solvesos(varargin{:});
         return
+    end
+end
+
+if isa(h,'sdpvar')
+    if is(h,'complex')
+        error('Complex valued objective does not make sense.');
     end
 end
     
@@ -148,6 +164,24 @@ else
     options = sdpsettings;
 end
 options.solver = lower(options.solver);
+
+% If user has logdet term, but no preference on solver, we try to hook up
+% with SDPT3 if possible.
+if ~isempty(logdetStruct)
+    if strcmp(options.solver,'')
+     %   options.solver = 'sdpt3,*';
+    end
+end
+
+% Call chance solver?
+if length(F) > 0
+    rand_declarations = is(F,'random');
+    if any(rand_declarations)
+    %    diagnostic = solverandom(F(find(~rand_declarations)),h,options,recover(getvariables(sdpvar(F(find(unc_declarations))))));
+        return
+    end
+end
+
 
 % Call robust solver?
 if length(F) > 0
@@ -184,13 +218,30 @@ if length(F) == 0 & isempty(h) & isempty(logdetStruct)
 end
 
 % Dualize the problem?
-if options.dualize
-%     if ~isempty(P)
-%         error('Cannot dualize problems with logaritmic objective')
-%     end
-    [Fd,objd] = dualize(F,varargin{2});
+if ~isempty(F)
+    if options.dualize == -1
+        sdp = find(is(F,'sdp'));
+        if ~isempty(sdp)
+            if all(is(F(sdp),'sdpcone'))
+                options.dualize = 1;
+            end
+        end
+    end
+end
+if options.dualize == 1   
+    [Fd,objd,aux1,aux2,aux3,complexInfo] = dualize(F,h,[],[],[],options);
     options.dualize = 0;
     diagnostic = solvesdp(Fd,-objd,options);
+    if ~isempty(complexInfo)
+        for i = 1:length(complexInfo.replaced)
+            n = size(complexInfo.replaced{i},1);
+            re = 2*double(complexInfo.new{i}(1:n,1:n));            
+            im = 2*double(complexInfo.new{i}(1:n,n+1:end));
+            %im = im-diag(diag(im));
+            im=triu((im-im')/2)-(triu((im-im')/2))';
+            assign(complexInfo.replaced{i},re + sqrt(-1)*im);
+        end
+    end
     return
 end
 
@@ -211,7 +262,7 @@ end
 % ******************************************
 % COMPILE IN GENERALIZED YALMIP FORMAT
 % ******************************************
-[interfacedata,recoverdata,solver,diagnostic,F,Fremoved] = compileinterfacedata(F,[],logdetStruct,h,options,0,solving_parametric);
+[interfacedata,recoverdata,solver,diagnostic,F,Fremoved,ForiginalQuadratics] = compileinterfacedata(F,[],logdetStruct,h,options,0,solving_parametric);
 
 % ******************************************
 % FAILURE?
@@ -269,19 +320,17 @@ end
 %******************************************
 % DID WE SELECT THE MPT solver (backwards comb)
 %******************************************
-if strcmpi(solver.tag,'mpt') | strcmpi(solver.tag,'mpcvx') | strcmpi(solver.tag,'mplcp')
-    actually_save_output = interfacedata.options.savesolveroutput;
+actually_save_output = interfacedata.options.savesolveroutput;
+if strcmpi(solver.tag,'mpt-2') | strcmpi(solver.tag,'mpt-3') | strcmpi(solver.tag,'mpcvx') | strcmpi(solver.tag,'mplcp')    
     interfacedata.options.savesolveroutput = 1;
     if isempty(interfacedata.parametric_variables)
         if (nargin < 4 | ~isa(varargin{4},'sdpvar'))
             error('You must specify parametric variables.')
         else
-            temp = [];
+            interfacedata.parametric_variables = [];
             for i = 1:length(varargin{4})
-                temp = [temp;getvariables(varargin{4}(i))];
-            end
-            interfacedata.parametric_variables = find(ismember(recoverdata.used_variables,temp));
-%            interfacedata.parametric_variables = find(ismember(recoverdata.used_variables,getvariables(varargin{4})));
+                  interfacedata.parametric_variables = [interfacedata.parametric_variables;find(ismember(recoverdata.used_variables,getvariables(varargin{4}(i))))];
+            end            
             if isempty(varargin{5})
                 interfacedata.requested_variables = [];
             else
@@ -294,9 +343,18 @@ if strcmpi(solver.tag,'mpt') | strcmpi(solver.tag,'mpcvx') | strcmpi(solver.tag,
     end
 end
 
-% ********************************
+% *************************************************************************
+% Just return the YALMIP model. Used when solving multiple objectives
+% *************************************************************************
+if isfield(options,'pureexport')
+    interfacedata.recoverdata = recoverdata;
+    diagnostic = interfacedata;        
+    return
+end
+
+% *************************************************************************
 % TRY TO SOLVE PROBLEM
-% ********************************
+% *************************************************************************
 if options.debug
     eval(['output = ' solver.call '(interfacedata);']);
 else
@@ -324,17 +382,8 @@ if options.dimacs
         % FIX this nonlinear crap (return variable type in
         % compileinterfacedata)
         if options.relax == 0 & any(full(sum(interfacedata.monomtable,2)~=0))
-            if ~isempty(find(sum(interfacedata.monomtable | interfacedata.monomtable,2)>1))
-                %                z = zeros(size(interfacedata.monomtable,1),1);
-                % if all(y>=0)
-                z=real(exp(interfacedata.monomtable*log(y+eps)));
-                % end
-                %                 if any(isnan(z))
-                %                     for i = 1:size(interfacedata.monomtable,1)
-                %                         index = find(interfacedata.monomtable(i,:));
-                %                         z(i,1) = prod(y(index).^full(interfacedata.monomtable(i,index)'));
-                %                     end
-                %                 end
+            if ~isempty(find(sum(interfacedata.monomtable | interfacedata.monomtable,2)>1))                
+                z=real(exp(interfacedata.monomtable*log(y+eps)));                
                 y = z;
             end
         end
@@ -365,11 +414,13 @@ diagnostic.yalmiptime = etime(clock,yalmiptime)-output.solvertime;
 diagnostic.solvertime = output.solvertime;
 try
     diagnostic.info = output.infostr;
-catch
+catch   
     diagnostic.info = yalmiperror(output.problem,solver.tag);
 end
 diagnostic.problem = output.problem;
-diagnostic.dimacs = dimacs;
+if options.dimacs
+    diagnostic.dimacs = dimacs;
+end
 
 % Some more info is saved internally
 solution_internal = diagnostic;
@@ -391,7 +442,7 @@ if interfacedata.options.saveyalmipmodel
     diagnostic.yalmipmodel = interfacedata;
 end
 
-if options.warning & warningon & isempty(findstr(output.infostr,'No problems detected'))
+if options.warning & warningon & isempty(findstr(diagnostic.info,'No problems detected'))
     disp(['Warning: ' output.infostr]);
 end
 
@@ -404,7 +455,15 @@ end
 
 % And we are done! Save the result
 if ~isempty(output.Primal)
-    yalmip('setsolution',solution_internal);
+    if size(output.Primal,2)>1
+        for j = 1:size(output.Primal,2)
+            temp = solution_internal;
+            temp.optvar = temp.optvar(:,j);
+            yalmip('setsolution',temp,j);
+        end
+    else
+        yalmip('setsolution',solution_internal);
+    end
 end
 if interfacedata.options.saveduals & solver.dual
     if isempty(interfacedata.Fremoved) | (nnz(interfacedata.Q)>0)
@@ -429,6 +488,21 @@ if interfacedata.options.saveduals & solver.dual
         end
     end
 end
+% Hack to recover original QCQP duals from gurobi
+if strcmp(solver.tag,'GUROBI-GUROBI')
+    if length(ForiginalQuadratics) > 0
+        if isfield(output,'qcDual')
+            if length(output.qcDual) == length(ForiginalQuadratics)
+                Ktemp.l = length(output.qcDual);
+                Ktemp.f = 0;
+                Ktemp.q = 0;
+                Ktemp.s = 0;
+                Ktemp.r = 0;
+                setduals(ForiginalQuadratics,-output.qcDual,Ktemp);
+            end
+        end
+    end
+end
 
 function newinputformat = combatible(varargin)
 
@@ -443,21 +517,21 @@ classification = 0;
 m = length(varargin);
 if m==1
     classification = 2;
-elseif m>=3 & isstruct(varargin{3})
+elseif m>=3 && isstruct(varargin{3})
     classification = 2;
-elseif m>=4 & isstruct(varargin{4})
+elseif m>=4 && isstruct(varargin{4})
     classification = 1;
-elseif m>=2 & isa(varargin{2},'lmi')
+elseif m>=2 && isa(varargin{2},'lmi')
     classification = 1;
-elseif m>=3 & isa(varargin{3},'sdpvar')
+elseif m>=3 && isa(varargin{3},'sdpvar')
     classification = 1;
-elseif m>=2 & isa(varargin{2},'sdpvar') & min(size(varargin{2}))==1
+elseif m>=2 && isa(varargin{2},'sdpvar') & min(size(varargin{2}))==1
     classification = 2;
-elseif m>=2 & isa(varargin{2},'sdpvar') & prod(size(varargin{2}))>=1
+elseif m>=2 && isa(varargin{2},'sdpvar') & prod(size(varargin{2}))>=1
     classification = 1;
-elseif m>=2 & isa(varargin{2},'logdet')
+elseif m>=2 && isa(varargin{2},'logdet')
     classification = 2;
-elseif m==2 & isempty(varargin{2})
+elseif m==2 && isempty(varargin{2})
     classification = 2;
 end
 

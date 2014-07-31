@@ -1,8 +1,8 @@
 function Z = replace(X,Y,W,expand)
 %REPLACE Substitutes variables
 %
-%Z = REPLACE(Y,X,W)  Replaces any occurence of the SDPVAR object X
-%                    in the SDPVAR object Y with the expression W
+%Z = REPLACE(X,Y,W)  Replaces any occurence of the SDPVAR object Y
+%                    in the SDPVAR object X with the expression W
 %
 % Example
 %  x = sdpvar(1,1);
@@ -37,8 +37,13 @@ if ~isequal(size(Y),size(W))
     if isequal(fliplr(size(Y)),size(W))
         W = W';
     else
-    error('Both arguments must have same size')
+        error('Both arguments must have same size')
     end
+end
+
+if max(size(Y))>1
+ [Y,keptY] = unique(reshape(Y,[],1));
+ W = extsubsref(W,keptY);
 end
 
 if isa(W,'sdpvar')
@@ -69,16 +74,32 @@ m = X.dim(2);
 [monomtable,variabletype] = yalmip('monomtable');
 if all(variabletype(x_lmi_variables)==0) % is(X,'linear')
     Z = X.basis(:,1);
+    %v = [];
+    v1 = [];
+    v2 = [];
+    i1 = [];
+    i2 = [];
     for i = 1:length(x_lmi_variables)
-        j = find(x_lmi_variables(i) == y_lmi_variables);
+        j = find(x_lmi_variables(i) == y_lmi_variables);        
         if isempty(j)
-            Z = Z + recover(x_lmi_variables(i))*X.basis(:,i+1);
+          %  v = [v ;recover(x_lmi_variables(i))];
+            v1 = [v1 x_lmi_variables(i)];
+            i1 = [i1 i];
+            %Z = Z + recover(x_lmi_variables(i))*X.basis(:,i+1);
         else
-            Z = Z + feas_var(j)*X.basis(:,i+1);
+          %  v = [v ;feas_var(j)];
+            v2 = [v2 j];
+            i2 = [i2 i];
+            %Z = Z + feas_var(j)*X.basis(:,i+1);
         end
     end
+    v = sparse(i1,ones(length(i1),1),recover(v1),length(x_lmi_variables),1);
+    v = v + sparse(i2,ones(length(i2),1),feas_var(v2),length(x_lmi_variables),1);
+    Z = Z + X.basis(:,2:end)*v;
 else
-    replaced_vars = depends(Y);
+    for i = 1:length(Y)
+        replaced_vars(i) = getvariables(extsubsref(Y,i));
+    end
     % used_variables = getvariables(X);
     used_variables = x_lmi_variables;
     %  monomtable = yalmip('monomtable');
@@ -147,6 +168,7 @@ if isa(Z,'sdpvar')
     Z.dim(1) = n;
     Z.dim(2) = m;
     Z.typeflag = X.typeflag;
+    Z.extra = X.extra;
     % Reset info about conic terms
     Z.conicinfo = [0 0];
 else

@@ -19,7 +19,7 @@ end
     
 % Load using SeDuMi
 try
-    [At,b,c,K,perm] = fromsdpa(filename);
+    [At,b,c,K] = fromsdpa(filename);
 catch
     error('LOADSDPAFILE currently requires SeDuMi to be installed');
 end

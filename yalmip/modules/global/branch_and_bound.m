@@ -1,4 +1,4 @@
-function [x_min,solved_nodes,lower,upper] = branch_and_bound(p,x_min,upper)
+function [x_min,solved_nodes,lower,upper,lower_hist,upper_hist,timing] = branch_and_bound(p,x_min,upper,timing)
 
 % *************************************************************************
 % Create handles to solvers
@@ -56,11 +56,12 @@ numGlobalSolutions = 0;
 p.getsolvertime = 0;
 
 if options.bmibnb.verbose>0
-    disp('* Starting YALMIP bilinear branch & bound.');
-    disp(['* Upper solver   : ' p.solver.uppersolver.tag]);
-    disp(['* Lower solver   : ' p.solver.lowersolver.tag]);
+    disp('* Starting YALMIP global branch & bound.');
+    disp(['* Branch-variables : ' num2str(length(p.branch_variables))]);
+    disp(['* Upper solver     : ' p.solver.uppersolver.tag]);
+    disp(['* Lower solver     : ' p.solver.lowersolver.tag]);
     if p.options.bmibnb.lpreduce
-        disp(['* LP solver      : ' p.solver.lpsolver.tag]);
+        disp(['* LP solver        : ' p.solver.lpsolver.tag]);
     end
     disp(' Node       Upper      Gap(%)       Lower    Open');
 end
@@ -69,6 +70,13 @@ t_start = cputime;
 go_on  = 1;
 
 reduction_result = [];
+lower_hist = [];
+upper_hist = [];
+p.branchwidth = [];
+
+pseudo_costgain=[];
+pseudo_variable=[];
+
 while go_on
 
     % *********************************************************************
@@ -79,37 +87,28 @@ while go_on
     % *********************************************************************
     % Strenghten variable bounds a couple of runs
     % *********************************************************************
-    for i = 1:1:1
-
-        p.changedbounds = 1;
-        p = updatebounds_recursive_evaluation(p);
-
-        p = updateboundsfromupper(p,upper,p.originalModel);     
-        p = updatebounds_recursive_evaluation(p);
-
-        p = propagatequadratics(p,upper,lower);
-        p = updatebounds_recursive_evaluation(p);
-
-        p = propagatecomplementary(p);
-        p = updatebounds_recursive_evaluation(p);
-
-        p = domain_reduction(p,upper,lower,lpsolver,x_min);
-                  
-        p = updatebounds_recursive_evaluation(p);
-
-        p = presolve_bounds_from_equalities(p);
-        p = updatebounds_recursive_evaluation(p);
-
-        p = propagatecomplementary(p);
-        p = updatebounds_recursive_evaluation(p);
-
-        p = presolve_bounds_from_equalities(p);
-        p = updatebounds_recursive_evaluation(p);
-
-        p = propagatecomplementary(p);
-        p = updatebounds_recursive_evaluation(p);
+    p.changedbounds = 1;
+    
+    for i = 1:length(options.bmibnb.strengthscheme)
         if ~p.feasible
             break
+        end      
+        switch options.bmibnb.strengthscheme(i)
+            case 1
+                p = updatebounds_recursive_evaluation(p);
+            case 2
+                p = updateboundsfromupper(p,upper,p.originalModel);
+            case 3
+                p = propagatequadratics(p);
+            case 4
+                p = propagate_bounds_from_complementary(p);
+            case 5
+                tstart = tic;
+                p = domain_reduction(p,upper,lower,lpsolver,x_min);
+                timing.domainreduce = timing.domainreduce + toc(tstart);
+            case 6
+                p = propagate_bounds_from_equalities(p);
+            otherwise
         end
     end
 
@@ -123,13 +122,24 @@ while go_on
     % *********************************************************************
     if p.feasible
 
-        [output,cost,p] = solvelower(p,options,lowersolver,x_min,upper);
+        [output,cost,p,timing] = solvelower(p,options,lowersolver,x_min,upper,timing);
 
+        if output.problem == -1
+            % We have no idea what happened. 
+            % Behave as if it worked, so we can branch as see if things
+            % clean up nicely
+            cost = p.lower;
+            if isnan(cost)
+                cost = -inf;
+            end
+            output.problem = 3;
+        end
+        
         % Cplex sucks...
         if output.problem == 12
             pp = p;
             pp.c = pp.c*0;
-            [output2,cost2] = solvelower(pp,options,lowersolver);
+            [output2,cost2] = solvelower(pp,options,lowersolver,[],[],timing);
             if output2.problem == 0
                 output.problem = 2;
             else
@@ -166,6 +176,12 @@ while go_on
                 end
                 x = output.Primal;
 
+                if ~isempty(p.branchwidth)
+                    if ~isempty(p.lower)
+                        pseudo_costgain = [pseudo_costgain (cost-p.lower)/p.branchwidth];
+                        pseudo_variable = [pseudo_variable p.spliton];
+                    end
+                end
                 % UPDATE THE LOWER BOUND
                 if isnan(lower)
                     lower = cost;
@@ -177,7 +193,7 @@ while go_on
                 end
 
                 relgap = 100*(upper-lower)/(1+abs(upper));
-                relgap_too_big = (isinf(lower) | isnan(relgap) | relgap>100*options.bmibnb.relgaptol);
+                relgap_too_big = (isinf(lower) | isnan(relgap) | relgap>options.bmibnb.relgaptol);
                 if cost<upper-1e-5 & relgap_too_big
 
                     z = evaluate_nonlinear(p,x);
@@ -188,11 +204,18 @@ while go_on
 
                     oldCount = numGlobalSolutions;
                     if numGlobalSolutions < p.options.bmibnb.numglobal                        
-                        [upper,x_min,cost,info_text,numGlobalSolutions] = heuristics_from_relaxed(p_upper,x,upper,x_min,cost,numGlobalSolutions);
+                        [upper,x_min,cost,info_text2,numGlobalSolutions] = heuristics_from_relaxed(p_upper,x,upper,x_min,cost,numGlobalSolutions);
+                        if length(info_text)==0
+                            info_text = info_text2;
+                        elseif  length(info_text2)>0
+                            info_text = [info_text ' | ' info_text2];
+                        else
+                            info_text = info_text; 
+                        end
                         if ~isequal(p.solver.uppersolver.tag,'none')
                             if upper > p.options.bmibnb.target
                                 if options.bmibnb.lowertarget > lower                                    
-                                    [upper,x_min,info_text,numGlobalSolutions] = solve_upper_in_node(p,p_upper,x,upper,x_min,uppersolver,info_text,numGlobalSolutions);
+                                    [upper,x_min,info_text,numGlobalSolutions,timing] = solve_upper_in_node(p,p_upper,x,upper,x_min,uppersolver,info_text,numGlobalSolutions,timing);
                                 end
                             end
                         end
@@ -233,8 +256,15 @@ while go_on
     % CONTINUE SPLITTING?
     % ************************************************
     if keep_digging & max(p.ub(p.branch_variables)-p.lb(p.branch_variables))>options.bmibnb.vartol
+        node = [];
+      %  already_tested = []
+      %  while ~isempty(setdiff(p.branch_variables,already_tested)) & isempty(node)
+      %  temp = p.branch_variables;
+      %  p.branch_variables=setdiff(p.branch_variables,already_tested);
         spliton = branchvariable(p,options,x);
-        node  = [];
+      %  p.branch_variables = union(p.branch_variables,already_tested);
+      %  already_tested = [already_tested spliton];
+      
         if ismember(spliton,p.complementary)
             i = find(p.complementary(:,1) == spliton);
             if isempty(i)
@@ -247,17 +277,28 @@ while go_on
             gap_over_v2 = (p.lb(v2)<=0) & (p.ub(v2)>=0) & (p.ub(v2)-p.lb(v2))>0;
             
             if gap_over_v1
-                node = savetonode(p,v1,0,0,-1,x,cost,p.EqualityConstraintState,p.InequalityConstraintState,p.cutState);
+                pp = p;
+                pp.complementary( find((pp.complementary(:,1)==v1) | (pp.complementary(:,2)==v1)),:)=[];
+                node = savetonode(pp,v1,0,0,-1,x,cost,p.EqualityConstraintState,p.InequalityConstraintState,p.cutState);
                 node.bilinears = p.bilinears;
                 node = updateonenonlinearbound(node,spliton);
-                stack = push(stack,node);
+                if all(node.lb <= node.ub)
+                    node.branchwidth=[];
+                    stack = push(stack,node);                 
+                end
             end
             if gap_over_v2
-                node = savetonode(p,v2,0,0,-1,x,cost,p.EqualityConstraintState,p.InequalityConstraintState,p.cutState);
+                pp = p;
+                %pp.complementary(i,:)=[];
+                pp.complementary( find((pp.complementary(:,1)==v2) | (pp.complementary(:,2)==v2)),:)=[];
+                node = savetonode(pp,v2,0,0,-1,x,cost,p.EqualityConstraintState,p.InequalityConstraintState,p.cutState);
                 node.bilinears = p.bilinears;
                 node = updateonenonlinearbound(node,spliton);
-                stack = push(stack,node);
-            end
+                if all(node.lb <= node.ub)
+                    node.branchwidth=[];
+                    stack = push(stack,node);                 
+                end
+            end     
         end
         if isempty(node)
             bounds  = partition(p,options,spliton,x);
@@ -272,7 +313,10 @@ while go_on
                 end
                 node.bilinears = p.bilinears;
                 node = updateonenonlinearbound(node,spliton);
-                stack = push(stack,node);
+                node.branchwidth = [p.ub(spliton)-p.lb(spliton)];
+                if all(node.lb <= node.ub)
+                    stack = push(stack,node);
+                end
             end
         end
         lower = min([stack.lower]);
@@ -311,10 +355,14 @@ while go_on
     uppertarget_not_met = upper > options.bmibnb.target;
     lowertarget_not_met = lower < options.bmibnb.lowertarget;
     go_on = uppertarget_not_met & lowertarget_not_met & time_ok & any_nodes & iter_ok & relgap_too_big & absgap_too_big;
+    lower_hist = [lower_hist lower];
+    upper_hist = [upper_hist upper];
 end
 if options.bmibnb.verbose>0
-    if options.bmibnb.verbose;showprogress([num2str(solved_nodes)  ' Finishing.  Cost: ' num2str(upper) ' Gap: ' num2str(relgap) '%'],options.bnb.verbose);end
+    fprintf(['* Finished.  Cost: ' num2str(upper) ' Gap: ' num2str(relgap) '\n']);
 end
+
+%save dummy x_min
 
 % *************************************************************************
 % Stack functionality
@@ -389,6 +437,7 @@ node.lb(p.integer_variables) = ceil(node.lb(p.integer_variables));
 node.ub(p.integer_variables) = floor(node.ub(p.integer_variables));
 node.lb(p.binary_variables) = ceil(node.lb(p.binary_variables));
 node.ub(p.binary_variables) = floor(node.ub(p.binary_variables));
+node.complementary = p.complementary;
 
 if direction == -1
     node.dpos = p.dpos-1/(2^sqrt(p.depth));
@@ -493,19 +542,28 @@ else
     acc_res2 = sum(abs(res(find((p.bilinears(:,2)==v2) |  p.bilinears(:,3)==v2))));
     
     if abs(acc_res1-acc_res2)<1e-3 & ismember(v2,p.branch_variables) & ismember(v1,p.branch_variables)
+        if abs(p.ub(v1)-p.lb(v1))>abs(p.ub(v2)-p.lb(v2))
+              spliton = v1;
+        elseif abs(p.ub(v1)-p.lb(v1))<abs(p.ub(v2)-p.lb(v2))
+            spliton = v2;
+        else
         % Oops, two with the same impact. To avoid that we keep pruning on
         % a variable that doesn't influence the bounds, we flip a coin on
         % which to branch on
-        if rand(1)>0
+        if rand(1)>0.5
             spliton = v1;
         else
             spliton = v2;
         end
+        end
     else
-        if ~ismember(v2,p.branch_variables) | (acc_res1>acc_res2)
+        if (~ismember(v2,p.branch_variables) | (acc_res1>acc_res2)) & ismember(v1,p.branch_variables)
             spliton = v1;
-        else
+        elseif ismember(v2,p.branch_variables)
             spliton = v2;
+        else
+            [i,j] = max(width);
+            spliton = p.branch_variables(j);
         end
     end   
 end
@@ -577,7 +635,10 @@ else
     p.x0 = node.x0;
     p.InequalityConstraintState = node.InequalityConstraintState;
     p.EqualityConstraintState = node.EqualityConstraintState;
+    p.complementary = node.complementary;
     p.cutState = node.cutState;
+    p.feasible = 1;
+    p.branchwidth = node.branchwidth;
 end
 
 % *************************************************************************

@@ -1,4 +1,4 @@
-function x = unique(x)
+function [x,i] = unique(x)
 %UNIQUE (overloaded)
 
 % Author Johan Löfberg

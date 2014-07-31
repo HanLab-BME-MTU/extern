@@ -37,7 +37,7 @@ if ~isempty(extended) & any(ismember(initial_variables,extended))
     ops.expandbilinear = 1;
 
     % Expand the model to model norms etc
-    [F,failure,cause] = expandmodel(F,h,ops);
+    [F,failure,cause] = expandmodel(F,h,ops,w);
     if failure % Convexity propgation failed
         interfacedata = [];
         recoverdata = [];
@@ -84,7 +84,6 @@ end
 x_variables = intersect([depends(F) depends(h)],x_variables);
 w_variables = intersect([depends(F) depends(h)],w_variables);
 
-
 x = recover(x_variables);
 x = recover(setdiff(depends(x),w_variables));
 x_variables = getvariables(x);
@@ -98,6 +97,16 @@ x_variables = getvariables(x);
 % aux_variables = union(aux_variables,heh);
 
 w = recover(w_variables);
+
+% Fe = [];
+% for i = 1:length(F)
+%     if findstr('Expansion of',tag(F(i)))
+%         Fe = [Fe,F(i)];
+%     end
+% end
+% if ~isempty(Fe)
+%     auxVars = yalmip('auxvariables')
+% end
 
 
 

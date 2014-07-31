@@ -13,23 +13,20 @@ function varargout = binmodel(varargin)
 % If an input p contains continuous variables, the continuous variables
 % may only enter linearly (i.e. degree w.r.t continuous variables should
 % be at most 1). More over, all continuous variables must be explicitly
-% bounded in the SET object D.
+% bounded in the constraint object D.
 %
 % Example
 %  binvar a b
 %  sdpvar x y
 %  [plinear1,plinear2,F] = binmodel(a^3+b,a*b);
-%  [plinear1,plinear2,F] = binmodel(a^3*x+b*y,a*b*x, set(-2 <=[x y] <=2));
+%  [plinear1,plinear2,F] = binmodel(a^3*x+b*y,a*b*x, -2 <=[x y] <=2);
 %
 % See also BINARY, BINVAR, SOLVESDP
-
-% Author Johan Löfberg
-% $Id: binmodel.m,v 1.5 2007-06-16 10:33:41 joloef Exp $
 
 all_linear = 1;
 p = [];
 n_var = 0;
-Foriginal = set([]);
+Foriginal = [];
 for i = 1:nargin
     switch class(varargin{i})
         case 'sdpvar'
@@ -39,11 +36,8 @@ for i = 1:nargin
                 all_linear = 0;
             end
             n_var = n_var + 1;
-        case 'lmi'  
+        case {'lmi','constraint'}
             Foriginal = Foriginal + varargin{i};
-          %  LU = getbounds(varargin{i});
-          %  LU = extract_bounds_from_abs_operator(LU,yalmip('extstruct'),yalmip('extvariables'));    
-          %  yalmip('setbounds',1:nv,LU(:,1),LU(:,2));
         otherwise
             error('Arguments should be SDPVAR or SET objects')
     end
@@ -52,8 +46,22 @@ end
 if length(Foriginal)>0
     nv = yalmip('nvars');
     yalmip('setbounds',1:nv,repmat(-inf,nv,1),repmat(inf,nv,1));    
-    LU = getbounds(Foriginal);    
-    LU = extract_bounds_from_abs_operator(LU,yalmip('extstruct'),yalmip('extvariables'));               
+    LU = getbounds(Foriginal);
+    extstruct = yalmip('extstruct');
+    extendedvariables = yalmip('extvariables');
+    for i = 1:length(extstruct)
+        switch extstruct(i).fcn
+            case 'abs'
+                LU = extract_bounds_from_abs_operator(LU,extstruct,extendedvariables,i);
+            case 'norm'
+                LU = extract_bounds_from_norm_operator(LU,extstruct,extendedvariables,i);
+            case 'min_internal'
+                LU = extract_bounds_from_min_operator(LU,extstruct,extendedvariables,i);
+            case 'max_internal'
+                LU = extract_bounds_from_max_operator(LU,extstruct,extendedvariables,i);
+            otherwise
+        end
+    end
     yalmip('setbounds',1:nv,LU(:,1),LU(:,2));
 end
 
@@ -69,15 +77,16 @@ F = Foriginal;
 vars  = getvariables(p);
 basis = getbase(p);
 [mt,vt] = yalmip('monomtable');
-binary = yalmip('binvariables');
+allbinary = yalmip('binvariables');
+allinteger = yalmip('intvariables');
 
 % Fix data (monom table not guaranteed to be square)
 if size(mt,1) > size(mt,2)
     mt(end,size(mt,1)) = 0;
 end
 
-non_binary = setdiff(1:size(mt,2),binary);
-if any(sum(mt(vars,non_binary),2) >1)
+non_binary = setdiff(1:size(mt,2),allbinary);
+if any(sum(mt(vars,non_binary),2) > 1)
     error('Expression has to be linear in the continuous variables')
 end
 
@@ -87,7 +96,7 @@ vecvar = recover(vars);
 linear = find(vt(vars) == 0);
 quadratic = find(vt(vars) == 2);
 bilinear  = find(vt(vars) == 1);
-polynomial  = find(vt(vars) == 3);
+polynomial = find(vt(vars) == 3);
 
 % replace x^2 with x (can only be binary expression, since we check for
 % continuous nonlinearities above)
@@ -100,25 +109,28 @@ else
 end
 
 % replace x*y with z, x>z, x>z, 1+z>x+y
-if ~isempty(bilinear)
-    z_bilinear = sdpvar(length(bilinear),1);
+if ~isempty(bilinear)   
     [jj,ii] = find(mt(vars(bilinear),:)');
     xi = jj(1:2:end);
     yi = jj(2:2:end);
     x = recover(xi);
     y = recover(yi);
-
-    if all(ismember(xi,binary)) & all(ismember(yi,binary))
+    
+    if all(ismember(xi,allbinary)) & all(ismember(yi,allbinary))
         % fast case for binary*binary
-        F = F + set(x >= z_bilinear) + set(y >= z_bilinear) + set(1+z_bilinear > x + y) + set(0 <= z_bilinear <= 1);
+        z_bilinear = binvar(length(bilinear),1);
+        F = [F, binary(z_bilinear), x >= z_bilinear, y >= z_bilinear, 1+z_bilinear >= x + y, 0 <= z_bilinear <= 1];
     else
+        z_bilinear = sdpvar(length(bilinear),1);
+        theseAreBinaries = find(ismember(xi,allbinary) & ismember(yi,allbinary));
+        z_bilinear(theseAreBinaries) = binvar(length(theseAreBinaries),1);
         for i = 1:length(bilinear)
-            if ismember(xi(i),binary) & ismember(yi(i),binary)
-                F = F + set(x(i) >= z_bilinear(i)) + set(y(i) >= z_bilinear(i)) + set(1+z_bilinear(i) > x(i) + y(i)) + set(0 <= z_bilinear(i) <= 1);
-            elseif ismember(xi(i),binary)
-                F = F + binary_times_cont(x(i),y(i), z_bilinear(i));
+            if ismember(xi(i),allbinary) & ismember(yi(i),allbinary)
+                F = [F, x(i) >= z_bilinear(i), y(i) >= z_bilinear(i), 1+z_bilinear(i) >= x(i) + y(i), 0 <= z_bilinear(i) <= 1];
+            elseif ismember(xi(i),allbinary)
+                F = [F, binary_times_cont(x(i),y(i), z_bilinear(i))];
             else
-                F = F + binary_times_cont(y(i),x(i), z_bilinear(i));
+                F = [F, binary_times_cont(y(i),x(i), z_bilinear(i))];
             end
         end
     end
@@ -141,10 +153,10 @@ if ~isempty(polynomial)
             the_binary_monom = the_monom;the_binary_monom(non_binary) = 0;
             [ii,jj] = find(the_binary_monom);
             x = recover(jj);
-            F = F + set(x >= z_polynomial(i)) + set(length(x)-1+z_polynomial(i) > sum(x)) + set(0 <= z_polynomial(i) <= 1);
+            F = [F, x >= z_polynomial(i), length(x)-1+z_polynomial(i) >= sum(x), 0 <= z_polynomial(i) <= 1];
             % Now define the actual variable
             temp =  z_polynomial(i);z_polynomial(i) = sdpvar(1,1);
-            the_real_monom = the_monom;the_real_monom(binary)=0;
+            the_real_monom = the_monom;the_real_monom(allbinary)=0;
             [ii,jj] = find(the_real_monom);
             x = recover(jj);
             F = F + binary_times_cont(temp,x,z_polynomial(i));
@@ -152,18 +164,13 @@ if ~isempty(polynomial)
             % simple case, just binary terms
             [ii,jj] = find(the_monom);
             x = recover(jj);
-            F = F + set(x >= z_polynomial(i)) + set(length(x)-1+z_polynomial(i) > sum(x)) + set(0 <= z_polynomial(i) <= 1);
+            F = [F, x >= z_polynomial(i), length(x)-1+z_polynomial(i) >= sum(x), 0 <= z_polynomial(i) <= 1];
         end
     end
 else
     z_polynomial = [];
     polynomial = [];
 end
-
-% ii = [linear quadratic bilinear polynomial];
-% jj = ones(length(ii),1);
-% kk = [recover(vars(linear));z_quadratic;z_bilinear;z_polynomial];
-% sparse([linear quadratic bilinear polynomial],1,[recover(vars(linear));z_quadratic;z_bilinear;z_polynomial])
 
 ii = [linear quadratic bilinear polynomial];
 jj = ones(length(ii),1);
@@ -188,5 +195,5 @@ function F = binary_times_cont(d,y, z)
 if infbound
     error('Some of your continuous variables are not explicitly bounded.')
 end
-F = set((1-d)*M >= y - z >= m*(1-d)) + set(d*m <= z <= d*M);
+F = [(1-d)*M >= y - z >= m*(1-d), d*m <= z <= d*M, m <= z <= M];
                 
