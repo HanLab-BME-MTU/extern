@@ -34,12 +34,14 @@ function gitpullall(basedir)
             cd(D(d).name);
             disp(['    * Changing to ' D(d).name ' in ' basedir]);
             git('pull');
+            disp(' ');
             cd(basedir);
         end
     end
     
     disp(['* Changing back to original directory: ' originaldir]);
     cd(originaldir);
-    cd(['Done. If you do not see errors above, then you are up-to-date.']);
+    disp(' ');
+    disp(['Done. If you do not see errors above, then you are up-to-date.']);
 
 end
