@@ -1,9 +1,10 @@
 function gitpullall(basedir)
-% gitpullall does a git pull in all subdirectories of basedir using .git
+% gitpullall(basedir) does a 'git pull' in all subdirectories
+%   of basedir using git
 %
 % If basedir is not specified, then the current directory is used.
-% gitpullall is intended to be used in HOME/matlab
-%
+% gitpullall is intended to be used in $HOME/matlab
+
 % Mark Kittisopikul
 % August 19, 2014
 % UT Southwestern
