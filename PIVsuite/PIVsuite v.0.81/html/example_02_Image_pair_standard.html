@@ -1,0 +1,267 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>Example 02 - Standard usage of PIVsuite</title><meta name="generator" content="MATLAB 8.2"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2014-02-26"><meta name="DC.source" content="example_02_Image_pair_standard.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img { margin-bottom:0px; } 
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, tt, code { font-size:12px; }
+pre { margin:0px 0px 20px; }
+pre.error { color:red; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><h1>Example 02 - Standard usage of PIVsuite</h1><!--introduction--><p>This example demonstrates the standard usage of PIVsuite for obtaining the velocity field from a pair of images. Contrary to the previous example (<tt>example_01_Image_pair_simple.m</tt>), common parameters of PIV algorithm (such is the size of interrogation area, grid spacing, number of passes) are set by user.</p><!--/introduction--><h2>Contents</h2><div><ul><li><a href="#1">Definition of images to be treated and of their mask</a></li><li><a href="#2">Setting number of passes and size of interrogation area</a></li><li><a href="#4">Setting spacing of velocity vectors (overlap of interrogation areas)</a></li><li><a href="#5">Set the graphical output during evaluation</a></li><li><a href="#7">Set other parameters to default</a></li><li><a href="#9">Run the analysis</a></li><li><a href="#11">Visualize the results</a></li></ul></div><h2>Definition of images to be treated and of their mask<a name="1"></a></h2><p>These definitions are is the same as in <tt>example_01...</tt>:</p><pre class="codeinput">clear;
+pivPar = [];      <span class="comment">% variable for settings</span>
+pivData = [];     <span class="comment">% variable for storing results</span>
+
+im1 = [<span class="string">'..'</span>,filesep,<span class="string">'Data'</span>,filesep,<span class="string">'Test von Karman'</span>,filesep,<span class="string">'PIVlab_Karman_01.bmp'</span>];
+im2 = [<span class="string">'..'</span>,filesep,<span class="string">'Data'</span>,filesep,<span class="string">'Test von Karman'</span>,filesep,<span class="string">'PIVlab_Karman_02.bmp'</span>];
+imMask = [<span class="string">'..'</span>,filesep,<span class="string">'Data'</span>,filesep,<span class="string">'Test von Karman'</span>,filesep,<span class="string">'PIVlab_Karman_mask.png'</span>];
+
+pivPar.imMask1 = imMask;      <span class="comment">% mask for first image</span>
+pivPar.imMask2 = imMask;      <span class="comment">% mask for the second image</span>
+</pre><h2>Setting number of passes and size of interrogation area<a name="2"></a></h2><p>Set the size of interrogation areas via fields <tt>iaSizeX</tt> and <tt>iaSizeY</tt> of <tt>pivPar</tt> variable:</p><pre class="codeinput">pivPar.iaSizeX = [64 32 16 16];     <span class="comment">% size of interrogation area in X</span>
+</pre><p>This setting means that the size of interrogation area will be progressively reduced from 64x64 pixels in the first pass to 16x16 pixels in the third and fourth pass. Number of elements of iaSizeX defines the number of passes.</p><p>If <tt>iaSizeY</tt> is left undefined, it will be set to same values as <tt>iaSizeX</tt>. Interrogation area can be rectangular (if <tt>iaSizeX</tt> and <tt>iaSizeY</tt> are not the same) and size does not need to be a power of 2.</p><h2>Setting spacing of velocity vectors (overlap of interrogation areas)<a name="4"></a></h2><p>Set the spacing of interrogation areas via fields <tt>iaStepX</tt> and <tt>iaStepY</tt>. If these parameters are undefined, they are set as <tt>iaSizeX/2</tt> or <tt>iaSizeY/2</tt> (that is, 50% overlap). In this example, the overlap is 50% in first three passes, but 75% (with grid spacing of 4 pixels) in the last pass.</p><pre class="codeinput">pivPar.iaStepX = [32 16  8  4];     <span class="comment">% grid spacing of velocity vectors in Y</span>
+</pre><h2>Set the graphical output during evaluation<a name="5"></a></h2><p>By field <tt>pivPar.qvPair</tt>, user can define how the evolution of velocity field is displayed during PIV iteration. Folowing setting will show a background with velocity magnitude.</p><pre class="codeinput">pivPar.qvPair = {<span class="string">'Umag'</span>};            <span class="comment">% display velocity magnitude</span>
+</pre><p>Do not define this field (or set it to an empty array) if the evolution should not be shown.</p><h2>Set other parameters to default<a name="7"></a></h2><p>By following command, all required settings, which are missing in <tt>pivPar</tt>  variable, are added and set to defaults:</p><pre class="codeinput">[pivPar, pivData] = pivParams(pivData,pivPar,<span class="string">'defaults'</span>);
+</pre><p><i>Hint</i>: Examine the content of structure pivPar to see what are default settings of PIVsuite.</p><h2>Run the analysis<a name="9"></a></h2><p>For PIV analysis of an image pair, execute the following command (treatment migth take from seconds to few minutes):</p><pre class="codeinput">figure(1);     <span class="comment">% in this figure evaluation will be monitored</span>
+[pivData] = pivAnalyzeImagePair(im1,im2,pivData,pivPar);
+</pre><pre class="codeoutput">Warning: S = 8.449e-04: the lower bound for S has been reached. Put S as an
+input variable if required. 
+Warning: S = 8.448e-04: the lower bound for S has been reached. Put S as an
+input variable if required. 
+</pre><img vspace="5" hspace="5" src="example_02_Image_pair_standard_01.png" alt=""> <p><b>Note:</b> Images can be passed to PIVsuite either as paths to the files, or directly as an image (array of values). This is advantageous if only a part of image should be treated for fast processing, e.g. when adjusting the setting of PIVsuite parameters. Hence, the following code would work as well (change <tt>false</tt> to <tt>true</tt> to run it):</p><pre class="codeinput"><span class="keyword">if</span> false
+    <span class="comment">% read images</span>
+    im1 = imread(im1);
+    im2 = imread(im2);
+    imMask = imread(imMask);
+    <span class="comment">% select the part of image to be treated</span>
+
+    <span class="comment">% pass images as</span>
+    pivPar.imMask1 = imMask;
+    pivPar.imMask2 = imMask;
+    [pivPar, pivData] = pivParams(pivData,pivPar,<span class="string">'defaults'</span>);
+    [pivData] = pivAnalyzeImagePair(im1,im2,pivData,pivPar);
+<span class="keyword">end</span>
+</pre><h2>Visualize the results<a name="11"></a></h2><p>Get a number of invalid velocity vectors.</p><pre class="codeinput">fprintf(<span class="string">'Grid points: %d. Masked vectors: %d. Spurious vectors: %d. Computational time: %4.1f sec.\n'</span>,<span class="keyword">...</span>
+    pivData.N,pivData.maskedN,pivData.spuriousN,sum(pivData.infCompTime));
+</pre><pre class="codeoutput">Grid points: 47564. Masked vectors: 514. Spurious vectors: 808. Computational time: 28.8 sec.
+</pre><p>Show a detail of flow around the cylinder. Color of velocity vectors can be set differently for valid and replaced vectors:</p><pre class="codeinput">figure(2);
+pivQuiver(pivData,<span class="keyword">...</span>
+    <span class="string">'crop'</span>,[380,780,250,510],<span class="keyword">...</span><span class="comment">        % set cropping</span>
+    <span class="string">'Umag'</span>,<span class="keyword">...</span><span class="comment">                          % show background with magnitude</span>
+    <span class="string">'quiver'</span>,<span class="string">'selectStat'</span>,<span class="string">'valid'</span>,<span class="string">'linespec'</span>,<span class="string">'-k'</span>,<span class="keyword">...</span>
+                                   <span class="keyword">...</span><span class="comment">  % show quiver of valid vectors in black</span>
+    <span class="string">'quiver'</span>,<span class="string">'selectStat'</span>,<span class="string">'replaced'</span>,<span class="string">'linespec'</span>,<span class="string">'-w'</span>);
+                                   <span class="keyword">...</span><span class="comment">  % show quiver of replaced vectors in white</span>
+
+title(<span class="string">'Particle displacement (px) in a flow around a cylinder (detail)'</span>);
+xlabel(<span class="string">'position X (px)'</span>);
+ylabel(<span class="string">'position Y (px)'</span>);
+</pre><img vspace="5" hspace="5" src="example_02_Image_pair_standard_02.png" alt=""> <p>Show the velocity components:</p><pre class="codeinput"><span class="comment">% U component</span>
+figure(3);
+pivQuiver(pivData,<span class="keyword">...</span>
+    <span class="string">'crop'</span>,[-Inf,Inf,88,680],<span class="string">'U'</span>);
+title(<span class="string">'Horizontal displacement U (px) in a flow around a cylinder'</span>);
+xlabel(<span class="string">'position X (px)'</span>);
+ylabel(<span class="string">'position Y (px)'</span>);
+
+<span class="comment">% V component</span>
+figure(4);
+pivQuiver(pivData,<span class="keyword">...</span>
+    <span class="string">'crop'</span>,[-Inf,Inf,88,680],<span class="string">'V'</span>);
+title(<span class="string">'Vertical displacement V (px) in a flow around a cylinder'</span>);
+xlabel(<span class="string">'position X (px)'</span>);
+ylabel(<span class="string">'position Y (px)'</span>);
+</pre><img vspace="5" hspace="5" src="example_02_Image_pair_standard_03.png" alt=""> <img vspace="5" hspace="5" src="example_02_Image_pair_standard_04.png" alt=""> <p>Note the Y coordinate is increasing in downward direction in PIVsuite, and hence also the velocity component V is positive for downward flow in PIV suite.</p><p class="footer"><br><a href="http://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2013b</a><br></p></div><!--
+##### SOURCE BEGIN #####
+%% Example 02 - Standard usage of PIVsuite
+% This example demonstrates the standard usage of PIVsuite for obtaining the velocity field from a pair 
+% of images. Contrary to the previous example (|example_01_Image_pair_simple.m|), common parameters of PIV
+% algorithm (such is the size of interrogation area, grid spacing, number of passes) are set by user.
+
+%% Definition of images to be treated and of their mask
+% These definitions are is the same as in |example_01...|:
+
+clear;
+pivPar = [];      % variable for settings
+pivData = [];     % variable for storing results
+
+im1 = ['..',filesep,'Data',filesep,'Test von Karman',filesep,'PIVlab_Karman_01.bmp'];
+im2 = ['..',filesep,'Data',filesep,'Test von Karman',filesep,'PIVlab_Karman_02.bmp'];
+imMask = ['..',filesep,'Data',filesep,'Test von Karman',filesep,'PIVlab_Karman_mask.png'];
+
+pivPar.imMask1 = imMask;      % mask for first image
+pivPar.imMask2 = imMask;      % mask for the second image
+
+%% Setting number of passes and size of interrogation area
+% Set the size of interrogation areas via fields |iaSizeX| and |iaSizeY| of |pivPar| variable:
+
+pivPar.iaSizeX = [64 32 16 16];     % size of interrogation area in X 
+
+%%
+% This setting means that the size of interrogation area will be progressively reduced from 64x64 pixels in 
+% the first pass to 16x16 pixels in the third and fourth pass. Number of elements of iaSizeX defines the
+% number of passes. 
+%
+% If |iaSizeY| is left undefined, it will be set to same values as |iaSizeX|. Interrogation area can be 
+% rectangular (if |iaSizeX| and |iaSizeY| are not the same) and size does not need to be a power of 2.
+
+
+%% Setting spacing of velocity vectors (overlap of interrogation areas)
+% Set the spacing of interrogation areas via fields |iaStepX| and |iaStepY|. If these parameters are
+% undefined, they are set as |iaSizeX/2| or |iaSizeY/2| (that is, 50% overlap). In this example, the overlap 
+% is 50% in first three passes, but 75% (with grid spacing of 4 pixels) in the last pass.
+
+pivPar.iaStepX = [32 16  8  4];     % grid spacing of velocity vectors in Y
+
+%% Set the graphical output during evaluation
+% By field |pivPar.qvPair|, user can define how the evolution of velocity field is displayed during
+% PIV iteration. Folowing setting will show a background with velocity magnitude.
+
+pivPar.qvPair = {'Umag'};            % display velocity magnitude
+
+%% 
+% Do not define this field (or set it to an empty array) if the evolution should not be shown.
+
+%% Set other parameters to default
+% By following command, all required settings, which are missing in |pivPar|  variable, are added and set to 
+% defaults:
+
+[pivPar, pivData] = pivParams(pivData,pivPar,'defaults');     
+
+%%
+% _Hint_: Examine the content of structure pivPar to see what are default settings of PIVsuite.
+
+%% Run the analysis
+% For PIV analysis of an image pair, execute the following command (treatment migth take from seconds to few
+% minutes):
+
+figure(1);     % in this figure evaluation will be monitored
+[pivData] = pivAnalyzeImagePair(im1,im2,pivData,pivPar);
+
+%%
+% *Note:* Images can be passed to PIVsuite either as paths to the files, or directly as an image (array of 
+% values). This is advantageous if only a part of image should be treated for fast processing, e.g. when 
+% adjusting the setting of PIVsuite parameters. Hence, the following code would work as well (change |false|
+% to |true| to run it):
+
+if false
+    % read images
+    im1 = imread(im1);
+    im2 = imread(im2);
+    imMask = imread(imMask);
+    % select the part of image to be treated
+    
+    % pass images as 
+    pivPar.imMask1 = imMask;
+    pivPar.imMask2 = imMask;
+    [pivPar, pivData] = pivParams(pivData,pivPar,'defaults');
+    [pivData] = pivAnalyzeImagePair(im1,im2,pivData,pivPar);
+end
+
+
+
+%% Visualize the results
+% Get a number of invalid velocity vectors.
+
+fprintf('Grid points: %d. Masked vectors: %d. Spurious vectors: %d. Computational time: %4.1f sec.\n',...
+    pivData.N,pivData.maskedN,pivData.spuriousN,sum(pivData.infCompTime));
+
+%%
+% Show a detail of flow around the cylinder. Color of velocity vectors can be set differently for valid and 
+% replaced vectors:
+
+figure(2);
+pivQuiver(pivData,...
+    'crop',[380,780,250,510],...        % set cropping
+    'Umag',...                          % show background with magnitude 
+    'quiver','selectStat','valid','linespec','-k',...              
+                                   ...  % show quiver of valid vectors in black 
+    'quiver','selectStat','replaced','linespec','-w');              
+                                   ...  % show quiver of replaced vectors in white 
+                                       
+title('Particle displacement (px) in a flow around a cylinder (detail)');    
+xlabel('position X (px)');
+ylabel('position Y (px)');
+
+%%
+% Show the velocity components:
+
+% U component
+figure(3);
+pivQuiver(pivData,...
+    'crop',[-Inf,Inf,88,680],'U');
+title('Horizontal displacement U (px) in a flow around a cylinder');    
+xlabel('position X (px)');
+ylabel('position Y (px)');
+
+% V component
+figure(4);
+pivQuiver(pivData,...
+    'crop',[-Inf,Inf,88,680],'V');
+title('Vertical displacement V (px) in a flow around a cylinder');    
+xlabel('position X (px)');
+ylabel('position Y (px)');
+
+%%
+% Note the Y coordinate is increasing in downward direction in PIVsuite, and hence also the velocity component 
+% V is positive for downward flow in PIV suite. 
+
+##### SOURCE END #####
+--></body></html>

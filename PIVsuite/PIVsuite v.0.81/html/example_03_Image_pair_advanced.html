@@ -1,0 +1,424 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>Example 03 - Advanced usage of PIVsuite</title><meta name="generator" content="MATLAB 8.2"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2014-02-28"><meta name="DC.source" content="example_03_Image_pair_advanced.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img { margin-bottom:0px; } 
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, tt, code { font-size:12px; }
+pre { margin:0px 0px 20px; }
+pre.error { color:red; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><h1>Example 03 - Advanced usage of PIVsuite</h1><!--introduction--><p>This example demonstrates the advanced usage of PIVsuite for obtaining the velocity field from a pair of images. Contrary to the previous example (<tt>example_02_Image_pair_standard.m</tt>), additional parameters (affecting vector validation, smoothing of the velocity field, window function) are set by user.</p><!--/introduction--><h2>Contents</h2><div><ul><li><a href="#1">Define images to be treated and mask</a></li><li><a href="#2">Image preprocessing</a></li><li><a href="#4">Interrogation grid and cross-correlation settings</a></li><li><a href="#9">Vector validation settings</a></li><li><a href="#13">Vector smoothing settings</a></li><li><a href="#15">Set remaining parameters and run the analysis</a></li><li><a href="#17">Visualize the velocity field</a></li><li><a href="#22">Show cross-correlation level</a></li><li><a href="#23">Show detectability of cross-correlation peak</a></li></ul></div><h2>Define images to be treated and mask<a name="1"></a></h2><p>Begining is the same as in <tt>example_01...</tt>:</p><pre class="codeinput">clear;
+pivPar = [];      <span class="comment">% variable for settings</span>
+pivData = [];     <span class="comment">% variable for storing results</span>
+
+im1 = [<span class="string">'..'</span>,filesep,<span class="string">'Data'</span>,filesep,<span class="string">'Test von Karman'</span>,filesep,<span class="string">'PIVlab_Karman_01.bmp'</span>];
+im2 = [<span class="string">'..'</span>,filesep,<span class="string">'Data'</span>,filesep,<span class="string">'Test von Karman'</span>,filesep,<span class="string">'PIVlab_Karman_02.bmp'</span>];
+imMask = [<span class="string">'..'</span>,filesep,<span class="string">'Data'</span>,filesep,<span class="string">'Test von Karman'</span>,filesep,<span class="string">'PIVlab_Karman_mask.png'</span>];
+
+pivPar.imMask1 = imMask;      <span class="comment">% mask for first image</span>
+pivPar.imMask2 = imMask;      <span class="comment">% mask for the second image</span>
+</pre><h2>Image preprocessing<a name="2"></a></h2><p>The images treated in this example are not very homogenous. This can be improved by image preprocessing using MinMax filter, which makes the images more uniform:</p><pre class="codeinput">pivPar.iaPreprocMethod = <span class="string">'MinMax'</span>;  <span class="comment">% include image preprocessing by local MinMax filter</span>
+pivPar.iaMinMaxSize = 9;            <span class="comment">% set kernel size of MinMax filter</span>
+pivPar.iaMinMaxLevel = 16;          <span class="comment">% set minimal level, below which the contrast is not improved</span>
+</pre><p>The <tt>iaPreprocMethod</tt> can have values <tt>'none'</tt> (default) and <tt>'MinMax'</tt>. In the latter case, local contrast in the images are equalized using MinMax filter. Two other parameters are then applicable: <tt>iaMinMaxSize</tt>, specifying the kernel size of the equalization filter, and <tt>iaMinMaxLevel</tt>, which defines the lower limit of local contrast, below which it is not improvet anymore. These two parameters has default values <tt>7</tt> and <tt>16</tt>, respectively.</p><h2>Interrogation grid and cross-correlation settings<a name="4"></a></h2><p>Set the <b>size and spacing of interrogation areas</b> (number of elements defines number of passes):</p><pre class="codeinput">pivPar.iaSizeX = [24 24 24];     <span class="comment">% size of interrogation area in X</span>
+pivPar.iaStepX = [24 12  6];     <span class="comment">% grid spacing of velocity vectors in X</span>
+</pre><p>If <tt>iaSizeY</tt> and <tt>iaStepY</tt> are not set, same values as for X will be used. Values do not need to be powers of 2.</p><p>Set the <b>windowing function</b>:</p><pre class="codeinput">pivPar.ccWindow = <span class="string">'Gauss2'</span>;   <span class="comment">% This filter is relatively narrow and will</span>
+                              <span class="comment">% help measure velocities in middle of IA's</span>
+                              <span class="comment">% even for large IA'a</span>
+</pre><p>Possible values for <tt>ccWindow</tt> are <tt>'uniform'</tt>, <tt>'Welch'</tt>, <tt>'palzer'</tt>, <tt>'Nogueira'</tt>, <tt>'Hanning'</tt>, <tt>'Hanning2'</tt>, <tt>'Hanning4'</tt>, <tt>'Gauss'</tt>, <tt>'Gauss2'</tt>  and <tt>'Gauss4'</tt>. Windows <tt>'Hanning2'</tt> and <tt>'Hanning4'</tt> are second and fourth power of the common Hanning window (thus narrower than <tt>'Hanning'</tt>). Similarly, <tt>'Gauss2'</tt> and <tt>'Gauss4'</tt> are Gauss filters, but with width of 1/sqrt(2) and 1/2 of that of standard Gaussian window. The default value is <tt>'Welch'</tt>.</p><p>Set the <b>cross-correlation method</b>:</p><pre class="codeinput">pivPar.ccMethod = <span class="string">'fft'</span>;
+</pre><p>The parameter <tt>ccMethod</tt> can be either <tt>'fft'</tt> (cross-correlation computed using fast Fourrier transform) or <tt>'dcn'</tt>(cross-correlation evaluated using convolution). The latter method is suitable for final terations, as it is sligthly faster if the displacement is small. Default setting is <tt>'fft'</tt> for first iterations, and <tt>'dcn'</tt> for final iterations. In this example, we use <tt>'fft'</tt> as we will examine the peak detectability (ths is not possible with the <tt>'dcn'</tt> algorithm).</p><h2>Vector validation settings<a name="9"></a></h2><p>Two validation steps are implemented. In the first step, interrogation areas with low value of cross-correlation (compared to median cross-correlation) are rejected. The treshold is given by</p><pre class="codeinput">pivPar.vlMinCC = 0.3;      <span class="comment">% reject all vectors with normalized</span>
+                           <span class="comment">% cross-correlation smaller than 0.3 of median</span>
+</pre><p>By setting <tt>pivPar.vlMinCC = 0</tt>, this validation is skipped. The default value is <tt>vlMinCC = 0.3</tt>.</p><p>In the second validation step, common floating-median filter is applied (see Westerweel, Exp in Fluids, 2005). Contrary to the original filter, the validation can have several passes (spurious vvectors are not considered in vectors statistics in the next pass), and the size of neighbourhood can be also adjusted. The validation step has the following parameters:</p><pre class="codeinput">pivPar.vlPasses = [1 1 2];        <span class="comment">% number of passes</span>
+pivPar.vlDist = 3 ;               <span class="comment">% distance, to which vectors are included in the local</span>
+                                  <span class="comment">% statistics (vlDist = 2 stays for 5x5 vector neighborhood</span>
+pivPar.vlTresh = 2;               <span class="comment">% threshold value</span>
+pivPar.vlEps = 0.08;              <span class="comment">% allowed errors</span>
+</pre><p>The default values are <tt>vlPasses = 1</tt>, <tt>vlDist = 2</tt>, <tt>vlTresh = 2</tt> and <tt>vlEps = 0.15</tt>.</p><p><b>Note:</b> All parameters can be either scalars or vectors. If scalars, they are applied to all passes. If a parameter is a vector, the parameter is different for each pass of PIV evaluation.</p><h2>Vector smoothing settings<a name="13"></a></h2><p>There are two methods, which can be used for smoothing: floating gaussian filter, and subroutine <tt>smoothn.m</tt> written by Damien Garcia. The setting is the following:</p><pre class="codeinput">pivPar.smMethod = <span class="string">'smoothn'</span>;  <span class="comment">% choose the method (possible values 'none', 'Gauss', 'smoothn')</span>
+pivPar.smSigma = 0.1;         <span class="comment">% larger value means smoother results; NaN stays for automatic setting</span>
+<span class="comment">% pivPar.smSize = 5;          % size of the smoothing filter (applies only to</span>
+                              <span class="comment">% gaussian filter)</span>
+</pre><p>Default values are <tt>smMethod = 'smoothn'</tt> with <tt>smSigma = NaN</tt>.</p><h2>Set remaining parameters and run the analysis<a name="15"></a></h2><p>During evaluation, velocity magnitude will be shown, marking all location of spurious vectors by a dot. All other parameters are set to defaults.</p><pre class="codeinput"><span class="comment">% show velocity magnitude and location of invalid vectors during iteration</span>
+pivPar.qvPair = {<span class="string">'Umag'</span>,<span class="string">'invLoc'</span>};
+figure(1);
+<span class="comment">% set remaining parameters</span>
+[pivPar1, pivData] = pivParams(pivData,pivPar,<span class="string">'defaults'</span>);
+<span class="comment">% run the analysis</span>
+[pivData1] = pivAnalyzeImagePair(im1,im2,pivData,pivPar1);
+</pre><img vspace="5" hspace="5" src="example_03_Image_pair_advanced_01.png" alt=""> <p>Continue the analysis by additional two iterations:</p><pre class="codeinput"><span class="comment">% set parameters different to previous treatment</span>
+pivPar.iaSizeX = [24 24];     <span class="comment">% size of interrogation area in X</span>
+pivPar.iaStepX = [ 6  6];     <span class="comment">% grid spacing of velocity vectors in X</span>
+pivPar.vlPasses = 1;          <span class="comment">% number of validation passes</span>
+
+<span class="comment">% continue the iterations</span>
+figure(1);
+[pivPar2, pivData] = pivParams(pivData,pivPar,<span class="string">'defaults'</span>);
+[pivData2] = pivAnalyzeImagePair(im1,im2,pivData1,pivPar2);
+</pre><img vspace="5" hspace="5" src="example_03_Image_pair_advanced_02.png" alt=""> <h2>Visualize the velocity field<a name="17"></a></h2><p>Show a magnified detail of flow around the cylinder. Color of velocity vectors can be set differently for valid and replaced spurious vectors:</p><pre class="codeinput"><span class="comment">% velocity field after two iterations</span>
+figure(2);
+pivQuiver(pivData1,<span class="keyword">...</span>
+    <span class="string">'crop'</span>,[380,780,250,510],<span class="keyword">...</span><span class="comment">        % set cropping</span>
+    <span class="string">'Umag'</span>,<span class="keyword">...</span><span class="comment">                          % show background with magnitude</span>
+    <span class="string">'quiver'</span>,<span class="string">'selectStat'</span>,<span class="string">'valid'</span>,<span class="string">'linespec'</span>,<span class="string">'-k'</span>,<span class="keyword">...</span>
+                                   <span class="keyword">...</span><span class="comment">  % show quiver of valid vectors in black</span>
+    <span class="string">'quiver'</span>,<span class="string">'selectStat'</span>,<span class="string">'replaced'</span>,<span class="string">'linespec'</span>,<span class="string">'-w'</span>);
+                                   <span class="keyword">...</span><span class="comment">  % show quiver of replaced vectors in white</span>
+title(<span class="string">'Particle displacement (px) in after three iterations'</span>);
+xlabel(<span class="string">'position X (px)'</span>);
+ylabel(<span class="string">'position Y (px)'</span>);
+</pre><img vspace="5" hspace="5" src="example_03_Image_pair_advanced_03.png" alt=""> <pre class="codeinput"><span class="comment">% velocity field after five iterations</span>
+figure(3);
+pivQuiver(pivData2,<span class="keyword">...</span>
+    <span class="string">'crop'</span>,[380,780,250,510],<span class="keyword">...</span><span class="comment">        % set cropping</span>
+    <span class="string">'Umag'</span>,<span class="keyword">...</span><span class="comment">                          % show background with magnitude</span>
+    <span class="string">'quiver'</span>,<span class="string">'selectStat'</span>,<span class="string">'valid'</span>,<span class="string">'linespec'</span>,<span class="string">'-k'</span>,<span class="keyword">...</span>
+                                   <span class="keyword">...</span><span class="comment">  % show quiver of valid vectors in black</span>
+    <span class="string">'quiver'</span>,<span class="string">'selectStat'</span>,<span class="string">'replaced'</span>,<span class="string">'linespec'</span>,<span class="string">'-w'</span>);
+                                   <span class="keyword">...</span><span class="comment">  % show quiver of replaced vectors in white</span>
+title(<span class="string">'Particle displacement (px) after five iterations'</span>);
+xlabel(<span class="string">'position X (px)'</span>);
+ylabel(<span class="string">'position Y (px)'</span>);
+</pre><img vspace="5" hspace="5" src="example_03_Image_pair_advanced_04.png" alt=""> <pre class="codeinput"><span class="comment">% Get velocity profiles at x = 600...</span>
+y = (180:580)';
+x = 600 + zeros(size(y));
+u1 = interp2(pivData1.X,pivData1.Y,pivData1.U,x,y);
+u2 = interp2(pivData2.X,pivData2.Y,pivData2.U,x,y);
+<span class="comment">% ... and plot themplot velocity profile</span>
+figure(4);
+plot(u1,y,<span class="string">'-b'</span>,u2,y,<span class="string">'-r'</span>);
+title(<span class="string">'U profile at X = 6000 px'</span>);
+xlabel(<span class="string">'particle displacement U (px)'</span>);
+ylabel(<span class="string">'position Y (px)'</span>);
+legend(<span class="string">'3 iterations'</span>,<span class="string">'5 iterations'</span>);
+</pre><img vspace="5" hspace="5" src="example_03_Image_pair_advanced_05.png" alt=""> <p>In this example, we will show also the velocity components "as seen by the flow" (that is in a frame of reference moving together with the incoming air). For this purpose, compute the mean velocity in the right part of the velocity field, and when displaying the velocity, subtract it.</p><pre class="codeinput"><span class="comment">% Compute the mean velocity on the rigth of the image (mean velocity of incoming air)</span>
+Umean = mean(mean(pivData2.U(:,end-5:end-1)));
+Vmean = mean(mean(pivData2.V(:,end-5:end-1)));
+
+<span class="comment">% show U component</span>
+figure(5);
+pivQuiver(pivData2,<span class="keyword">...</span>
+    <span class="string">'crop'</span>,[-Inf,Inf,88,680],<span class="keyword">...</span>
+    <span class="string">'U'</span>,<span class="string">'subtractU'</span>,Umean);
+title(<span class="string">'Horizontal displacement U (px) in a flow around a cylinder (moving frame of reference)'</span>);
+xlabel(<span class="string">'position X (px)'</span>);
+ylabel(<span class="string">'position Y (px)'</span>);
+
+<span class="comment">% show V component</span>
+figure(6);
+pivQuiver(pivData2,<span class="keyword">...</span>
+    <span class="string">'crop'</span>,[-Inf,Inf,88,680],<span class="keyword">...</span>
+    <span class="string">'V'</span>,<span class="string">'subtractU'</span>,Vmean);
+title(<span class="string">'Vertical displacement V (px) in a flow around a cylinder (moving frame of reference)'</span>);
+xlabel(<span class="string">'position X (px)'</span>);
+ylabel(<span class="string">'position Y (px)'</span>);
+</pre><img vspace="5" hspace="5" src="example_03_Image_pair_advanced_06.png" alt=""> <img vspace="5" hspace="5" src="example_03_Image_pair_advanced_07.png" alt=""> <p>Note the Y coordinate is increasing in downward direction in PIVsuite, and hence also the velocity component V is positive for downward flow.</p><h2>Show cross-correlation level<a name="22"></a></h2><p>The value at the cross-correlation peak (CCP) is stored in the field <tt>ccPeak</tt> and can be displayed by <tt>pivQuiver</tt>. The CCP is lower in the cylinder wake, where the correlation is lost due to out-of-plane flow and strong velocity gradients, and also in the shadow of the cylinder.</p><pre class="codeinput"><span class="comment">% Show level of cross-correlation peak</span>
+figure(7);
+pivQuiver(pivData2,<span class="string">'ccPeak'</span>,<span class="string">'clipHi'</span>,1,<span class="string">'clipLo'</span>,0.3);
+title(<span class="string">'Maximum normalized cross-correlation (a.u.)'</span>);
+xlabel(<span class="string">'position X (px)'</span>);
+ylabel(<span class="string">'position Y (px)'</span>);
+</pre><img vspace="5" hspace="5" src="example_03_Image_pair_advanced_08.png" alt=""> <h2>Show detectability of cross-correlation peak<a name="23"></a></h2><p>The peak detactibility is the ratio of the primary cross-correlation level to the level of the secondary peak. The low detectability (close to one) indicated that there is not a clearly defined particle displacement, for which both images coincide. In this example, the detectability is low both in the cylinder wake and in the non-uniforly illuminated are top-rigth to the cylinder.</p><pre class="codeinput"><span class="comment">% Shot detectability of cross-correlation peak</span>
+figure(8);
+pivQuiver(pivData2,<span class="string">'ccDetect'</span>,<span class="string">'clipLo'</span>,1.3,<span class="string">'clipHi'</span>,3);
+title(<span class="string">'Cross-correlation peak detectability (a.u.)'</span>);
+xlabel(<span class="string">'position X (px)'</span>);
+ylabel(<span class="string">'position Y (px)'</span>);
+</pre><img vspace="5" hspace="5" src="example_03_Image_pair_advanced_09.png" alt=""> <p><b>Note:</b> The detectability can be shown only if <tt>ccMethod</tt> is set to <tt>'fft'</tt>.</p><p class="footer"><br><a href="http://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2013b</a><br></p></div><!--
+##### SOURCE BEGIN #####
+%% Example 03 - Advanced usage of PIVsuite
+% This example demonstrates the advanced usage of PIVsuite for obtaining the velocity field from a pair 
+% of images. Contrary to the previous example (|example_02_Image_pair_standard.m|), additional parameters 
+% (affecting vector validation, smoothing of the velocity field, window function) are set by user.
+%
+%% Define images to be treated and mask
+% Begining is the same as in |example_01...|:
+
+clear;
+pivPar = [];      % variable for settings
+pivData = [];     % variable for storing results
+
+im1 = ['..',filesep,'Data',filesep,'Test von Karman',filesep,'PIVlab_Karman_01.bmp'];
+im2 = ['..',filesep,'Data',filesep,'Test von Karman',filesep,'PIVlab_Karman_02.bmp'];
+imMask = ['..',filesep,'Data',filesep,'Test von Karman',filesep,'PIVlab_Karman_mask.png'];
+
+pivPar.imMask1 = imMask;      % mask for first image
+pivPar.imMask2 = imMask;      % mask for the second image
+
+%% Image preprocessing
+% The images treated in this example are not very homogenous. This can be improved by image preprocessing
+% using MinMax filter, which makes the images more uniform:
+
+pivPar.iaPreprocMethod = 'MinMax';  % include image preprocessing by local MinMax filter
+pivPar.iaMinMaxSize = 9;            % set kernel size of MinMax filter
+pivPar.iaMinMaxLevel = 16;          % set minimal level, below which the contrast is not improved 
+                                    
+%%
+% The |iaPreprocMethod| can have values |'none'| (default) and |'MinMax'|. In the latter case, local contrast
+% in the images are equalized using MinMax filter. Two other parameters are then applicable: |iaMinMaxSize|,
+% specifying the kernel size of the equalization filter, and |iaMinMaxLevel|, which defines the lower limit of
+% local contrast, below which it is not improvet anymore. These two parameters has default values |7| and
+% |16|, respectively.
+
+%% Interrogation grid and cross-correlation settings
+% Set the *size and spacing of interrogation areas* (number of elements defines number of passes):
+
+pivPar.iaSizeX = [24 24 24];     % size of interrogation area in X 
+pivPar.iaStepX = [24 12  6];     % grid spacing of velocity vectors in X 
+
+%%
+% If |iaSizeY| and |iaStepY| are not set, same values as for X will be used. Values do not need to be powers 
+% of 2.
+%
+%% 
+% Set the *windowing function*:
+
+pivPar.ccWindow = 'Gauss2';   % This filter is relatively narrow and will 
+                              % help measure velocities in middle of IA's
+                              % even for large IA'a
+%%
+% Possible values for |ccWindow| are |'uniform'|, |'Welch'|, |'palzer'|, |'Nogueira'|, |'Hanning'|,
+% |'Hanning2'|, |'Hanning4'|, |'Gauss'|, |'Gauss2'|  and |'Gauss4'|. Windows |'Hanning2'| and |'Hanning4'| are 
+% second and fourth power of the common Hanning window (thus narrower than |'Hanning'|). Similarly, |'Gauss2'|
+% and |'Gauss4'| are Gauss filters, but with width of 1/sqrt(2) and 1/2 of that of standard Gaussian window. 
+% The default value is |'Welch'|.
+%
+% Set the *cross-correlation method*:
+
+pivPar.ccMethod = 'fft';         
+
+%%
+% The parameter |ccMethod| can be either |'fft'| (cross-correlation computed using fast Fourrier transform) or
+% |'dcn'|(cross-correlation evaluated using convolution). The latter method is suitable for final terations,
+% as it is sligthly faster if the displacement is small. Default setting is |'fft'| for first iterations, and
+% |'dcn'| for final iterations. In this example, we use |'fft'| as we will examine the peak detectability (ths
+% is not possible with the |'dcn'| algorithm).
+
+%% Vector validation settings
+% Two validation steps are implemented. In the first step, interrogation areas with low value of
+% cross-correlation (compared to median cross-correlation) are rejected. The treshold is given by
+
+pivPar.vlMinCC = 0.3;      % reject all vectors with normalized 
+                           % cross-correlation smaller than 0.3 of median
+                           
+%%
+% By setting |pivPar.vlMinCC = 0|, this validation is skipped. The default value is |vlMinCC = 0.3|.
+%
+%%
+% In the second validation step, common floating-median filter is applied (see Westerweel, Exp in Fluids,
+% 2005). Contrary to the original filter, the validation can have several passes (spurious vvectors are not 
+% considered in vectors statistics in the next pass), and the size of neighbourhood can be also adjusted. The
+% validation step has the following parameters:
+
+pivPar.vlPasses = [1 1 2];        % number of passes
+pivPar.vlDist = 3 ;               % distance, to which vectors are included in the local
+                                  % statistics (vlDist = 2 stays for 5x5 vector neighborhood
+pivPar.vlTresh = 2;               % threshold value
+pivPar.vlEps = 0.08;              % allowed errors
+
+%%
+% The default values are |vlPasses = 1|, |vlDist = 2|, |vlTresh = 2| and |vlEps = 0.15|.
+%
+% *Note:* All parameters can be either scalars or vectors. If scalars, they are applied to all passes. If a
+% parameter is a vector, the parameter is different for each pass of PIV evaluation.
+%
+%% Vector smoothing settings
+% There are two methods, which can be used for smoothing: floating gaussian filter, and subroutine |smoothn.m|
+% written by Damien Garcia. The setting is the following:
+
+pivPar.smMethod = 'smoothn';  % choose the method (possible values 'none', 'Gauss', 'smoothn')
+pivPar.smSigma = 0.1;         % larger value means smoother results; NaN stays for automatic setting
+% pivPar.smSize = 5;          % size of the smoothing filter (applies only to 
+                              % gaussian filter)
+%%                              
+% Default values are |smMethod = 'smoothn'| with |smSigma = NaN|.
+%
+%% Set remaining parameters and run the analysis
+% During evaluation, velocity magnitude will be shown, marking all location of spurious vectors by a dot. All
+% other parameters are set to defaults.
+
+% show velocity magnitude and location of invalid vectors during iteration
+pivPar.qvPair = {'Umag','invLoc'};
+figure(1);
+% set remaining parameters
+[pivPar1, pivData] = pivParams(pivData,pivPar,'defaults');     
+% run the analysis 
+[pivData1] = pivAnalyzeImagePair(im1,im2,pivData,pivPar1);
+
+%%
+% Continue the analysis by additional two iterations:
+
+% set parameters different to previous treatment
+pivPar.iaSizeX = [24 24];     % size of interrogation area in X 
+pivPar.iaStepX = [ 6  6];     % grid spacing of velocity vectors in X 
+pivPar.vlPasses = 1;          % number of validation passes
+
+% continue the iterations
+figure(1);
+[pivPar2, pivData] = pivParams(pivData,pivPar,'defaults');
+[pivData2] = pivAnalyzeImagePair(im1,im2,pivData1,pivPar2);
+
+%% Visualize the velocity field
+% Show a magnified detail of flow around the cylinder. Color of velocity vectors can be set differently for 
+% valid and replaced spurious vectors:
+
+% velocity field after two iterations
+figure(2);
+pivQuiver(pivData1,...
+    'crop',[380,780,250,510],...        % set cropping
+    'Umag',...                          % show background with magnitude 
+    'quiver','selectStat','valid','linespec','-k',...              
+                                   ...  % show quiver of valid vectors in black 
+    'quiver','selectStat','replaced','linespec','-w');              
+                                   ...  % show quiver of replaced vectors in white 
+title('Particle displacement (px) in after three iterations');    
+xlabel('position X (px)');
+ylabel('position Y (px)');
+
+%%
+
+% velocity field after five iterations
+figure(3);
+pivQuiver(pivData2,...
+    'crop',[380,780,250,510],...        % set cropping
+    'Umag',...                          % show background with magnitude 
+    'quiver','selectStat','valid','linespec','-k',...              
+                                   ...  % show quiver of valid vectors in black 
+    'quiver','selectStat','replaced','linespec','-w');              
+                                   ...  % show quiver of replaced vectors in white 
+title('Particle displacement (px) after five iterations');    
+xlabel('position X (px)');
+ylabel('position Y (px)');
+
+%%
+
+% Get velocity profiles at x = 600...
+y = (180:580)';
+x = 600 + zeros(size(y));
+u1 = interp2(pivData1.X,pivData1.Y,pivData1.U,x,y);
+u2 = interp2(pivData2.X,pivData2.Y,pivData2.U,x,y);
+% ... and plot themplot velocity profile
+figure(4);
+plot(u1,y,'-b',u2,y,'-r');
+title('U profile at X = 6000 px');
+xlabel('particle displacement U (px)');
+ylabel('position Y (px)');
+legend('3 iterations','5 iterations');
+
+%%
+% In this example, we will show also the velocity components "as seen by the flow" (that is in a frame of 
+% reference moving together with the incoming air). For this purpose, compute the mean velocity in the right 
+% part of the velocity field, and when displaying the velocity, subtract it.
+
+% Compute the mean velocity on the rigth of the image (mean velocity of incoming air)
+Umean = mean(mean(pivData2.U(:,end-5:end-1)));
+Vmean = mean(mean(pivData2.V(:,end-5:end-1)));
+
+% show U component
+figure(5);
+pivQuiver(pivData2,...
+    'crop',[-Inf,Inf,88,680],...
+    'U','subtractU',Umean);
+title('Horizontal displacement U (px) in a flow around a cylinder (moving frame of reference)');    
+xlabel('position X (px)');
+ylabel('position Y (px)');
+
+% show V component
+figure(6);
+pivQuiver(pivData2,...
+    'crop',[-Inf,Inf,88,680],...
+    'V','subtractU',Vmean);
+title('Vertical displacement V (px) in a flow around a cylinder (moving frame of reference)');    
+xlabel('position X (px)');
+ylabel('position Y (px)');
+
+%%
+% Note the Y coordinate is increasing in downward direction in PIVsuite, and hence also the velocity component 
+% V is positive for downward flow. 
+
+%% Show cross-correlation level
+% The value at the cross-correlation peak (CCP) is stored in the field |ccPeak| and can be displayed by 
+% |pivQuiver|. The CCP is lower in the cylinder wake, where the correlation is lost due to out-of-plane flow 
+% and strong velocity gradients, and also in the shadow of the cylinder.
+
+% Show level of cross-correlation peak
+figure(7);
+pivQuiver(pivData2,'ccPeak','clipHi',1,'clipLo',0.3);
+title('Maximum normalized cross-correlation (a.u.)');    
+xlabel('position X (px)');
+ylabel('position Y (px)');
+
+%% Show detectability of cross-correlation peak
+% The peak detactibility is the ratio of the primary cross-correlation level to the level of the secondary
+% peak. The low detectability (close to one) indicated that there is not a clearly defined particle
+% displacement, for which both images coincide. In this example, the detectability is low both in the cylinder
+% wake and in the non-uniforly illuminated are top-rigth to the cylinder.
+
+% Shot detectability of cross-correlation peak
+figure(8);
+pivQuiver(pivData2,'ccDetect','clipLo',1.3,'clipHi',3);
+title('Cross-correlation peak detectability (a.u.)');    
+xlabel('position X (px)');
+ylabel('position Y (px)');
+
+%%
+% *Note:* The detectability can be shown only if |ccMethod| is set to |'fft'|.
+
+##### SOURCE END #####
+--></body></html>

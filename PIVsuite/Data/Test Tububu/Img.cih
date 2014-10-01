@@ -1,0 +1,113 @@
+#Camera Information Header
+Date : 2012/5/25
+Time : 14:00
+Camera Type : FASTCAM SA1.1 model 675K-M1
+Head Type : Unknown Child Device
+Camera ID : 0
+Camera Number : 0
+Head Number : 1
+Max Head Number : 1
+Scene Name : 
+User Defined Camera Name : Camera No.1
+Session Number : 
+Record Rate(fps) : 10000
+Shutter Speed(s) : 1/20000
+Trigger Mode : Start
+Original Total Frame : 10014
+Total Frame : 10001
+Start Frame : 0
+Correct Trigger Frame : 0
+Save Step : 1
+Image Width : 576
+Image Height : 992
+Color Type : Mono
+Color Bit : 8
+File Format : Bmp
+EffectiveBit Depth : 12
+EffectiveBit Side : Higher
+Comment Text : 
+Zero Frame : Exist
+Shutter Type2(nsec) : 49741
+Edge Enhance : 0
+Pre LUT Mode : DEF1
+Pre LUT Brightness : 0
+Pre LUT Contrast : 0
+Pre LUT Gain : 1.0
+Pre LUT Gamma : 1.00
+Pre LUT PosiNega : Posi
+DS Shutter : Value 0
+Not Use : 
+Not Use : 
+Not Use : 
+
+#Photron Fastcam Viewer Version Information:
+Saved Date : 2012/5/25
+Saved Time : 14:09
+PFV.exe : 3, 1, 9, 0
+1024PCIInst.exe : 1.1.0.0
+512PCIInst.exe : 1.1.0.0
+D1024PCI.dll : 1, 0, 2, 5
+D512PCI.dll : 1, 0, 1, 7
+DAPX.dll : 1, 0, 2, 0
+DAPXRS.dll : 1, 0, 4, 0
+DMC1.dll : 1, 0, 2, 6
+DMH4.dll : 1, 0, 3, 0
+DSA1.dll : 1, 0, 4, 2
+DSA2.dll : 1, 0, 2, 4
+DSA3.dll : 1, 0, 3, 9
+DSA5.dll : 1, 0, 1, 2
+DUL512.dll : 1, 0, 2, 3
+GEthLib.dll : 0, 1, 1, 6
+I1394.dll : 1, 0, 0, 5
+IGETHER.dll : 1, 0, 0, 7
+ijl15.dll : 1,51,12,44
+IOPTICAL.dll : 1, 0, 0, 5
+IPCI.dll : 1, 0, 0, 5
+ippcc-6.0.dll : 6,0,167,593
+ippccp8-6.0.dll : 6,0,167,593
+ippccpx-6.0.dll : 6,0,167,593
+ippccs8-6.0.dll : 6,0,167,593
+ippcct7-6.0.dll : 6,0,167,593
+ippccv8-6.0.dll : 6,0,167,593
+ippccw7-6.0.dll : 6,0,167,593
+ippcore-6.0.dll : 6,0,167,649
+ippi-6.0.dll : 6,0,167,684
+ippip8-6.0.dll : 6,0,167,684
+ippipx-6.0.dll : 6,0,167,684
+ippis8-6.0.dll : 6,0,167,684
+ippit7-6.0.dll : 6,0,167,684
+ippiv8-6.0.dll : 6,0,167,684
+ippiw7-6.0.dll : 6,0,167,684
+libguide40.dll : 20071022
+libiomp5md.dll : 20071022
+libpng13.dll : 1.2.12
+PDCLIB.dll : 1, 0, 5, 3
+PICLIB.dll : 1, 0, 2, 1
+PluginCamera.dll : 1.1.9.0
+PluginDataSave.dll : 1.1.9.0
+PluginFileView.dll : 1.1.9.0
+zlib1.dll : 1.2.3
+PluginAngle.pdll : 1.1.9.0
+PluginComm.pdll : 1.0.0.0
+PluginDistance.pdll : 1.1.9.0
+PluginHistogram.pdll : 1, 0, 4, 5
+
+#System Information:
+OS : Windows Vista Enterprise Edition Service Pack 1  (version 6.1 Build 7601)
+Memory : 4093MB RAM
+Processor : Intel(R) Xeon(R) CPU           E5405  @ 2.00GHz
+DirectX : DirectX 11
+
+#Device Information:
+Number of devices : 1
+
+#Device 1 (Current):
+Device Name : FASTCAM SA1.1 model 675K-M1
+Device ID : 010
+Interface : Gigabit Ethernet
+IP Address : 192.168.0.10
+Subnet Mask : 255.255.255.0
+Gateway Address : 0.0.0.0
+Firmware : 2.08
+
+END

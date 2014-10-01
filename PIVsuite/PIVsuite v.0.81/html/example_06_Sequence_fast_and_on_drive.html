@@ -1,0 +1,294 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>Example 06 - Standard treatment of image sequence</title><meta name="generator" content="MATLAB 8.2"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2014-03-13"><meta name="DC.source" content="example_06_Sequence_fast_and_on_drive.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img { margin-bottom:0px; } 
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, tt, code { font-size:12px; }
+pre { margin:0px 0px 20px; }
+pre.error { color:red; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><h1>Example 06 - Standard treatment of image sequence</h1><!--introduction--><p>This example demonstrates the standard way of treatment of a sequence of PIV images. The result of treatment is saved in a folder after processing each image pair. Before treatment of an image pair, the presence of result file is checked and the PIV analysis is carried out only if this file does not exist. If the file with results exists, the processing is skipped and results are read from the file. This allows to examine fastly results, which were processed previously.</p><p>Another aspect of this example is the fact that the velocity field evolves slowly compared to the recording speed of images, and hence the subsequent velocity fields are strongly correlated. This can be used for speeding up the processing. In standard treatment, the displacement is iterated in several passes, where the velocity field from previous pass is used to deform the images, and a correction to this velocity field is found by crosscorrelating the deformed images. In this example, the velocity field from previous image pair is used for image deformation, and only two final iterations are carried out for determining the actual velocity.</p><!--/introduction--><h2>Contents</h2><div><ul><li><a href="#1">Define image pairs to treat</a></li><li><a href="#2">Settings for processing the first image pair</a></li><li><a href="#3">Settings for processing subsequent image pairs</a></li><li><a href="#4">Running the analysis</a></li><li><a href="#5">Visualize the results</a></li></ul></div><h2>Define image pairs to treat<a name="1"></a></h2><p>Initialize the variable <tt>pivPar</tt>, in which parameters of PIV algorithm (such as interrogation area size) are defined. Initialize also variable <tt>pivData</tt>, to which results will be stored.</p><pre class="codeinput"><span class="comment">% Initialize variables</span>
+clear;
+pivPar = [];                                              <span class="comment">% variable for settings</span>
+pivData = [];                                             <span class="comment">% variable for storing results</span>
+imagePath = [<span class="string">'..'</span>,filesep,<span class="string">'Data'</span>,filesep,<span class="string">'Test Tububu'</span>];  <span class="comment">% folder with processed images</span>
+
+<span class="comment">% get list of images in the folder and sort them</span>
+aux = dir([imagePath, filesep, <span class="string">'*.bmp'</span>]);
+<span class="keyword">for</span> kk = 1:numel(aux), fileList{kk} = [imagePath, filesep, aux(kk).name]; <span class="keyword">end</span>   <span class="comment">%#ok&lt;SAGROW&gt;</span>
+fileList = sort(fileList);
+
+<span class="comment">% Define image pairs</span>
+pivPar.seqPairInterval = 1;     <span class="comment">% all image pairs will be processed in this example</span>
+pivPar.seqSeqDiff = 1;          <span class="comment">% the second image in each pair is one frame after the first image</span>
+[im1,im2] = pivCreateImageSequence(fileList,pivPar);
+</pre><h2>Settings for processing the first image pair<a name="2"></a></h2><p>These settings will be used only for processing of the first image pair:</p><pre class="codeinput">pivParInit.iaSizeX = [64 32 32 32 32];      <span class="comment">% interrogation area size for five passes</span>
+pivParInit.iaStepX = [32 16 12 12 12];      <span class="comment">% grid spacing for five passes</span>
+pivParInit.qvPair = {<span class="keyword">...</span><span class="comment">                    % define plot shown between iterations</span>
+    <span class="string">'Umag'</span>,<span class="string">'clipHi'</span>,3,<span class="keyword">...</span><span class="comment">                                 % plot displacement magnitude, clip to 3 px</span>
+    <span class="string">'quiver'</span>,<span class="string">'selectStat'</span>,<span class="string">'valid'</span>,<span class="string">'linespec'</span>,<span class="string">'-k'</span>,<span class="keyword">...</span><span class="comment">     % show valid vectors in black</span>
+    <span class="string">'quiver'</span>,<span class="string">'selectStat'</span>,<span class="string">'replaced'</span>,<span class="string">'linespec'</span>,<span class="string">'-w'</span>};    <span class="comment">% show replaced vectors in white</span>
+pivParInit = pivParams([],pivParInit,<span class="string">'defaults'</span>);   <span class="comment">% set defaults as if treating single image pair</span>
+</pre><h2>Settings for processing subsequent image pairs<a name="3"></a></h2><p>Subsequent image pairs will be trated with these settings:</p><pre class="codeinput">pivPar.iaSizeX = [32 32];                 <span class="comment">% IA size; carry only two iterations for subsequent image pairs</span>
+pivPar.iaStepX = [12 12];                 <span class="comment">% grid spacing</span>
+pivPar.anVelocityEst = <span class="string">'previousSmooth'</span>;  <span class="comment">% use smoothed velocity from previous image pair as velocity</span>
+                                          <span class="comment">% estimate for image deformation</span>
+pivPar.anOnDrive = true;                  <span class="comment">% files with results will be stored in an output folder</span>
+pivPar.anTargetPath = [imagePath,filesep,<span class="string">'pivOut'</span>];
+                                          <span class="comment">% directory for storing results</span>
+pivPar.anForceProcessing = false;         <span class="comment">% if false, only image pairs, for which no file with results is</span>
+            <span class="comment">% available, will be processed. Processing is skipped if file with results is available. If true,</span>
+            <span class="comment">% processing is carried out even if result file is present. (Set this parameter to true if all</span>
+            <span class="comment">% image pairs should be reprocessed, for example because of different setting of processing</span>
+            <span class="comment">% parameters).</span>
+
+pivPar.qvPair = {<span class="keyword">...</span><span class="comment">                      % define plot shown between iterations</span>
+    <span class="string">'Umag'</span>,<span class="string">'clipHi'</span>,3,<span class="keyword">...</span><span class="comment">                                 % plot displacement magnitude, clip to 3 px</span>
+    <span class="string">'quiver'</span>,<span class="string">'selectStat'</span>,<span class="string">'valid'</span>,<span class="string">'linespec'</span>,<span class="string">'-k'</span>,<span class="keyword">...</span><span class="comment">     % show valid vectors in black</span>
+    <span class="string">'quiver'</span>,<span class="string">'selectStat'</span>,<span class="string">'replaced'</span>,<span class="string">'linespec'</span>,<span class="string">'-w'</span>};    <span class="comment">% show replaced vectors in white</span>
+figure(1);
+<span class="comment">% Set all other parameters to defaults:</span>
+
+[pivPar, pivData] = pivParams(pivData,pivPar,<span class="string">'defaultsSeq'</span>);
+</pre><h2>Running the analysis<a name="4"></a></h2><p>For processing a sequence of image pairs, execute command <tt>pivAnalyeImageSequence</tt>. Note that two setting variables are used: <tt>pivPar</tt>, which contains settings for all image pairs, and <tt>pivParInit</tt>, which defines how the first image pair is treated. Using settings above, the velocity field obtained in the first image pair is used for initialization of PIV analysis of the second pair.</p><p>Treatment takes about 4 minutes (on my notebook made in 2013). Nevertheless, you can interrupt the treatment (Ctrl-C) and restart it; processing will continue by treating the first untreated image pair. Once all image pairs are treated, the PIVsuite only loads results of the treatment from files.</p><pre class="codeinput">[pivData] = pivAnalyzeImageSequence(im1,im2,pivData,pivPar,pivParInit);
+</pre><pre class="codeoutput">Checking presence of 40 output files... Finished in 0.01 s. Some files are missing. 
+Initialization: Analyzing first image pair... Accomplished in 10.02 s, last pass 2.45 s, Subpix failure 0.35 %, Median-test rejection 2.25 %
+Treating pair 1 of 39 (???)... Accomplished in 6.00 s, last pass 3.08 s, Subpix failure 0.32 %, Median-test rejection 3.09 %
+Treating pair 2 of 39 (???)... Accomplished in 5.02 s, last pass 2.41 s, Subpix failure 0.35 %, Median-test rejection 3.14 %
+Treating pair 3 of 39 (???)... Accomplished in 5.42 s, last pass 2.79 s, Subpix failure 0.46 %, Median-test rejection 3.25 %
+Treating pair 4 of 39 (???)... Accomplished in 5.46 s, last pass 2.79 s, Subpix failure 0.30 %, Median-test rejection 3.03 %
+Treating pair 5 of 39 (???)... Accomplished in 5.63 s, last pass 2.42 s, Subpix failure 0.21 %, Median-test rejection 2.82 %
+Treating pair 6 of 39 (???)... Accomplished in 5.02 s, last pass 2.38 s, Subpix failure 0.21 %, Median-test rejection 2.98 %
+Treating pair 7 of 39 (???)... Accomplished in 6.39 s, last pass 2.78 s, Subpix failure 0.27 %, Median-test rejection 2.66 %
+Treating pair 8 of 39 (???)... Accomplished in 5.79 s, last pass 2.96 s, Subpix failure 0.40 %, Median-test rejection 2.93 %
+Treating pair 9 of 39 (???)... Accomplished in 7.80 s, last pass 3.79 s, Subpix failure 0.51 %, Median-test rejection 3.60 %
+Treating pair 10 of 39 (???)... Results found (piv_Img000010_Img000011.mat). Skipping processing.
+Treating pair 11 of 39 (???)... Results found (piv_Img000011_Img000012.mat). Skipping processing.
+Treating pair 12 of 39 (???)... Results found (piv_Img000012_Img000013.mat). Skipping processing.
+Treating pair 13 of 39 (???)... Results found (piv_Img000013_Img000014.mat). Skipping processing.
+Treating pair 14 of 39 (???)... Results found (piv_Img000014_Img000015.mat). Skipping processing.
+Treating pair 15 of 39 (???)... Results found (piv_Img000015_Img000016.mat). Skipping processing.
+Treating pair 16 of 39 (???)... Results found (piv_Img000016_Img000017.mat). Skipping processing.
+Treating pair 17 of 39 (???)... Results found (piv_Img000017_Img000018.mat). Skipping processing.
+Treating pair 18 of 39 (???)... Results found (piv_Img000018_Img000019.mat). Skipping processing.
+Treating pair 19 of 39 (???)... Results found (piv_Img000019_Img000020.mat). Skipping processing.
+Treating pair 20 of 39 (???)... Results found (piv_Img000020_Img000021.mat). Skipping processing.
+Treating pair 21 of 39 (???)... Results found (piv_Img000021_Img000022.mat). Skipping processing.
+Treating pair 22 of 39 (???)... Results found (piv_Img000022_Img000023.mat). Skipping processing.
+Treating pair 23 of 39 (???)... Results found (piv_Img000023_Img000024.mat). Skipping processing.
+Treating pair 24 of 39 (???)... Results found (piv_Img000024_Img000025.mat). Skipping processing.
+Treating pair 25 of 39 (???)... Results found (piv_Img000025_Img000026.mat). Skipping processing.
+Treating pair 26 of 39 (???)... Results found (piv_Img000026_Img000027.mat). Skipping processing.
+Treating pair 27 of 39 (???)... Results found (piv_Img000027_Img000028.mat). Skipping processing.
+Treating pair 28 of 39 (???)... Results found (piv_Img000028_Img000029.mat). Skipping processing.
+Treating pair 29 of 39 (???)... Results found (piv_Img000029_Img000030.mat). Skipping processing.
+Treating pair 30 of 39 (???)... Results found (piv_Img000030_Img000031.mat). Skipping processing.
+Treating pair 31 of 39 (???)... Results found (piv_Img000031_Img000032.mat). Skipping processing.
+Treating pair 32 of 39 (???)... Results found (piv_Img000032_Img000033.mat). Skipping processing.
+Treating pair 33 of 39 (???)... Results found (piv_Img000033_Img000034.mat). Skipping processing.
+Treating pair 34 of 39 (???)... Results found (piv_Img000034_Img000035.mat). Skipping processing.
+Treating pair 35 of 39 (???)... Results found (piv_Img000035_Img000036.mat). Skipping processing.
+Treating pair 36 of 39 (???)... Results found (piv_Img000036_Img000037.mat). Skipping processing.
+Treating pair 37 of 39 (???)... Results found (piv_Img000037_Img000038.mat). Skipping processing.
+Treating pair 38 of 39 (???)... Results found (piv_Img000038_Img000039.mat). Skipping processing.
+Treating pair 39 of 39 (???)... Results found (piv_Img000039_Img000040.mat). Skipping processing.
+Replacing spurious velocity vectors... Finished in 0.07 s.
+</pre><img vspace="5" hspace="5" src="example_06_Sequence_fast_and_on_drive_01.png" alt=""> <h2>Visualize the results<a name="5"></a></h2><p>Show a movie:</p><pre class="codeinput">figure(2);
+<span class="keyword">for</span> kr = 1:3                                   <span class="comment">% repeat movie three times</span>
+    <span class="keyword">for</span> kt = 1:pivData.Nt
+        pivQuiver(pivData,<span class="string">'TimeSlice'</span>,kt,<span class="keyword">...</span><span class="comment">   % choose data and time to show</span>
+            <span class="string">'V'</span>,<span class="string">'clipLo'</span>,-1,<span class="string">'clipHi'</span>,3,<span class="keyword">...</span><span class="comment">   % vertical velocity,</span>
+            <span class="string">'quiver'</span>,<span class="string">'selectStat'</span>,<span class="string">'valid'</span>);    <span class="comment">% velocity vectors,</span>
+        drawnow;
+        pause(0.04);
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+</pre><img vspace="5" hspace="5" src="example_06_Sequence_fast_and_on_drive_02.png" alt=""> <p>Show the vertical profile of velocity RMS (sqrt(v'^2), averaged over X and time). (This is an example only; there are too few independent image pairs in this example to lead to reasonable statistics.)</p><pre class="codeinput">Vrms = zeros(size(pivData.Y,1),1);
+<span class="keyword">for</span> ky = 1:numel(Vrms)
+    Vrms(ky) = std(reshape(pivData.V(ky,:,:),pivData.Nt*pivData.Nx,1));
+<span class="keyword">end</span>
+figure(3);
+plot(Vrms,pivData.Y(:,1,1),<span class="string">'-b.'</span>);
+title(<span class="string">'Vertical evolution of velocity rms'</span>);
+xlabel(<span class="string">'V_{rms} (px)'</span>);
+ylabel(<span class="string">'Y (px)'</span>);
+set(gca,<span class="string">'YDir'</span>,<span class="string">'reverse'</span>);
+</pre><img vspace="5" hspace="5" src="example_06_Sequence_fast_and_on_drive_03.png" alt=""> <p><b>Note:</b> The velocity field <tt>pivData.U</tt> and <tt>pivData.V</tt> are 3D arrays. The first index refers to a row of velocity vectors (lowest index is the uppermost row). The second index refers to a column of vectors (lowest index is the left-most column). Last index refer to the image pair.</p><p class="footer"><br><a href="http://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2013b</a><br></p></div><!--
+##### SOURCE BEGIN #####
+%% Example 06 - Standard treatment of image sequence
+% This example demonstrates the standard way of treatment of a sequence of PIV images. The result of treatment
+% is saved in a folder after processing each image pair. Before treatment of an image pair, the presence of
+% result file is checked and the PIV analysis is carried out only if this file does not exist. If the file
+% with results exists, the processing is skipped and results are read from the file. This allows to examine
+% fastly results, which were processed previously.
+%
+% Another aspect of this example is the fact that the velocity field evolves slowly compared to the recording
+% speed of images, and hence the subsequent velocity fields are strongly correlated. This can be used for
+% speeding up the processing. In standard treatment, the displacement is iterated in several passes, where the
+% velocity field from previous pass is used to deform the images, and a correction to this velocity field is
+% found by crosscorrelating the deformed images. In this example, the velocity field from previous image pair
+% is used for image deformation, and only two final iterations are carried out for determining the actual
+% velocity.
+
+%% Define image pairs to treat
+% Initialize the variable |pivPar|, in which parameters of PIV algorithm (such as interrogation area size) are 
+% defined. Initialize also variable |pivData|, to which results will be stored.
+
+% Initialize variables
+clear;
+pivPar = [];                                              % variable for settings
+pivData = [];                                             % variable for storing results
+imagePath = ['..',filesep,'Data',filesep,'Test Tububu'];  % folder with processed images
+
+% get list of images in the folder and sort them
+aux = dir([imagePath, filesep, '*.bmp']);                 
+for kk = 1:numel(aux), fileList{kk} = [imagePath, filesep, aux(kk).name]; end   %#ok<SAGROW>
+fileList = sort(fileList);
+
+% Define image pairs
+pivPar.seqPairInterval = 1;     % all image pairs will be processed in this example
+pivPar.seqSeqDiff = 1;          % the second image in each pair is one frame after the first image
+[im1,im2] = pivCreateImageSequence(fileList,pivPar);
+
+%% Settings for processing the first image pair
+% These settings will be used only for processing of the first image pair:
+
+pivParInit.iaSizeX = [64 32 32 32 32];      % interrogation area size for five passes
+pivParInit.iaStepX = [32 16 12 12 12];      % grid spacing for five passes
+pivParInit.qvPair = {...                    % define plot shown between iterations
+    'Umag','clipHi',3,...                                 % plot displacement magnitude, clip to 3 px      
+    'quiver','selectStat','valid','linespec','-k',...     % show valid vectors in black
+    'quiver','selectStat','replaced','linespec','-w'};    % show replaced vectors in white
+pivParInit = pivParams([],pivParInit,'defaults');   % set defaults as if treating single image pair
+
+%% Settings for processing subsequent image pairs
+% Subsequent image pairs will be trated with these settings:
+
+pivPar.iaSizeX = [32 32];                 % IA size; carry only two iterations for subsequent image pairs
+pivPar.iaStepX = [12 12];                 % grid spacing 
+pivPar.anVelocityEst = 'previousSmooth';  % use smoothed velocity from previous image pair as velocity 
+                                          % estimate for image deformation
+pivPar.anOnDrive = true;                  % files with results will be stored in an output folder
+pivPar.anTargetPath = [imagePath,filesep,'pivOut'];
+                                          % directory for storing results
+pivPar.anForceProcessing = false;         % if false, only image pairs, for which no file with results is 
+            % available, will be processed. Processing is skipped if file with results is available. If true,
+            % processing is carried out even if result file is present. (Set this parameter to true if all
+            % image pairs should be reprocessed, for example because of different setting of processing
+            % parameters).
+            
+pivPar.qvPair = {...                      % define plot shown between iterations
+    'Umag','clipHi',3,...                                 % plot displacement magnitude, clip to 3 px      
+    'quiver','selectStat','valid','linespec','-k',...     % show valid vectors in black
+    'quiver','selectStat','replaced','linespec','-w'};    % show replaced vectors in white
+figure(1);
+% Set all other parameters to defaults:
+
+[pivPar, pivData] = pivParams(pivData,pivPar,'defaultsSeq');
+            
+%% Running the analysis
+% For processing a sequence of image pairs, execute command |pivAnalyeImageSequence|. Note that two setting
+% variables are used: |pivPar|, which contains settings for all image pairs, and |pivParInit|, which defines
+% how the first image pair is treated. Using settings above, the velocity field obtained in the first image
+% pair is used for initialization of PIV analysis of the second pair.
+%
+% Treatment takes about 4 minutes (on my notebook made in 2013). Nevertheless, you can interrupt the treatment
+% (Ctrl-C) and restart it; processing will continue by treating the first untreated image pair. Once all image
+% pairs are treated, the PIVsuite only loads results of the treatment from files.
+
+[pivData] = pivAnalyzeImageSequence(im1,im2,pivData,pivPar,pivParInit);
+
+%% Visualize the results
+% Show a movie:
+
+figure(2);
+for kr = 1:3                                   % repeat movie three times
+    for kt = 1:pivData.Nt
+        pivQuiver(pivData,'TimeSlice',kt,...   % choose data and time to show
+            'V','clipLo',-1,'clipHi',3,...   % vertical velocity, 
+            'quiver','selectStat','valid');    % velocity vectors, 
+        drawnow;
+        pause(0.04);
+    end
+end
+
+%%
+% Show the vertical profile of velocity RMS (sqrt(v'^2), averaged over X and time). (This is an example only;
+% there are too few independent image pairs in this example to lead to reasonable statistics.)
+
+Vrms = zeros(size(pivData.Y,1),1);
+for ky = 1:numel(Vrms)
+    Vrms(ky) = std(reshape(pivData.V(ky,:,:),pivData.Nt*pivData.Nx,1));
+end
+figure(3);
+plot(Vrms,pivData.Y(:,1,1),'-b.');
+title('Vertical evolution of velocity rms');
+xlabel('V_{rms} (px)');
+ylabel('Y (px)');
+set(gca,'YDir','reverse');
+
+%%
+% *Note:* The velocity field |pivData.U| and |pivData.V| are 3D arrays. The first index refers to a row of
+% velocity vectors (lowest index is the uppermost row). The second index refers to a column of vectors
+% (lowest index is the left-most column). Last index refer to the image pair.
+
+##### SOURCE END #####
+--></body></html>

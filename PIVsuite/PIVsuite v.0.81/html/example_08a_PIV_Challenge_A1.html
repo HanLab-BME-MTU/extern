@@ -1,0 +1,408 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>Example 08a - Treating test case A1 from 3rd PIV Challenge</title><meta name="generator" content="MATLAB 8.2"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2014-03-19"><meta name="DC.source" content="example_08a_PIV_Challenge_A1.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img { margin-bottom:0px; } 
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, tt, code { font-size:12px; }
+pre { margin:0px 0px 20px; }
+pre.error { color:red; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><h1>Example 08a - Treating test case A1 from 3rd PIV Challenge</h1><!--introduction--><p>This case is essentially the same as example 07: The test case A1 from 3rd PIV challenge [ref. 6] is treated. Mean and rms velocities are computed, velocity PDF is determined and wavenumber spectra is calculated; these results can be compared to results shown in reference [6], Figs. 3a, 16, 18 and Table 12.</p><p>Another shown feature is the possibility to add iterations during the processing. Initially, the data are processed in four passes (with IA size 64x64, 32x32, 16x16 and 8x8 pixels). Additional pass (with 8x8 pixels interrogation size) are then performed. Effect of number of passes on velocity PDF and spectra is shown.</p><p><b>Reference:</b> [6] Stanislas, M., K. Okamoto, C. J. Kahler, J. Westerweel and F. Scarano, (2008): Main results of the third international PIV Challenge. Experiments in Fluids, vol. 45, pp. 27-71.</p><p><b>Instructions:</b></p><div><ol><li>Download images (case A2) from <a href="http://www.pivchallenge.org/pub05/A/A1.zip">PIVchallenge site</a>,</li><li>Unzip them to folder <tt>../Data/Test PIVChallenge3A1</tt>,</li><li>Run this example.</li></ol></div><!--/introduction--><h2>Contents</h2><div><ul><li><a href="#1">Define image pairs to treat</a></li><li><a href="#2">Running first 4 passesof PIV processing</a></li><li><a href="#3">Running additional (5th) pass of PIV processing</a></li><li><a href="#4">Show results</a></li></ul></div><h2>Define image pairs to treat<a name="1"></a></h2><p>Initialize the variable <tt>pivPar</tt>. Get list of image files.</p><pre class="codeinput"><span class="comment">% Initialize variables</span>
+clear;
+pivPar = [];                                              <span class="comment">% variable for settings</span>
+imagePath = [<span class="string">'..'</span>,filesep,<span class="string">'Data'</span>,filesep,<span class="string">'Test PIVChallenge3A1'</span>];  <span class="comment">% folder with processed images</span>
+
+<span class="keyword">try</span>
+    <span class="comment">% get list of "A" images</span>
+    aux = dir([imagePath, filesep, <span class="string">'*a.tif'</span>]);
+    <span class="keyword">for</span> kk = 1:numel(aux), fileList{kk} = [imagePath, filesep, aux(kk).name]; <span class="keyword">end</span>   <span class="comment">%#ok&lt;SAGROW&gt;</span>
+    im1 = sort(fileList);
+
+    <span class="comment">% get list of "B" images</span>
+    aux = dir([imagePath, filesep, <span class="string">'*b.tif'</span>]);
+    <span class="keyword">for</span> kk = 1:numel(aux), fileList{kk} = [imagePath, filesep, aux(kk).name]; <span class="keyword">end</span>   <span class="comment">%#ok&lt;SAGROW&gt;</span>
+    im2 = sort(fileList);
+<span class="keyword">catch</span>
+    <span class="comment">% if error on loading images, probably images were not downloaded. Give a message.</span>
+    error([<span class="string">'No images found. Please, download images (case A1) from http://www.pivchallenge.org/pub05/A/A1.zip, '</span><span class="keyword">...</span>
+        <span class="string">'unzip them and place them to folder ../Data/Test PIVChallenge3A1.'</span>]);
+<span class="keyword">end</span>
+</pre><h2>Running first 4 passesof PIV processing<a name="2"></a></h2><p>First, image pairs will be treated with 3-pass PIV with decreasing size of interrogation area and spacing of interrogation grid. Set the corresponding parameters:</p><pre class="codeinput">pivPar.iaSizeX = [64 32 16  8];           <span class="comment">% interrogation area size for three passes</span>
+pivPar.iaStepX = [32 16  8  4];           <span class="comment">% grid spacing for three passes</span>
+pivPar.anVelocityEst = <span class="string">'none'</span>;            <span class="comment">% iterate each image pair zero</span>
+pivPar.anOnDrive = true;                  <span class="comment">% files with results will be stored in an output folder</span>
+pivPar.anForceProcessing = false;         <span class="comment">% if false, only image pairs, for which no file with results is</span>
+        <span class="comment">% available, will be processed. Processing is skipped if file with results is available. If true,</span>
+        <span class="comment">% processing is carried out even if result file is present. (Set this parameter to true if all image</span>
+        <span class="comment">% pairs should be reprocessed, for example because of different setting of processing parameters).</span>
+pivPar.anTargetPath = [imagePath,filesep,<span class="string">'pivOut1'</span>];   <span class="comment">% folder for storing results of first three passes</span>
+pivPar.qvPair = {<span class="string">'U'</span>,<span class="string">'clipLo'</span>,-0.20,<span class="string">'clipHi'</span>,0.20,<span class="keyword">...</span>
+    <span class="string">'invLoc'</span>};                            <span class="comment">% plot locations of invalid velocity vectors</span>
+figure(1);
+[pivPar1] = pivParams([],pivPar,<span class="string">'defaultsSeq'</span>);
+
+<span class="comment">% Run the analysis now</span>
+[pivData1] = pivAnalyzeImageSequence(im1,im2,[],pivPar1);
+</pre><pre class="codeoutput">Checking presence of 101 output files... Finished in 0.03 s. All required files found.
+ Reading results from pivSeq_A1000_a_A1000_b_A1001_a_A1099_b.mat. This will take a while (in my Matlab, Ctrl+C does not work at this stage)... Finished in 2.84 s. 
+</pre><h2>Running additional (5th) pass of PIV processing<a name="3"></a></h2><p>Images will be processed with two additional passes, during which the interrogation area size is kept at 16x16 pixels and grid spacing at 8x8. Results will be stored in another variable, and files will be placed in different folder.</p><pre class="codeinput">pivPar.iaSizeX = [ 8];              <span class="comment">% interrogation area size for fourth and fifth pass</span>
+pivPar.iaStepX = [ 4];              <span class="comment">% grid spacing</span>
+pivPar.anVelocityEst = <span class="string">'pivData'</span>;   <span class="comment">% use velocity data stored in pivData as velocity estimate used for image</span>
+                                    <span class="comment">% deformation. By this setting, results of previous passes are transfered</span>
+                                    <span class="comment">% to additional passses.</span>
+pivPar.ccMethod = <span class="string">'dcn'</span>;            <span class="comment">% set cross-correlation method to direct convolution (faster than default</span>
+                                    <span class="comment">% FFT, if displacements are small, which is the case of final passes)</span>
+pivPar.anTargetPath = [imagePath,filesep,<span class="string">'pivOut2'</span>]; <span class="comment">% set output folder different than that for first 16x16 px</span>
+pivPar.qvPair = {<span class="string">'U'</span>,<span class="string">'clipLo'</span>,-0.20,<span class="string">'clipHi'</span>,0.20};
+figure(1);
+[pivPar2] = pivParams([],pivPar,<span class="string">'defaultsSeq'</span>);
+
+<span class="comment">% Run the analysis now. Note that pivData1 (results of first three passes) are an input variable.</span>
+[pivData2] = pivAnalyzeImageSequence(im1,im2,pivData1,pivPar2);
+</pre><pre class="codeoutput">Checking presence of 101 output files... Finished in 0.03 s. All required files found.
+ Reading results from pivSeq_A1000_a_A1000_b_A1001_a_A1099_b.mat. This will take a while (in my Matlab, Ctrl+C does not work at this stage)... Finished in 2.69 s. 
+</pre><h2>Show results<a name="4"></a></h2><p>First, samples of the velocity field are shown</p><pre class="codeinput">N1 = numel(pivData1.U);
+N2 = numel(pivData2.U);
+Nt = size(pivData2.U,3);
+<span class="comment">% figure(1);</span>
+<span class="keyword">for</span> kk=1:10:Nt
+    hold <span class="string">off</span>;
+    pivQuiver(pivData2,<span class="string">'timeSlice'</span>,kk,<span class="keyword">...</span>
+        <span class="string">'U'</span>,<span class="string">'clipLo'</span>,-0.2,<span class="string">'clipHi'</span>,0.2);
+    title(<span class="string">'Background: U_{mag}. Quiver: velocity (black: valid, white: replaced)'</span>);
+<span class="keyword">end</span>
+</pre><img vspace="5" hspace="5" src="example_08a_PIV_Challenge_A1_01.png" alt=""> <p>Compute the mean and rms velocities, display then and compare them to the reference values.</p><pre class="codeinput"><span class="comment">% Statistics for the velocity fields after 4 passes:</span>
+meanU1 = mean(reshape(pivData1.U,N1,1));
+meanV1 = mean(reshape(pivData1.V,N1,1));
+stdU1 = std(reshape(pivData1.U,N1,1));
+stdV1 = std(reshape(pivData1.V,N1,1));
+
+<span class="comment">% Statistics for the velocity fields after 5th pass:</span>
+meanU2 = mean(reshape(pivData2.U,N2,1));
+meanV2 = mean(reshape(pivData2.V,N2,1));
+stdU2 = std(reshape(pivData2.U,N2,1));
+stdV2 = std(reshape(pivData2.V,N2,1));
+
+<span class="comment">% Print results:</span>
+fprintf(<span class="string">'\nStatistics (8x8 px, 1 pass):   mean(U) = %+6.4f, mean(V) = %+6.4f, std(U) = %+6.4f, std(V) = %+6.4f\n'</span>,<span class="keyword">...</span>
+    meanU1,-meanV1,stdU1,stdV1);
+fprintf(<span class="string">'Statistics (8x8 px, 2 passes): mean(U) = %+6.4f, mean(V) = %+6.4f, std(U) = %+6.4f, std(V) = %+6.4f\n'</span>,<span class="keyword">...</span>
+    meanU2,-meanV2,stdU2,stdV2);
+fprintf(<span class="string">'Reference:             mean(U) = %+6.4f, mean(V) = %+6.4f, std(U) = %+6.4f, std(V) = %+6.4f\n'</span>,<span class="keyword">...</span>
+    0,0,0.0625,0.0626);
+</pre><pre class="codeoutput">
+Statistics (8x8 px, 1 pass):   mean(U) = -0.0000, mean(V) = -0.0000, std(U) = +0.0571, std(V) = +0.0571
+Statistics (8x8 px, 2 passes): mean(U) = -0.0000, mean(V) = -0.0000, std(U) = +0.0503, std(V) = +0.0503
+Reference:             mean(U) = +0.0000, mean(V) = +0.0000, std(U) = +0.0625, std(V) = +0.0626
+</pre><p>Compute histogram of u' and show it</p><pre class="codeinput"><span class="comment">% define bin range of histogram</span>
+binranges = (-0.4:0.01:0.4)';
+
+<span class="comment">% compute and normalize histogram</span>
+bincounts1 = histc(reshape(pivData1.U-meanU1,N1,1),binranges);
+bincounts1 = bincounts1/(sum(bincounts1)*(binranges(2)-binranges(1)));
+bincounts2 = histc(reshape(pivData2.U-meanU2,N2,1),binranges);
+bincounts2 = bincounts2/(sum(bincounts2)*(binranges(2)-binranges(1)));
+
+<span class="comment">% display it</span>
+figure(2);
+plot(binranges,bincounts1,<span class="string">'-r'</span>,binranges,bincounts2,<span class="string">'-k'</span>);
+legend(<span class="string">'8x8 px 1 pass'</span>,<span class="string">'8x8 px, 2 passes'</span>);
+xlabel(<span class="string">'displacement U (px)'</span>);
+ylabel(<span class="string">'PDF (a.u.)'</span>);
+title(<span class="string">'Velocity PDF - compare to Fig. 11 in [6]'</span>);
+</pre><img vspace="5" hspace="5" src="example_08a_PIV_Challenge_A1_02.png" alt=""> <p>Compute power spectra of u':</p><pre class="codeinput"><span class="comment">% Spectrum from the velocity field after 4 passes</span>
+uprime1 = pivData1.U-meanU1;     <span class="comment">% velocity difference from the mean velocity</span>
+uprime1 = uprime1(1:2:end,:,:);  <span class="comment">% reduce amount of velocity data</span>
+uspectra1 = zeros(size(uprime1,1)*size(uprime1,3),size(uprime1,2));
+<span class="comment">% Compute spectrum for every row of velocity data</span>
+<span class="keyword">for</span> ky = 1:size(uprime1,1)
+    <span class="keyword">for</span> kt = 1:size(uprime1,3)
+        uspectra1(kt+(ky-1)*size(uprime1,1),:) = abs(fft(uprime1(ky,:,kt))).^2;
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+<span class="comment">% compute mean spectrum</span>
+uspectra1 = mean(uspectra1,1);
+uspectra1 = uspectra1(1:floor(numel(uspectra1)/2));
+<span class="comment">% Determane wavenumber corresponding to the spectra</span>
+dk = 1/(pivData1.X(1,end,1)-pivData1.X(1,1,1));
+k1 = (0:(numel(uspectra1)-1))*dk;
+<span class="comment">% normalize spectrum</span>
+uspectra1 = uspectra1/sum(uspectra1) * std(reshape(uprime1,numel(uprime1),1),1)^2/(2*pi*dk) ;
+
+<span class="comment">% Spectrum from the velocity field after 5th pass</span>
+uprime2 = pivData2.U-meanU2;
+uprime2 = uprime2(1:4:end,:,:);  <span class="comment">% reduce amount of velocity data</span>
+uspectra2 = zeros(size(uprime2,1)*size(uprime2,3),size(uprime2,2));
+<span class="keyword">for</span> ky = 1:size(uprime2,1)
+    <span class="keyword">for</span> kt = 1:size(uprime2,3)
+        uspectra2(kt+(ky-1)*size(uprime2,1),:) = abs(fft(uprime2(ky,:,kt))).^2;
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+uspectra2 = mean(uspectra2,1);
+uspectra2 = uspectra2(1:floor(numel(uspectra2)/2));
+<span class="comment">% Determane wavenumber corresponding to the spectra</span>
+dk = 1/(pivData2.X(1,end,1)-pivData2.X(1,1,1));
+k2 = (0:(numel(uspectra2)-1))*dk;
+<span class="comment">% normalize spectrum</span>
+uspectra2 = uspectra2/sum(uspectra2) * std(reshape(uprime2,numel(uprime2),1),1)^2/(2*pi*dk) ;
+
+<span class="comment">% Display the spectra</span>
+figure(4);
+loglog(2*pi*k1,uspectra1,<span class="string">'-r'</span>,2*pi*k2,uspectra2,<span class="string">'-k'</span>);
+legend(<span class="string">'8x8 px 1 pass'</span>,<span class="string">'8x8 px, 2 passes'</span>);
+xlabel(<span class="string">'k_x (1/px)'</span>);
+ylabel(<span class="string">'E (a.u.)'</span>);
+xlim([5e-3,1]); ylim([1e-4,10]);
+title(<span class="string">'Velocity spectra - compare to Figs. 3a and 8 in [6]'</span>);
+</pre><img vspace="5" hspace="5" src="example_08a_PIV_Challenge_A1_03.png" alt=""> <p class="footer"><br><a href="http://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2013b</a><br></p></div><!--
+##### SOURCE BEGIN #####
+%% Example 08a - Treating test case A1 from 3rd PIV Challenge
+% This case is essentially the same as example 07: The test case A1 from 3rd PIV challenge [ref. 6] is
+% treated. Mean and rms velocities are computed, velocity PDF is determined and wavenumber spectra is
+% calculated; these results can be compared to results shown in reference [6], Figs. 3a, 16, 18 and Table 12.
+%
+% Another shown feature is the possibility to add iterations during the processing. Initially, the data are
+% processed in four passes (with IA size 64x64, 32x32, 16x16 and 8x8 pixels). Additional pass (with 8x8
+% pixels interrogation size) are then performed. Effect of number of passes on velocity PDF and spectra is
+% shown.
+%
+% *Reference:* [6] Stanislas, M., K. Okamoto, C. J. Kahler, J. Westerweel and F. Scarano, (2008): Main results
+% of the third international PIV Challenge. Experiments in Fluids, vol. 45, pp. 27-71.
+%
+% *Instructions:*
+%
+% # Download images (case A2) from <http://www.pivchallenge.org/pub05/A/A1.zip PIVchallenge site>,
+% # Unzip them to folder |../Data/Test PIVChallenge3A1|,
+% # Run this example.
+
+%% Define image pairs to treat
+% Initialize the variable |pivPar|. Get list of image files.
+
+% Initialize variables
+clear;
+pivPar = [];                                              % variable for settings
+imagePath = ['..',filesep,'Data',filesep,'Test PIVChallenge3A1'];  % folder with processed images
+
+try
+    % get list of "A" images
+    aux = dir([imagePath, filesep, '*a.tif']);
+    for kk = 1:numel(aux), fileList{kk} = [imagePath, filesep, aux(kk).name]; end   %#ok<SAGROW>
+    im1 = sort(fileList);
+    
+    % get list of "B" images
+    aux = dir([imagePath, filesep, '*b.tif']);
+    for kk = 1:numel(aux), fileList{kk} = [imagePath, filesep, aux(kk).name]; end   %#ok<SAGROW>
+    im2 = sort(fileList);
+catch
+    % if error on loading images, probably images were not downloaded. Give a message.
+    error(['No images found. Please, download images (case A1) from http://www.pivchallenge.org/pub05/A/A1.zip, '...
+        'unzip them and place them to folder ../Data/Test PIVChallenge3A1.']);
+end
+
+%% Running first 4 passesof PIV processing
+% First, image pairs will be treated with 3-pass PIV with decreasing size of interrogation area and spacing of
+% interrogation grid. Set the corresponding parameters:
+
+pivPar.iaSizeX = [64 32 16  8];           % interrogation area size for three passes
+pivPar.iaStepX = [32 16  8  4];           % grid spacing for three passes
+pivPar.anVelocityEst = 'none';            % iterate each image pair zero  
+pivPar.anOnDrive = true;                  % files with results will be stored in an output folder
+pivPar.anForceProcessing = false;         % if false, only image pairs, for which no file with results is 
+        % available, will be processed. Processing is skipped if file with results is available. If true,
+        % processing is carried out even if result file is present. (Set this parameter to true if all image
+        % pairs should be reprocessed, for example because of different setting of processing parameters).
+pivPar.anTargetPath = [imagePath,filesep,'pivOut1'];   % folder for storing results of first three passes
+pivPar.qvPair = {'U','clipLo',-0.20,'clipHi',0.20,...
+    'invLoc'};                            % plot locations of invalid velocity vectors
+figure(1);
+[pivPar1] = pivParams([],pivPar,'defaultsSeq');
+            
+% Run the analysis now
+[pivData1] = pivAnalyzeImageSequence(im1,im2,[],pivPar1);
+
+
+%% Running additional (5th) pass of PIV processing
+% Images will be processed with two additional passes, during which the interrogation area size is kept at
+% 16x16 pixels and grid spacing at 8x8. Results will be stored in another variable, and files will be placed
+% in different folder.
+
+pivPar.iaSizeX = [ 8];              % interrogation area size for fourth and fifth pass
+pivPar.iaStepX = [ 4];              % grid spacing 
+pivPar.anVelocityEst = 'pivData';   % use velocity data stored in pivData as velocity estimate used for image 
+                                    % deformation. By this setting, results of previous passes are transfered
+                                    % to additional passses.
+pivPar.ccMethod = 'dcn';            % set cross-correlation method to direct convolution (faster than default
+                                    % FFT, if displacements are small, which is the case of final passes)
+pivPar.anTargetPath = [imagePath,filesep,'pivOut2']; % set output folder different than that for first 16x16 px
+pivPar.qvPair = {'U','clipLo',-0.20,'clipHi',0.20};
+figure(1);
+[pivPar2] = pivParams([],pivPar,'defaultsSeq');
+
+% Run the analysis now. Note that pivData1 (results of first three passes) are an input variable.
+[pivData2] = pivAnalyzeImageSequence(im1,im2,pivData1,pivPar2);
+
+%% Show results
+% First, samples of the velocity field are shown
+N1 = numel(pivData1.U);
+N2 = numel(pivData2.U);
+Nt = size(pivData2.U,3);
+% figure(1);
+for kk=1:10:Nt
+    hold off;
+    pivQuiver(pivData2,'timeSlice',kk,...
+        'U','clipLo',-0.2,'clipHi',0.2);
+    title('Background: U_{mag}. Quiver: velocity (black: valid, white: replaced)');
+end
+
+%% 
+% Compute the mean and rms velocities, display then and compare them to the reference values.
+
+% Statistics for the velocity fields after 4 passes:
+meanU1 = mean(reshape(pivData1.U,N1,1));
+meanV1 = mean(reshape(pivData1.V,N1,1));
+stdU1 = std(reshape(pivData1.U,N1,1));
+stdV1 = std(reshape(pivData1.V,N1,1));
+
+% Statistics for the velocity fields after 5th pass:
+meanU2 = mean(reshape(pivData2.U,N2,1));
+meanV2 = mean(reshape(pivData2.V,N2,1));
+stdU2 = std(reshape(pivData2.U,N2,1));
+stdV2 = std(reshape(pivData2.V,N2,1));
+
+% Print results:
+fprintf('\nStatistics (8x8 px, 1 pass):   mean(U) = %+6.4f, mean(V) = %+6.4f, std(U) = %+6.4f, std(V) = %+6.4f\n',...
+    meanU1,-meanV1,stdU1,stdV1);
+fprintf('Statistics (8x8 px, 2 passes): mean(U) = %+6.4f, mean(V) = %+6.4f, std(U) = %+6.4f, std(V) = %+6.4f\n',...
+    meanU2,-meanV2,stdU2,stdV2);
+fprintf('Reference:             mean(U) = %+6.4f, mean(V) = %+6.4f, std(U) = %+6.4f, std(V) = %+6.4f\n',...
+    0,0,0.0625,0.0626);
+
+%% 
+% Compute histogram of u' and show it
+
+% define bin range of histogram
+binranges = (-0.4:0.01:0.4)';
+
+% compute and normalize histogram
+bincounts1 = histc(reshape(pivData1.U-meanU1,N1,1),binranges);
+bincounts1 = bincounts1/(sum(bincounts1)*(binranges(2)-binranges(1)));
+bincounts2 = histc(reshape(pivData2.U-meanU2,N2,1),binranges);
+bincounts2 = bincounts2/(sum(bincounts2)*(binranges(2)-binranges(1)));
+
+% display it
+figure(2);
+plot(binranges,bincounts1,'-r',binranges,bincounts2,'-k');
+legend('8x8 px 1 pass','8x8 px, 2 passes');
+xlabel('displacement U (px)');
+ylabel('PDF (a.u.)');
+title('Velocity PDF - compare to Fig. 11 in [6]');
+
+%%
+% Compute power spectra of u':
+
+% Spectrum from the velocity field after 4 passes
+uprime1 = pivData1.U-meanU1;     % velocity difference from the mean velocity
+uprime1 = uprime1(1:2:end,:,:);  % reduce amount of velocity data
+uspectra1 = zeros(size(uprime1,1)*size(uprime1,3),size(uprime1,2));
+% Compute spectrum for every row of velocity data
+for ky = 1:size(uprime1,1)
+    for kt = 1:size(uprime1,3)
+        uspectra1(kt+(ky-1)*size(uprime1,1),:) = abs(fft(uprime1(ky,:,kt))).^2;
+    end
+end
+% compute mean spectrum
+uspectra1 = mean(uspectra1,1);
+uspectra1 = uspectra1(1:floor(numel(uspectra1)/2));
+% Determane wavenumber corresponding to the spectra
+dk = 1/(pivData1.X(1,end,1)-pivData1.X(1,1,1));
+k1 = (0:(numel(uspectra1)-1))*dk;
+% normalize spectrum
+uspectra1 = uspectra1/sum(uspectra1) * std(reshape(uprime1,numel(uprime1),1),1)^2/(2*pi*dk) ;
+
+% Spectrum from the velocity field after 5th pass
+uprime2 = pivData2.U-meanU2;
+uprime2 = uprime2(1:4:end,:,:);  % reduce amount of velocity data
+uspectra2 = zeros(size(uprime2,1)*size(uprime2,3),size(uprime2,2));
+for ky = 1:size(uprime2,1)
+    for kt = 1:size(uprime2,3)
+        uspectra2(kt+(ky-1)*size(uprime2,1),:) = abs(fft(uprime2(ky,:,kt))).^2;
+    end
+end
+uspectra2 = mean(uspectra2,1);
+uspectra2 = uspectra2(1:floor(numel(uspectra2)/2));
+% Determane wavenumber corresponding to the spectra
+dk = 1/(pivData2.X(1,end,1)-pivData2.X(1,1,1));
+k2 = (0:(numel(uspectra2)-1))*dk;
+% normalize spectrum
+uspectra2 = uspectra2/sum(uspectra2) * std(reshape(uprime2,numel(uprime2),1),1)^2/(2*pi*dk) ;
+
+% Display the spectra
+figure(4);
+loglog(2*pi*k1,uspectra1,'-r',2*pi*k2,uspectra2,'-k');
+legend('8x8 px 1 pass','8x8 px, 2 passes');
+xlabel('k_x (1/px)');
+ylabel('E (a.u.)');
+xlim([5e-3,1]); ylim([1e-4,10]);
+title('Velocity spectra - compare to Figs. 3a and 8 in [6]');
+
+
+##### SOURCE END #####
+--></body></html>

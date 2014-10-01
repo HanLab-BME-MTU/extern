@@ -1,0 +1,209 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>Example 01 - Simple usage of PIVsuite</title><meta name="generator" content="MATLAB 8.2"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2014-02-25"><meta name="DC.source" content="example_01_Image_pair_simple.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img { margin-bottom:0px; } 
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, tt, code { font-size:12px; }
+pre { margin:0px 0px 20px; }
+pre.error { color:red; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><h1>Example 01 - Simple usage of PIVsuite</h1><!--introduction--><p>This example demonstrates the simplest possible use of PIVsuite for obtaining the velocity field from a pair of images. For running this example, you need Matlab 2013a or higher.</p><!--/introduction--><h2>Contents</h2><div><ul><li><a href="#1">Before running PIVsuite</a></li><li><a href="#4">Default settings for PIV algorithm</a></li><li><a href="#5">Run the analysis</a></li><li><a href="#6">Visualize results</a></li><li><a href="#8">Extract data</a></li></ul></div><h2>Before running PIVsuite<a name="1"></a></h2><p>Initialize the variable <tt>pivPar</tt>, in which parameters of PIV algorithm (such as interrogation area size) are defined. Initialize also variable <tt>pivData</tt>, to which results will be stored.</p><pre class="codeinput">clear;
+pivPar = [];      <span class="comment">% variable for settings</span>
+pivData = [];     <span class="comment">% variable for storing results</span>
+</pre><p>Define image pair to be treated. The best way is to store image's paths and filenames:</p><pre class="codeinput">im1 = [<span class="string">'..'</span>,filesep,<span class="string">'Data'</span>,filesep,<span class="string">'Test von Karman'</span>,filesep,<span class="string">'PIVlab_Karman_01.bmp'</span>];
+im2 = [<span class="string">'..'</span>,filesep,<span class="string">'Data'</span>,filesep,<span class="string">'Test von Karman'</span>,filesep,<span class="string">'PIVlab_Karman_02.bmp'</span>];
+</pre><p>These images (kindly provided by William Thielicke) show a flow around a cylinder.</p><p>The velocity field should not be evaluated inside the cylinder. For this reason a <i>mask</i> is provided, and particle motion is not searched inside masked area. The mask is defined by an image file (black-and- white format) in this example. The masking image has pixel value of 0 for masked area (inside the cylinder), and 1 for unmasked area (flow region). Store the mask to pivPar variable.</p><pre class="codeinput">imMask = [<span class="string">'..'</span>,filesep,<span class="string">'Data'</span>,filesep,<span class="string">'Test von Karman'</span>,filesep,<span class="string">'PIVlab_Karman_mask.png'</span>];
+pivPar.imMask1 = imMask;      <span class="comment">% mask for first image</span>
+pivPar.imMask2 = imMask;      <span class="comment">% mask for the second image</span>
+</pre><h2>Default settings for PIV algorithm<a name="4"></a></h2><p>PIVsuite has many settings. Tell to PIV suite to use the default settings, which will work well in most cases:</p><pre class="codeinput">[pivPar, pivData] = pivParams(pivData,pivPar,<span class="string">'defaults'</span>);
+</pre><h2>Run the analysis<a name="5"></a></h2><p>For PIV analysis of an image pair, execute the following command (treatment migth take from seconds to few minutes):</p><pre class="codeinput">[pivData] = pivAnalyzeImagePair(im1,im2,pivData,pivPar);
+</pre><h2>Visualize results<a name="6"></a></h2><p>The variable pivData contains now results of the PIV analysis. Use command "pivQuiver" to show the velocity field. We will show a color background with velocity magnitude, overlaid by velocity vectors (<i>quiver plot</i>):</p><pre class="codeinput">figure(1);
+pivQuiver(pivData,<span class="keyword">...</span>
+    <span class="string">'Umag'</span>,<span class="keyword">...</span><span class="comment">                 % show background with magnitude</span>
+    <span class="string">'quiver'</span>,<span class="string">'linespec'</span>,<span class="string">'-k'</span>); <span class="comment">% show quiver vectors shown in black</span>
+title(<span class="string">'Particle displacement (px) in a flow around a cylinder'</span>);
+xlabel(<span class="string">'position X (px)'</span>);
+ylabel(<span class="string">'position Y (px)'</span>);
+</pre><img vspace="5" hspace="5" src="example_01_Image_pair_simple_01.png" alt=""> <p>Previous figure is too small. Show another figure, showing flow details around the cylinder:</p><pre class="codeinput">figure(2);
+pivQuiver(pivData,<span class="keyword">...</span>
+    <span class="string">'crop'</span>,[350,850,230,530],<span class="keyword">...</span><span class="comment"> % set cropping</span>
+    <span class="string">'Umag'</span>,<span class="keyword">...</span><span class="comment">                 % show background with magnitude</span>
+    <span class="string">'quiver'</span>,<span class="string">'linespec'</span>,<span class="string">'-k'</span>); <span class="comment">% show quiver vectors shown in black</span>
+title(<span class="string">'Particle displacement (px) in a flow around a cylinder (detail)'</span>);
+xlabel(<span class="string">'position X (px)'</span>);
+ylabel(<span class="string">'position Y (px)'</span>);
+</pre><img vspace="5" hspace="5" src="example_01_Image_pair_simple_02.png" alt=""> <h2>Extract data<a name="8"></a></h2><p>Velocity field is stored in variable <tt>pivData</tt> in the following fields:</p><div><ul><li><tt>X</tt> ... horizontal position of velocity vectors (in pixels from the left of the image)</li><li><tt>Y</tt> ... vertical position of velocity vectors (in pixels from the top of the image)</li><li><tt>U</tt> ... horizontal component of the velocity (particle displacement between the two images, in pixels, positive value pointing to the rigth)</li><li><tt>V</tt> ... vertical component of the velocity (particle displacement between the two images, in pixels, positive value pointing downward).</li></ul></div><p>Interpolate the data to show a velocity profile. In this example, a profile of U component is shown for <tt>X = 550</tt>:</p><pre class="codeinput"><span class="comment">% interpolate data for desired position</span>
+y = (230:530)';
+x = 550 + zeros(size(y));
+u = interp2(pivData.X,pivData.Y,pivData.U,x,y);
+
+<span class="comment">% plot velocity profile</span>
+figure(3);
+plot(u,y,<span class="string">'-b'</span>);
+title(<span class="string">'U profile at X = 550 px'</span>);
+xlabel(<span class="string">'particle displacement U (px)'</span>);
+ylabel(<span class="string">'position Y (px)'</span>);
+</pre><img vspace="5" hspace="5" src="example_01_Image_pair_simple_03.png" alt=""> <p>Get a number of invalid velocity vectors.</p><pre class="codeinput">fprintf(<span class="string">'Grid points: %d. Masked vectors: %d. Spurious vectors: %d. Computational time: %f\n'</span>,<span class="keyword">...</span>
+    pivData.N,pivData.maskedN,pivData.spuriousN,sum(pivData.infCompTime));
+</pre><pre class="codeoutput">Grid points: 11938. Masked vectors: 131. Spurious vectors: 522. Computational time: 15.509374
+</pre><p class="footer"><br><a href="http://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2013b</a><br></p></div><!--
+##### SOURCE BEGIN #####
+%% Example 01 - Simple usage of PIVsuite
+% This example demonstrates the simplest possible use of PIVsuite for obtaining the velocity field from a pair 
+% of images. For running this example, you need Matlab 2013a or higher.
+
+%% Before running PIVsuite
+% Initialize the variable |pivPar|, in which parameters of PIV algorithm (such as interrogation area size) are 
+% defined. Initialize also variable |pivData|, to which results will be stored.
+
+clear;
+pivPar = [];      % variable for settings
+pivData = [];     % variable for storing results
+
+%%
+% Define image pair to be treated. The best way is to store image's paths and filenames:
+
+im1 = ['..',filesep,'Data',filesep,'Test von Karman',filesep,'PIVlab_Karman_01.bmp'];
+im2 = ['..',filesep,'Data',filesep,'Test von Karman',filesep,'PIVlab_Karman_02.bmp'];
+
+%%
+% These images (kindly provided by William Thielicke) show a flow around a cylinder. 
+%
+% The velocity field should not be evaluated inside the cylinder. For this reason a _mask_ is provided, and 
+% particle motion is not searched inside masked area. The mask is defined by an image file (black-and-
+% white format) in this example. The masking image has pixel value of 0 for masked area (inside the cylinder),
+% and 1 for unmasked area (flow region). Store the mask to pivPar variable.
+
+imMask = ['..',filesep,'Data',filesep,'Test von Karman',filesep,'PIVlab_Karman_mask.png'];
+pivPar.imMask1 = imMask;      % mask for first image
+pivPar.imMask2 = imMask;      % mask for the second image
+
+%% Default settings for PIV algorithm
+% PIVsuite has many settings. Tell to PIV suite to use the default settings, which will work well in most
+% cases:
+
+[pivPar, pivData] = pivParams(pivData,pivPar,'defaults');     
+
+%% Run the analysis
+% For PIV analysis of an image pair, execute the following command (treatment migth take from seconds to few
+% minutes):
+
+[pivData] = pivAnalyzeImagePair(im1,im2,pivData,pivPar);
+
+%% Visualize results
+% The variable pivData contains now results of the PIV analysis. Use command "pivQuiver" to show the velocity 
+% field. We will show a color background with velocity magnitude, overlaid by velocity vectors (_quiver 
+% plot_):
+
+figure(1);
+pivQuiver(pivData,...
+    'Umag',...                 % show background with magnitude 
+    'quiver','linespec','-k'); % show quiver vectors shown in black 
+title('Particle displacement (px) in a flow around a cylinder');    
+xlabel('position X (px)');
+ylabel('position Y (px)');
+
+%%
+% Previous figure is too small. Show another figure, showing flow details around the cylinder:
+
+figure(2);
+pivQuiver(pivData,...
+    'crop',[350,850,230,530],... % set cropping
+    'Umag',...                 % show background with magnitude 
+    'quiver','linespec','-k'); % show quiver vectors shown in black 
+title('Particle displacement (px) in a flow around a cylinder (detail)');    
+xlabel('position X (px)');
+ylabel('position Y (px)');
+
+%% Extract data
+% Velocity field is stored in variable |pivData| in the following fields:
+%%
+%
+% * |X| ... horizontal position of velocity vectors (in pixels from the left of the image)
+% * |Y| ... vertical position of velocity vectors (in pixels from the top of the image)
+% * |U| ... horizontal component of the velocity (particle displacement between the two images, in pixels, 
+% positive value pointing to the rigth)
+% * |V| ... vertical component of the velocity (particle displacement between the two images, in pixels, 
+% positive value pointing downward).
+%%
+% Interpolate the data to show a velocity profile. In this example, a profile of U component is shown for |X =
+% 550|:
+
+% interpolate data for desired position
+y = (230:530)';
+x = 550 + zeros(size(y));
+u = interp2(pivData.X,pivData.Y,pivData.U,x,y);
+
+% plot velocity profile
+figure(3);
+plot(u,y,'-b');
+title('U profile at X = 550 px');
+xlabel('particle displacement U (px)');
+ylabel('position Y (px)');
+
+%%
+% Get a number of invalid velocity vectors.
+
+fprintf('Grid points: %d. Masked vectors: %d. Spurious vectors: %d. Computational time: %f\n',...
+    pivData.N,pivData.maskedN,pivData.spuriousN,sum(pivData.infCompTime));
+
+##### SOURCE END #####
+--></body></html>

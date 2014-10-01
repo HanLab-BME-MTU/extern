@@ -1,0 +1,579 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>Example 07 - Treating test case A3 from 3rd PIV Challenge</title><meta name="generator" content="MATLAB 8.2"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2014-03-17"><meta name="DC.source" content="example_07_PIV_Challange_A3.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img { margin-bottom:0px; } 
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, tt, code { font-size:12px; }
+pre { margin:0px 0px 20px; }
+pre.error { color:red; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><h1>Example 07 - Treating test case A3 from 3rd PIV Challenge</h1><!--introduction--><p>The test case A3 from 3rd PIV challenge [ref. 6] is treated. Mean and rms velocities are computed, velocity PDF is determined and wavenumber spectra is calculated; these results can be compared to results shown in reference [6], Figs. 3c, 16, 18 and Table 12.</p><p>Another shown feature is the possibility to add iterations during the processing. Initially, the data are processed with three passes (with IA size 64x64, 32x32 and 16x16 pixels). Additional two passes (with 16x16 pixels interrogation size) are then performed. Effect of number of passes on velocity PDF and spectra is shown.</p><p><b>Reference:</b> [6] Stanislas, M., K. Okamoto, C. J. Kahler, J. Westerweel and F. Scarano, (2008): Main results of the third international PIV Challenge. Experiments in Fluids, vol. 45, pp. 27-71.</p><!--/introduction--><h2>Contents</h2><div><ul><li><a href="#1">Define image pairs to treat</a></li><li><a href="#2">Running first 3 passes of PIV processing</a></li><li><a href="#3">Running additional 2 passes of PIV processing</a></li><li><a href="#4">Show results</a></li></ul></div><h2>Define image pairs to treat<a name="1"></a></h2><p>Initialize the variable <tt>pivPar</tt>. Get list of image files.</p><pre class="codeinput"><span class="comment">% Initialize variables</span>
+clear;
+pivPar = [];                                              <span class="comment">% variable for settings</span>
+imagePath = [<span class="string">'..'</span>,filesep,<span class="string">'Data'</span>,filesep,<span class="string">'Test PIVchallenge3A3'</span>];  <span class="comment">% folder with processed images</span>
+
+<span class="comment">% get list of "A" images</span>
+aux = dir([imagePath, filesep, <span class="string">'*a.tif'</span>]);
+<span class="keyword">for</span> kk = 1:numel(aux), fileList{kk} = [imagePath, filesep, aux(kk).name]; <span class="keyword">end</span>   <span class="comment">%#ok&lt;SAGROW&gt;</span>
+im1 = sort(fileList);
+
+<span class="comment">% get list of "B" images</span>
+aux = dir([imagePath, filesep, <span class="string">'*b.tif'</span>]);
+<span class="keyword">for</span> kk = 1:numel(aux), fileList{kk} = [imagePath, filesep, aux(kk).name]; <span class="keyword">end</span>   <span class="comment">%#ok&lt;SAGROW&gt;</span>
+im2 = sort(fileList);
+</pre><h2>Running first 3 passes of PIV processing<a name="2"></a></h2><p>First, image pairs will be treated with 3-pass PIV with decreasing size of interrogation area and spacing of interrogation grid. Set the corresponding parameters:</p><pre class="codeinput">pivPar.iaSizeX = [64 32 16];              <span class="comment">% interrogation area size for three passes</span>
+pivPar.iaStepX = [32 16  8];              <span class="comment">% grid spacing for three passes</span>
+pivPar.anVelocityEst = <span class="string">'none'</span>;            <span class="comment">% iterate each image pair zero</span>
+pivPar.anOnDrive = true;                  <span class="comment">% files with results will be stored in an output folder</span>
+pivPar.anForceProcessing = false;         <span class="comment">% if false, only image pairs, for which no file with results is</span>
+        <span class="comment">% available, will be processed. Processing is skipped if file with results is available. If true,</span>
+        <span class="comment">% processing is carried out even if result file is present. (Set this parameter to true if all image</span>
+        <span class="comment">% pairs should be reprocessed, for example because of different setting of processing parameters).</span>
+pivPar.anTargetPath = [imagePath,filesep,<span class="string">'pivOut1'</span>];   <span class="comment">% folder for storing results of first three passes</span>
+pivPar.qvPair = {<span class="keyword">...</span><span class="comment">                                   % define plot shown between iterations</span>
+    <span class="string">'Umag'</span>,<span class="keyword">...</span><span class="comment">                                         % plot displacement magnitude</span>
+    <span class="string">'quiver'</span>,<span class="string">'selectStat'</span>,<span class="string">'valid'</span>,<span class="string">'linespec'</span>,<span class="string">'-k'</span>,<span class="keyword">...</span><span class="comment">  % show valid vectors in black</span>
+    <span class="string">'quiver'</span>,<span class="string">'selectStat'</span>,<span class="string">'replaced'</span>,<span class="string">'linespec'</span>,<span class="string">'-w'</span>}; <span class="comment">% show replaced vectors in white</span>
+figure(1);
+[pivPar1] = pivParams([],pivPar,<span class="string">'defaultsSeq'</span>);
+
+<span class="comment">% Run the analysis now</span>
+[pivData1] = pivAnalyzeImageSequence(im1,im2,[],pivPar1);
+</pre><pre class="codeoutput">Checking presence of 101 output files... Finished in 0.02 s. Some files are missing. 
+Treating pair 1 of 100 (???)... Accomplished in 11.86 s, last pass 7.29 s, Subpix failure 0.00 %, Median-test rejection 0.00 %
+Treating pair 2 of 100 (???)... Accomplished in 11.36 s, last pass 7.30 s, Subpix failure 0.00 %, Median-test rejection 0.00 %
+Treating pair 3 of 100 (???)... Accomplished in 11.43 s, last pass 7.35 s, Subpix failure 0.00 %, Median-test rejection 0.00 %
+Treating pair 4 of 100 (???)... Accomplished in 12.15 s, last pass 7.71 s, Subpix failure 0.00 %, Median-test rejection 0.00 %
+Treating pair 5 of 100 (???)... Accomplished in 12.57 s, last pass 7.98 s, Subpix failure 0.00 %, Median-test rejection 0.00 %
+Treating pair 6 of 100 (???)... Results found (piv_A3005_a_A3005_b.mat). Skipping processing.
+Treating pair 7 of 100 (???)... Results found (piv_A3006_a_A3006_b.mat). Skipping processing.
+Treating pair 8 of 100 (???)... Results found (piv_A3007_a_A3007_b.mat). Skipping processing.
+Treating pair 9 of 100 (???)... Results found (piv_A3008_a_A3008_b.mat). Skipping processing.
+Treating pair 10 of 100 (???)... Results found (piv_A3009_a_A3009_b.mat). Skipping processing.
+Treating pair 11 of 100 (???)... Results found (piv_A3010_a_A3010_b.mat). Skipping processing.
+Treating pair 12 of 100 (???)... Results found (piv_A3011_a_A3011_b.mat). Skipping processing.
+Treating pair 13 of 100 (???)... Results found (piv_A3012_a_A3012_b.mat). Skipping processing.
+Treating pair 14 of 100 (???)... Results found (piv_A3013_a_A3013_b.mat). Skipping processing.
+Treating pair 15 of 100 (???)... Results found (piv_A3014_a_A3014_b.mat). Skipping processing.
+Treating pair 16 of 100 (???)... Results found (piv_A3015_a_A3015_b.mat). Skipping processing.
+Treating pair 17 of 100 (???)... Results found (piv_A3016_a_A3016_b.mat). Skipping processing.
+Treating pair 18 of 100 (???)... Results found (piv_A3017_a_A3017_b.mat). Skipping processing.
+Treating pair 19 of 100 (???)... Results found (piv_A3018_a_A3018_b.mat). Skipping processing.
+Treating pair 20 of 100 (???)... Results found (piv_A3019_a_A3019_b.mat). Skipping processing.
+Treating pair 21 of 100 (???)... Results found (piv_A3020_a_A3020_b.mat). Skipping processing.
+Treating pair 22 of 100 (???)... Results found (piv_A3021_a_A3021_b.mat). Skipping processing.
+Treating pair 23 of 100 (???)... Results found (piv_A3022_a_A3022_b.mat). Skipping processing.
+Treating pair 24 of 100 (???)... Results found (piv_A3023_a_A3023_b.mat). Skipping processing.
+Treating pair 25 of 100 (???)... Results found (piv_A3024_a_A3024_b.mat). Skipping processing.
+Treating pair 26 of 100 (???)... Results found (piv_A3025_a_A3025_b.mat). Skipping processing.
+Treating pair 27 of 100 (???)... Results found (piv_A3026_a_A3026_b.mat). Skipping processing.
+Treating pair 28 of 100 (???)... Results found (piv_A3027_a_A3027_b.mat). Skipping processing.
+Treating pair 29 of 100 (???)... Results found (piv_A3028_a_A3028_b.mat). Skipping processing.
+Treating pair 30 of 100 (???)... Results found (piv_A3029_a_A3029_b.mat). Skipping processing.
+Treating pair 31 of 100 (???)... Results found (piv_A3030_a_A3030_b.mat). Skipping processing.
+Treating pair 32 of 100 (???)... Results found (piv_A3031_a_A3031_b.mat). Skipping processing.
+Treating pair 33 of 100 (???)... Results found (piv_A3032_a_A3032_b.mat). Skipping processing.
+Treating pair 34 of 100 (???)... Results found (piv_A3033_a_A3033_b.mat). Skipping processing.
+Treating pair 35 of 100 (???)... Results found (piv_A3034_a_A3034_b.mat). Skipping processing.
+Treating pair 36 of 100 (???)... Results found (piv_A3035_a_A3035_b.mat). Skipping processing.
+Treating pair 37 of 100 (???)... Results found (piv_A3036_a_A3036_b.mat). Skipping processing.
+Treating pair 38 of 100 (???)... Results found (piv_A3037_a_A3037_b.mat). Skipping processing.
+Treating pair 39 of 100 (???)... Results found (piv_A3038_a_A3038_b.mat). Skipping processing.
+Treating pair 40 of 100 (???)... Results found (piv_A3039_a_A3039_b.mat). Skipping processing.
+Treating pair 41 of 100 (???)... Results found (piv_A3040_a_A3040_b.mat). Skipping processing.
+Treating pair 42 of 100 (???)... Results found (piv_A3041_a_A3041_b.mat). Skipping processing.
+Treating pair 43 of 100 (???)... Results found (piv_A3042_a_A3042_b.mat). Skipping processing.
+Treating pair 44 of 100 (???)... Results found (piv_A3043_a_A3043_b.mat). Skipping processing.
+Treating pair 45 of 100 (???)... Results found (piv_A3044_a_A3044_b.mat). Skipping processing.
+Treating pair 46 of 100 (???)... Results found (piv_A3045_a_A3045_b.mat). Skipping processing.
+Treating pair 47 of 100 (???)... Results found (piv_A3046_a_A3046_b.mat). Skipping processing.
+Treating pair 48 of 100 (???)... Results found (piv_A3047_a_A3047_b.mat). Skipping processing.
+Treating pair 49 of 100 (???)... Results found (piv_A3048_a_A3048_b.mat). Skipping processing.
+Treating pair 50 of 100 (???)... Results found (piv_A3049_a_A3049_b.mat). Skipping processing.
+Treating pair 51 of 100 (???)... Results found (piv_A3050_a_A3050_b.mat). Skipping processing.
+Treating pair 52 of 100 (???)... Results found (piv_A3051_a_A3051_b.mat). Skipping processing.
+Treating pair 53 of 100 (???)... Results found (piv_A3052_a_A3052_b.mat). Skipping processing.
+Treating pair 54 of 100 (???)... Results found (piv_A3053_a_A3053_b.mat). Skipping processing.
+Treating pair 55 of 100 (???)... Results found (piv_A3054_a_A3054_b.mat). Skipping processing.
+Treating pair 56 of 100 (???)... Results found (piv_A3055_a_A3055_b.mat). Skipping processing.
+Treating pair 57 of 100 (???)... Results found (piv_A3056_a_A3056_b.mat). Skipping processing.
+Treating pair 58 of 100 (???)... Results found (piv_A3057_a_A3057_b.mat). Skipping processing.
+Treating pair 59 of 100 (???)... Results found (piv_A3058_a_A3058_b.mat). Skipping processing.
+Treating pair 60 of 100 (???)... Results found (piv_A3059_a_A3059_b.mat). Skipping processing.
+Treating pair 61 of 100 (???)... Results found (piv_A3060_a_A3060_b.mat). Skipping processing.
+Treating pair 62 of 100 (???)... Results found (piv_A3061_a_A3061_b.mat). Skipping processing.
+Treating pair 63 of 100 (???)... Results found (piv_A3062_a_A3062_b.mat). Skipping processing.
+Treating pair 64 of 100 (???)... Results found (piv_A3063_a_A3063_b.mat). Skipping processing.
+Treating pair 65 of 100 (???)... Results found (piv_A3064_a_A3064_b.mat). Skipping processing.
+Treating pair 66 of 100 (???)... Results found (piv_A3065_a_A3065_b.mat). Skipping processing.
+Treating pair 67 of 100 (???)... Results found (piv_A3066_a_A3066_b.mat). Skipping processing.
+Treating pair 68 of 100 (???)... Results found (piv_A3067_a_A3067_b.mat). Skipping processing.
+Treating pair 69 of 100 (???)... Results found (piv_A3068_a_A3068_b.mat). Skipping processing.
+Treating pair 70 of 100 (???)... Results found (piv_A3069_a_A3069_b.mat). Skipping processing.
+Treating pair 71 of 100 (???)... Results found (piv_A3070_a_A3070_b.mat). Skipping processing.
+Treating pair 72 of 100 (???)... Results found (piv_A3071_a_A3071_b.mat). Skipping processing.
+Treating pair 73 of 100 (???)... Results found (piv_A3072_a_A3072_b.mat). Skipping processing.
+Treating pair 74 of 100 (???)... Results found (piv_A3073_a_A3073_b.mat). Skipping processing.
+Treating pair 75 of 100 (???)... Results found (piv_A3074_a_A3074_b.mat). Skipping processing.
+Treating pair 76 of 100 (???)... Results found (piv_A3075_a_A3075_b.mat). Skipping processing.
+Treating pair 77 of 100 (???)... Results found (piv_A3076_a_A3076_b.mat). Skipping processing.
+Treating pair 78 of 100 (???)... Results found (piv_A3077_a_A3077_b.mat). Skipping processing.
+Treating pair 79 of 100 (???)... Results found (piv_A3078_a_A3078_b.mat). Skipping processing.
+Treating pair 80 of 100 (???)... Results found (piv_A3079_a_A3079_b.mat). Skipping processing.
+Treating pair 81 of 100 (???)... Results found (piv_A3080_a_A3080_b.mat). Skipping processing.
+Treating pair 82 of 100 (???)... Results found (piv_A3081_a_A3081_b.mat). Skipping processing.
+Treating pair 83 of 100 (???)... Results found (piv_A3082_a_A3082_b.mat). Skipping processing.
+Treating pair 84 of 100 (???)... Results found (piv_A3083_a_A3083_b.mat). Skipping processing.
+Treating pair 85 of 100 (???)... Results found (piv_A3084_a_A3084_b.mat). Skipping processing.
+Treating pair 86 of 100 (???)... Results found (piv_A3085_a_A3085_b.mat). Skipping processing.
+Treating pair 87 of 100 (???)... Results found (piv_A3086_a_A3086_b.mat). Skipping processing.
+Treating pair 88 of 100 (???)... Results found (piv_A3087_a_A3087_b.mat). Skipping processing.
+Treating pair 89 of 100 (???)... Results found (piv_A3088_a_A3088_b.mat). Skipping processing.
+Treating pair 90 of 100 (???)... Results found (piv_A3089_a_A3089_b.mat). Skipping processing.
+Treating pair 91 of 100 (???)... Results found (piv_A3090_a_A3090_b.mat). Skipping processing.
+Treating pair 92 of 100 (???)... Results found (piv_A3091_a_A3091_b.mat). Skipping processing.
+Treating pair 93 of 100 (???)... Results found (piv_A3092_a_A3092_b.mat). Skipping processing.
+Treating pair 94 of 100 (???)... Results found (piv_A3093_a_A3093_b.mat). Skipping processing.
+Treating pair 95 of 100 (???)... Results found (piv_A3094_a_A3094_b.mat). Skipping processing.
+Treating pair 96 of 100 (???)... Results found (piv_A3095_a_A3095_b.mat). Skipping processing.
+Treating pair 97 of 100 (???)... Results found (piv_A3096_a_A3096_b.mat). Skipping processing.
+Treating pair 98 of 100 (???)... Results found (piv_A3097_a_A3097_b.mat). Skipping processing.
+Treating pair 99 of 100 (???)... Results found (piv_A3098_a_A3098_b.mat). Skipping processing.
+Treating pair 100 of 100 (???)... Results found (piv_A3099_a_A3099_b.mat). Skipping processing.
+Replacing spurious velocity vectors... Finished in 0.25 s.
+</pre><img vspace="5" hspace="5" src="example_07_PIV_Challange_A3_01.png" alt=""> <h2>Running additional 2 passes of PIV processing<a name="3"></a></h2><p>Images will be processed with two additional passes, during which the interrogation area size is kept at 16x16 pixels and grid spacing at 8x8. Results will be stored in another variable, and files will be placed in different folder.</p><pre class="codeinput">pivPar.iaSizeX = [16 16];           <span class="comment">% interrogation area size for fourth and fifth pass</span>
+pivPar.iaStepX = [ 8  8];           <span class="comment">% grid spacing</span>
+pivPar.anVelocityEst = <span class="string">'pivData'</span>;   <span class="comment">% use velocity data stored in pivData as velocity estimate used for image</span>
+                                    <span class="comment">% deformation. By this setting, results of previous passes are transfered</span>
+                                    <span class="comment">% to additional passses.</span>
+pivPar.ccMethod = <span class="string">'dcn'</span>;            <span class="comment">% set cross-correlation method to direct convolution (faster than default</span>
+                                    <span class="comment">% FFT, if displacements are small, which is the case of final passes)</span>
+pivPar.anTargetPath = [imagePath,filesep,<span class="string">'pivOut2'</span>];     <span class="comment">% set output folder different than that for first 3 passes</span>
+figure(1);
+[pivPar2] = pivParams([],pivPar,<span class="string">'defaultsSeq'</span>);
+
+<span class="comment">% Run the analysis now. Note that pivData1 (results of first three passes) are an input variable.</span>
+[pivData2] = pivAnalyzeImageSequence(im1,im2,pivData1,pivPar2);
+</pre><pre class="codeoutput">Checking presence of 101 output files... Finished in 0.03 s. Some files are missing. 
+Treating pair 1 of 100 (???)... Accomplished in 17.05 s, last pass 6.86 s, Subpix failure 0.00 %, Median-test rejection 0.00 %
+Treating pair 2 of 100 (???)... Accomplished in 14.90 s, last pass 6.80 s, Subpix failure 0.00 %, Median-test rejection 0.00 %
+Treating pair 3 of 100 (???)... Accomplished in 15.18 s, last pass 6.87 s, Subpix failure 0.00 %, Median-test rejection 0.00 %
+Treating pair 4 of 100 (???)... Accomplished in 16.89 s, last pass 7.10 s, Subpix failure 0.00 %, Median-test rejection 0.00 %
+Treating pair 5 of 100 (???)... Accomplished in 15.68 s, last pass 7.43 s, Subpix failure 0.00 %, Median-test rejection 0.00 %
+Treating pair 6 of 100 (???)... Results found (piv_A3005_a_A3005_b.mat). Skipping processing.
+Treating pair 7 of 100 (???)... Results found (piv_A3006_a_A3006_b.mat). Skipping processing.
+Treating pair 8 of 100 (???)... Results found (piv_A3007_a_A3007_b.mat). Skipping processing.
+Treating pair 9 of 100 (???)... Results found (piv_A3008_a_A3008_b.mat). Skipping processing.
+Treating pair 10 of 100 (???)... Results found (piv_A3009_a_A3009_b.mat). Skipping processing.
+Treating pair 11 of 100 (???)... Results found (piv_A3010_a_A3010_b.mat). Skipping processing.
+Treating pair 12 of 100 (???)... Results found (piv_A3011_a_A3011_b.mat). Skipping processing.
+Treating pair 13 of 100 (???)... Results found (piv_A3012_a_A3012_b.mat). Skipping processing.
+Treating pair 14 of 100 (???)... Results found (piv_A3013_a_A3013_b.mat). Skipping processing.
+Treating pair 15 of 100 (???)... Results found (piv_A3014_a_A3014_b.mat). Skipping processing.
+Treating pair 16 of 100 (???)... Results found (piv_A3015_a_A3015_b.mat). Skipping processing.
+Treating pair 17 of 100 (???)... Results found (piv_A3016_a_A3016_b.mat). Skipping processing.
+Treating pair 18 of 100 (???)... Results found (piv_A3017_a_A3017_b.mat). Skipping processing.
+Treating pair 19 of 100 (???)... Results found (piv_A3018_a_A3018_b.mat). Skipping processing.
+Treating pair 20 of 100 (???)... Results found (piv_A3019_a_A3019_b.mat). Skipping processing.
+Treating pair 21 of 100 (???)... Results found (piv_A3020_a_A3020_b.mat). Skipping processing.
+Treating pair 22 of 100 (???)... Results found (piv_A3021_a_A3021_b.mat). Skipping processing.
+Treating pair 23 of 100 (???)... Results found (piv_A3022_a_A3022_b.mat). Skipping processing.
+Treating pair 24 of 100 (???)... Results found (piv_A3023_a_A3023_b.mat). Skipping processing.
+Treating pair 25 of 100 (???)... Results found (piv_A3024_a_A3024_b.mat). Skipping processing.
+Treating pair 26 of 100 (???)... Results found (piv_A3025_a_A3025_b.mat). Skipping processing.
+Treating pair 27 of 100 (???)... Results found (piv_A3026_a_A3026_b.mat). Skipping processing.
+Treating pair 28 of 100 (???)... Results found (piv_A3027_a_A3027_b.mat). Skipping processing.
+Treating pair 29 of 100 (???)... Results found (piv_A3028_a_A3028_b.mat). Skipping processing.
+Treating pair 30 of 100 (???)... Results found (piv_A3029_a_A3029_b.mat). Skipping processing.
+Treating pair 31 of 100 (???)... Results found (piv_A3030_a_A3030_b.mat). Skipping processing.
+Treating pair 32 of 100 (???)... Results found (piv_A3031_a_A3031_b.mat). Skipping processing.
+Treating pair 33 of 100 (???)... Results found (piv_A3032_a_A3032_b.mat). Skipping processing.
+Treating pair 34 of 100 (???)... Results found (piv_A3033_a_A3033_b.mat). Skipping processing.
+Treating pair 35 of 100 (???)... Results found (piv_A3034_a_A3034_b.mat). Skipping processing.
+Treating pair 36 of 100 (???)... Results found (piv_A3035_a_A3035_b.mat). Skipping processing.
+Treating pair 37 of 100 (???)... Results found (piv_A3036_a_A3036_b.mat). Skipping processing.
+Treating pair 38 of 100 (???)... Results found (piv_A3037_a_A3037_b.mat). Skipping processing.
+Treating pair 39 of 100 (???)... Results found (piv_A3038_a_A3038_b.mat). Skipping processing.
+Treating pair 40 of 100 (???)... Results found (piv_A3039_a_A3039_b.mat). Skipping processing.
+Treating pair 41 of 100 (???)... Results found (piv_A3040_a_A3040_b.mat). Skipping processing.
+Treating pair 42 of 100 (???)... Results found (piv_A3041_a_A3041_b.mat). Skipping processing.
+Treating pair 43 of 100 (???)... Results found (piv_A3042_a_A3042_b.mat). Skipping processing.
+Treating pair 44 of 100 (???)... Results found (piv_A3043_a_A3043_b.mat). Skipping processing.
+Treating pair 45 of 100 (???)... Results found (piv_A3044_a_A3044_b.mat). Skipping processing.
+Treating pair 46 of 100 (???)... Results found (piv_A3045_a_A3045_b.mat). Skipping processing.
+Treating pair 47 of 100 (???)... Results found (piv_A3046_a_A3046_b.mat). Skipping processing.
+Treating pair 48 of 100 (???)... Results found (piv_A3047_a_A3047_b.mat). Skipping processing.
+Treating pair 49 of 100 (???)... Results found (piv_A3048_a_A3048_b.mat). Skipping processing.
+Treating pair 50 of 100 (???)... Results found (piv_A3049_a_A3049_b.mat). Skipping processing.
+Treating pair 51 of 100 (???)... Results found (piv_A3050_a_A3050_b.mat). Skipping processing.
+Treating pair 52 of 100 (???)... Results found (piv_A3051_a_A3051_b.mat). Skipping processing.
+Treating pair 53 of 100 (???)... Results found (piv_A3052_a_A3052_b.mat). Skipping processing.
+Treating pair 54 of 100 (???)... Results found (piv_A3053_a_A3053_b.mat). Skipping processing.
+Treating pair 55 of 100 (???)... Results found (piv_A3054_a_A3054_b.mat). Skipping processing.
+Treating pair 56 of 100 (???)... Results found (piv_A3055_a_A3055_b.mat). Skipping processing.
+Treating pair 57 of 100 (???)... Results found (piv_A3056_a_A3056_b.mat). Skipping processing.
+Treating pair 58 of 100 (???)... Results found (piv_A3057_a_A3057_b.mat). Skipping processing.
+Treating pair 59 of 100 (???)... Results found (piv_A3058_a_A3058_b.mat). Skipping processing.
+Treating pair 60 of 100 (???)... Results found (piv_A3059_a_A3059_b.mat). Skipping processing.
+Treating pair 61 of 100 (???)... Results found (piv_A3060_a_A3060_b.mat). Skipping processing.
+Treating pair 62 of 100 (???)... Results found (piv_A3061_a_A3061_b.mat). Skipping processing.
+Treating pair 63 of 100 (???)... Results found (piv_A3062_a_A3062_b.mat). Skipping processing.
+Treating pair 64 of 100 (???)... Results found (piv_A3063_a_A3063_b.mat). Skipping processing.
+Treating pair 65 of 100 (???)... Results found (piv_A3064_a_A3064_b.mat). Skipping processing.
+Treating pair 66 of 100 (???)... Results found (piv_A3065_a_A3065_b.mat). Skipping processing.
+Treating pair 67 of 100 (???)... Results found (piv_A3066_a_A3066_b.mat). Skipping processing.
+Treating pair 68 of 100 (???)... Results found (piv_A3067_a_A3067_b.mat). Skipping processing.
+Treating pair 69 of 100 (???)... Results found (piv_A3068_a_A3068_b.mat). Skipping processing.
+Treating pair 70 of 100 (???)... Results found (piv_A3069_a_A3069_b.mat). Skipping processing.
+Treating pair 71 of 100 (???)... Results found (piv_A3070_a_A3070_b.mat). Skipping processing.
+Treating pair 72 of 100 (???)... Results found (piv_A3071_a_A3071_b.mat). Skipping processing.
+Treating pair 73 of 100 (???)... Results found (piv_A3072_a_A3072_b.mat). Skipping processing.
+Treating pair 74 of 100 (???)... Results found (piv_A3073_a_A3073_b.mat). Skipping processing.
+Treating pair 75 of 100 (???)... Results found (piv_A3074_a_A3074_b.mat). Skipping processing.
+Treating pair 76 of 100 (???)... Results found (piv_A3075_a_A3075_b.mat). Skipping processing.
+Treating pair 77 of 100 (???)... Results found (piv_A3076_a_A3076_b.mat). Skipping processing.
+Treating pair 78 of 100 (???)... Results found (piv_A3077_a_A3077_b.mat). Skipping processing.
+Treating pair 79 of 100 (???)... Results found (piv_A3078_a_A3078_b.mat). Skipping processing.
+Treating pair 80 of 100 (???)... Results found (piv_A3079_a_A3079_b.mat). Skipping processing.
+Treating pair 81 of 100 (???)... Results found (piv_A3080_a_A3080_b.mat). Skipping processing.
+Treating pair 82 of 100 (???)... Results found (piv_A3081_a_A3081_b.mat). Skipping processing.
+Treating pair 83 of 100 (???)... Results found (piv_A3082_a_A3082_b.mat). Skipping processing.
+Treating pair 84 of 100 (???)... Results found (piv_A3083_a_A3083_b.mat). Skipping processing.
+Treating pair 85 of 100 (???)... Results found (piv_A3084_a_A3084_b.mat). Skipping processing.
+Treating pair 86 of 100 (???)... Results found (piv_A3085_a_A3085_b.mat). Skipping processing.
+Treating pair 87 of 100 (???)... Results found (piv_A3086_a_A3086_b.mat). Skipping processing.
+Treating pair 88 of 100 (???)... Results found (piv_A3087_a_A3087_b.mat). Skipping processing.
+Treating pair 89 of 100 (???)... Results found (piv_A3088_a_A3088_b.mat). Skipping processing.
+Treating pair 90 of 100 (???)... Results found (piv_A3089_a_A3089_b.mat). Skipping processing.
+Treating pair 91 of 100 (???)... Results found (piv_A3090_a_A3090_b.mat). Skipping processing.
+Treating pair 92 of 100 (???)... Results found (piv_A3091_a_A3091_b.mat). Skipping processing.
+Treating pair 93 of 100 (???)... Results found (piv_A3092_a_A3092_b.mat). Skipping processing.
+Treating pair 94 of 100 (???)... Results found (piv_A3093_a_A3093_b.mat). Skipping processing.
+Treating pair 95 of 100 (???)... Results found (piv_A3094_a_A3094_b.mat). Skipping processing.
+Treating pair 96 of 100 (???)... Results found (piv_A3095_a_A3095_b.mat). Skipping processing.
+Treating pair 97 of 100 (???)... Results found (piv_A3096_a_A3096_b.mat). Skipping processing.
+Treating pair 98 of 100 (???)... Results found (piv_A3097_a_A3097_b.mat). Skipping processing.
+Treating pair 99 of 100 (???)... Results found (piv_A3098_a_A3098_b.mat). Skipping processing.
+Treating pair 100 of 100 (???)... Results found (piv_A3099_a_A3099_b.mat). Skipping processing.
+Replacing spurious velocity vectors... Finished in 0.23 s.
+</pre><img vspace="5" hspace="5" src="example_07_PIV_Challange_A3_02.png" alt=""> <h2>Show results<a name="4"></a></h2><p>First, samples of the velocity field are shown</p><pre class="codeinput">N = numel(pivData2.U);
+Nt = size(pivData2.U,3);
+figure(1);
+<span class="keyword">for</span> kk=1:10:Nt
+    hold <span class="string">off</span>;
+    pivQuiver(pivData2,<span class="string">'timeSlice'</span>,kk,<span class="keyword">...</span>
+        <span class="string">'Umag'</span>,<span class="string">'clipLo'</span>,0,<span class="string">'clipHi'</span>,3,<span class="keyword">...</span>
+        <span class="string">'quiver'</span>,<span class="string">'linespec'</span>,<span class="string">'-k'</span>,<span class="string">'selectStat'</span>,<span class="string">'valid'</span>,<span class="keyword">...</span>
+        <span class="string">'quiver'</span>,<span class="string">'linespec'</span>,<span class="string">'-w'</span>,<span class="string">'selectStat'</span>,<span class="string">'replaced'</span>);
+    title(<span class="string">'Background: U_{mag}. Quiver: velocity (black: valid, white: replaced)'</span>);
+<span class="keyword">end</span>
+</pre><img vspace="5" hspace="5" src="example_07_PIV_Challange_A3_03.png" alt=""> <p>Compute the mean and rms velocities, display then and compare them to the reference values.</p><pre class="codeinput"><span class="comment">% Statistics for the velocity fields after 3 passes:</span>
+meanU1 = mean(reshape(pivData1.U,N,1));
+meanV1 = mean(reshape(pivData1.V,N,1));
+stdU1 = std(reshape(pivData1.U,N,1));
+stdV1 = std(reshape(pivData1.V,N,1));
+
+<span class="comment">% Statistics for the velocity fields after 5 passes:</span>
+meanU2 = mean(reshape(pivData2.U,N,1));
+meanV2 = mean(reshape(pivData2.V,N,1));
+stdU2 = std(reshape(pivData2.U,N,1));
+stdV2 = std(reshape(pivData2.V,N,1));
+
+<span class="comment">% Print results:</span>
+fprintf(<span class="string">'\nStatistics (3 passes): mean(U) = %+6.4f, mean(V) = %+6.4f, std(U) = %+6.4f, std(V) = %+6.4f\n'</span>,<span class="keyword">...</span>
+    meanU1,-meanV1,stdU1,stdV1);
+fprintf(<span class="string">'Statistics (5 passes): mean(U) = %+6.4f, mean(V) = %+6.4f, std(U) = %+6.4f, std(V) = %+6.4f\n'</span>,<span class="keyword">...</span>
+    meanU2,-meanV2,stdU2,stdV2);
+fprintf(<span class="string">'Reference:             mean(U) = %+6.4f, mean(V) = %+6.4f, std(U) = %+6.4f, std(V) = %+6.4f\n'</span>,<span class="keyword">...</span>
+    -0.0375,-0.0003,0.6414,0.5527);
+</pre><pre class="codeoutput">
+Statistics (3 passes): mean(U) = -0.0366, mean(V) = -0.0005, std(U) = +0.6411, std(V) = +0.5508
+Statistics (5 passes): mean(U) = -0.0366, mean(V) = -0.0005, std(U) = +0.6409, std(V) = +0.5507
+Reference:             mean(U) = -0.0375, mean(V) = -0.0003, std(U) = +0.6414, std(V) = +0.5527
+</pre><p>Compute histogram of u' and show it</p><pre class="codeinput"><span class="comment">% define bin range of histogram</span>
+binranges = (-3:0.02:3)';
+
+<span class="comment">% compute and normalize histogram</span>
+bincounts1 = histc(reshape(pivData1.U-meanU1,N,1),binranges);
+bincounts1 = bincounts1/(sum(bincounts1)*(binranges(2)-binranges(1)));
+bincounts2 = histc(reshape(pivData2.U-meanU2,N,1),binranges);
+bincounts2 = bincounts2/(sum(bincounts2)*(binranges(2)-binranges(1)));
+
+<span class="comment">% display it</span>
+figure(2);
+plot(binranges,bincounts1,<span class="string">'-r'</span>,binranges,bincounts2,<span class="string">'-k'</span>);
+legend(<span class="string">'3 passes'</span>,<span class="string">'5 passes'</span>);
+xlabel(<span class="string">'displacement U (px)'</span>);
+ylabel(<span class="string">'PDF (a.u.)'</span>);
+title(<span class="string">'Velocity PDF - compare to Fig. 18 in [6]'</span>);
+</pre><img vspace="5" hspace="5" src="example_07_PIV_Challange_A3_04.png" alt=""> <p>Compute power spectra of u':</p><pre class="codeinput"><span class="comment">% Spectrum from the velocity field after 3 passes</span>
+uprime1 = pivData1.U-meanU1;     <span class="comment">% velocity difference from the mean velocity</span>
+uspectra1 = zeros(size(uprime1,1)*size(uprime1,3),size(uprime1,2));
+<span class="comment">% Compute spectrum for every row of velocity data</span>
+<span class="keyword">for</span> ky = 1:size(uprime1,1)
+    <span class="keyword">for</span> kt = 1:size(uprime1,3)
+        uspectra1(kt+(ky-1)*size(uprime1,1),:) = abs(fft(uprime1(ky,:,kt))).^2;
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+<span class="comment">% compute mean spectrum</span>
+uspectra1 = mean(uspectra1,1);
+uspectra1 = uspectra1(1:floor(numel(uspectra1)/2));
+
+<span class="comment">% Spectrum from the velocity field after 5 passes</span>
+uprime2 = pivData2.U-meanU2;
+uspectra2 = zeros(size(uprime2,1)*size(uprime2,3),size(uprime2,2));
+<span class="keyword">for</span> ky = 1:size(uprime2,1)
+    <span class="keyword">for</span> kt = 1:size(uprime2,3)
+        uspectra2(kt+(ky-1)*size(uprime2,1),:) = abs(fft(uprime2(ky,:,kt))).^2;
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+uspectra2 = mean(uspectra2,1);
+uspectra2 = uspectra2(1:floor(numel(uspectra2)/2));
+
+<span class="comment">% Determane wavenumber corresponding to the spectra</span>
+dk = 1/(pivData1.X(1,end,1)-pivData1.X(1,1,1));
+k = (0:(numel(uspectra1)-1))*dk;
+
+<span class="comment">% Display the spectra</span>
+figure(4);
+loglog(2*pi*k,uspectra1/100,<span class="string">'-r'</span>,2*pi*k,uspectra2/100,<span class="string">'-k'</span>);
+legend(<span class="string">'3 passes'</span>,<span class="string">'5 passes'</span>);
+xlabel(<span class="string">'k_x (1/px)'</span>);
+ylabel(<span class="string">'E (a.u.)'</span>);
+xlim([5e-3,1]); ylim([1e-4,10]);
+title(<span class="string">'Velocity spectra - compare to Figs. 3c and 16 in [6]'</span>);
+</pre><img vspace="5" hspace="5" src="example_07_PIV_Challange_A3_05.png" alt=""> <p class="footer"><br><a href="http://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2013b</a><br></p></div><!--
+##### SOURCE BEGIN #####
+%% Example 07 - Treating test case A3 from 3rd PIV Challenge
+% The test case A3 from 3rd PIV challenge [ref. 6] is treated. Mean and rms velocities are computed, velocity
+% PDF is determined and wavenumber spectra is calculated; these results can be compared to results shown in
+% reference [6], Figs. 3c, 16, 18 and Table 12.
+%
+% Another shown feature is the possibility to add iterations during the processing. Initially, the data are
+% processed with three passes (with IA size 64x64, 32x32 and 16x16 pixels). Additional two passes (with 16x16
+% pixels interrogation size) are then performed. Effect of number of passes on velocity PDF and spectra is shown.
+%
+% *Reference:*
+% [6] Stanislas, M., K. Okamoto, C. J. Kahler, J. Westerweel and F. Scarano, (2008): Main results of the third
+% international PIV Challenge. Experiments in Fluids, vol. 45, pp. 27-71.
+
+%% Define image pairs to treat
+% Initialize the variable |pivPar|. Get list of image files.
+
+% Initialize variables
+clear;
+pivPar = [];                                              % variable for settings
+imagePath = ['..',filesep,'Data',filesep,'Test PIVchallenge3A3'];  % folder with processed images
+
+% get list of "A" images
+aux = dir([imagePath, filesep, '*a.tif']);                 
+for kk = 1:numel(aux), fileList{kk} = [imagePath, filesep, aux(kk).name]; end   %#ok<SAGROW>
+im1 = sort(fileList);
+
+% get list of "B" images
+aux = dir([imagePath, filesep, '*b.tif']);                 
+for kk = 1:numel(aux), fileList{kk} = [imagePath, filesep, aux(kk).name]; end   %#ok<SAGROW>
+im2 = sort(fileList);
+
+
+%% Running first 3 passes of PIV processing
+% First, image pairs will be treated with 3-pass PIV with decreasing size of interrogation area and spacing of
+% interrogation grid. Set the corresponding parameters:
+
+pivPar.iaSizeX = [64 32 16];              % interrogation area size for three passes
+pivPar.iaStepX = [32 16  8];              % grid spacing for three passes
+pivPar.anVelocityEst = 'none';            % iterate each image pair zero  
+pivPar.anOnDrive = true;                  % files with results will be stored in an output folder
+pivPar.anForceProcessing = false;         % if false, only image pairs, for which no file with results is 
+        % available, will be processed. Processing is skipped if file with results is available. If true,
+        % processing is carried out even if result file is present. (Set this parameter to true if all image
+        % pairs should be reprocessed, for example because of different setting of processing parameters).
+pivPar.anTargetPath = [imagePath,filesep,'pivOut1'];   % folder for storing results of first three passes
+pivPar.qvPair = {...                                   % define plot shown between iterations
+    'Umag',...                                         % plot displacement magnitude
+    'quiver','selectStat','valid','linespec','-k',...  % show valid vectors in black
+    'quiver','selectStat','replaced','linespec','-w'}; % show replaced vectors in white
+figure(1);
+[pivPar1] = pivParams([],pivPar,'defaultsSeq');
+            
+% Run the analysis now
+[pivData1] = pivAnalyzeImageSequence(im1,im2,[],pivPar1);
+
+
+%% Running additional 2 passes of PIV processing
+% Images will be processed with two additional passes, during which the interrogation area size is kept at
+% 16x16 pixels and grid spacing at 8x8. Results will be stored in another variable, and files will be placed
+% in different folder.
+
+pivPar.iaSizeX = [16 16];           % interrogation area size for fourth and fifth pass
+pivPar.iaStepX = [ 8  8];           % grid spacing 
+pivPar.anVelocityEst = 'pivData';   % use velocity data stored in pivData as velocity estimate used for image 
+                                    % deformation. By this setting, results of previous passes are transfered
+                                    % to additional passses.
+pivPar.ccMethod = 'dcn';            % set cross-correlation method to direct convolution (faster than default
+                                    % FFT, if displacements are small, which is the case of final passes)
+pivPar.anTargetPath = [imagePath,filesep,'pivOut2'];     % set output folder different than that for first 3 passes
+figure(1);
+[pivPar2] = pivParams([],pivPar,'defaultsSeq');
+
+% Run the analysis now. Note that pivData1 (results of first three passes) are an input variable.
+[pivData2] = pivAnalyzeImageSequence(im1,im2,pivData1,pivPar2);
+
+%% Show results
+% First, samples of the velocity field are shown
+N = numel(pivData2.U);
+Nt = size(pivData2.U,3);
+figure(1);
+for kk=1:10:Nt
+    hold off;
+    pivQuiver(pivData2,'timeSlice',kk,...
+        'Umag','clipLo',0,'clipHi',3,...
+        'quiver','linespec','-k','selectStat','valid',...
+        'quiver','linespec','-w','selectStat','replaced');
+    title('Background: U_{mag}. Quiver: velocity (black: valid, white: replaced)');
+end
+
+%% 
+% Compute the mean and rms velocities, display then and compare them to the reference values.
+
+% Statistics for the velocity fields after 3 passes:
+meanU1 = mean(reshape(pivData1.U,N,1));
+meanV1 = mean(reshape(pivData1.V,N,1));
+stdU1 = std(reshape(pivData1.U,N,1));
+stdV1 = std(reshape(pivData1.V,N,1));
+
+% Statistics for the velocity fields after 5 passes:
+meanU2 = mean(reshape(pivData2.U,N,1));
+meanV2 = mean(reshape(pivData2.V,N,1));
+stdU2 = std(reshape(pivData2.U,N,1));
+stdV2 = std(reshape(pivData2.V,N,1));
+
+% Print results:
+fprintf('\nStatistics (3 passes): mean(U) = %+6.4f, mean(V) = %+6.4f, std(U) = %+6.4f, std(V) = %+6.4f\n',...
+    meanU1,-meanV1,stdU1,stdV1);
+fprintf('Statistics (5 passes): mean(U) = %+6.4f, mean(V) = %+6.4f, std(U) = %+6.4f, std(V) = %+6.4f\n',...
+    meanU2,-meanV2,stdU2,stdV2);
+fprintf('Reference:             mean(U) = %+6.4f, mean(V) = %+6.4f, std(U) = %+6.4f, std(V) = %+6.4f\n',...
+    -0.0375,-0.0003,0.6414,0.5527);
+
+%% 
+% Compute histogram of u' and show it
+
+% define bin range of histogram
+binranges = (-3:0.02:3)';
+
+% compute and normalize histogram
+bincounts1 = histc(reshape(pivData1.U-meanU1,N,1),binranges);
+bincounts1 = bincounts1/(sum(bincounts1)*(binranges(2)-binranges(1)));
+bincounts2 = histc(reshape(pivData2.U-meanU2,N,1),binranges);
+bincounts2 = bincounts2/(sum(bincounts2)*(binranges(2)-binranges(1)));
+
+% display it
+figure(2);
+plot(binranges,bincounts1,'-r',binranges,bincounts2,'-k');
+legend('3 passes','5 passes');
+xlabel('displacement U (px)');
+ylabel('PDF (a.u.)');
+title('Velocity PDF - compare to Fig. 18 in [6]');
+
+%%
+% Compute power spectra of u':
+
+% Spectrum from the velocity field after 3 passes
+uprime1 = pivData1.U-meanU1;     % velocity difference from the mean velocity
+uspectra1 = zeros(size(uprime1,1)*size(uprime1,3),size(uprime1,2));
+% Compute spectrum for every row of velocity data
+for ky = 1:size(uprime1,1)
+    for kt = 1:size(uprime1,3)
+        uspectra1(kt+(ky-1)*size(uprime1,1),:) = abs(fft(uprime1(ky,:,kt))).^2;
+    end
+end
+% compute mean spectrum
+uspectra1 = mean(uspectra1,1);
+uspectra1 = uspectra1(1:floor(numel(uspectra1)/2));
+
+% Spectrum from the velocity field after 5 passes
+uprime2 = pivData2.U-meanU2;
+uspectra2 = zeros(size(uprime2,1)*size(uprime2,3),size(uprime2,2));
+for ky = 1:size(uprime2,1)
+    for kt = 1:size(uprime2,3)
+        uspectra2(kt+(ky-1)*size(uprime2,1),:) = abs(fft(uprime2(ky,:,kt))).^2;
+    end
+end
+uspectra2 = mean(uspectra2,1);
+uspectra2 = uspectra2(1:floor(numel(uspectra2)/2));
+
+% Determane wavenumber corresponding to the spectra
+dk = 1/(pivData1.X(1,end,1)-pivData1.X(1,1,1));
+k = (0:(numel(uspectra1)-1))*dk;
+
+% Display the spectra
+figure(4);
+loglog(2*pi*k,uspectra1/100,'-r',2*pi*k,uspectra2/100,'-k');
+legend('3 passes','5 passes');
+xlabel('k_x (1/px)');
+ylabel('E (a.u.)');
+xlim([5e-3,1]); ylim([1e-4,10]);
+title('Velocity spectra - compare to Figs. 3c and 16 in [6]');
+
+
+##### SOURCE END #####
+--></body></html>
