@@ -2,6 +2,9 @@ function [G, r, g, dg, mask] = get_autocorr(I1 , mask, rmax, flag)
 % function [G, r, g, dg, mask] = get_autocorr(I1 , mask, rmax, flag)
 % calculates autocorrelation function for two dimensional images
 %
+% Used to calculate the pair autocorrelation function of the density described in I1 and,
+% in the isotropic case, the radial distribution function, g(r).
+%
 % INPUTS
 % I1 = image to be autocorrelated
 % mask = region of interest, If none or [] specificed, user will be asked
@@ -23,6 +26,17 @@ function [G, r, g, dg, mask] = get_autocorr(I1 , mask, rmax, flag)
 % retains the proper value.
 %
 % Last updated 01.26.10 by Sarah Veatch.
+%
+% From supporting information in:
+% Sarah L. Veatch, Benjamin B. Machta, Sarah A. Shelby, Ethan N. Chiang, David A. Holowka, Barbara A. Baird.
+% Correlation Functions Quantify Super-Resolution Images and Estimate Apparent Clustering Due to Over-Counting.
+% PLOS One. Feburary 27, 2012. http://www.plosone.org/article/info:doi/10.1371/journal.pone.0031457.
+%
+% License: CC BY 4.0 http://creativecommons.org/licenses/by/4.0/
+%
+% Changes
+% Mark Kittisopikul 
+%    2014/10/03 Added extended explanation of the function, source, and license to function header
 
 
 
