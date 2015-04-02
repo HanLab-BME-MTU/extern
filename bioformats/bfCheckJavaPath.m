@@ -23,7 +23,7 @@ function [status, version] = bfCheckJavaPath(varargin)
 
 % OME Bio-Formats package for reading and converting biological file formats.
 %
-% Copyright (C) 2012 - 2014 Open Microscopy Environment:
+% Copyright (C) 2012 - 2015 Open Microscopy Environment:
 %   - Board of Regents of the University of Wisconsin-Madison
 %   - Glencoe Software, Inc.
 %   - University of Dundee
@@ -82,6 +82,7 @@ else
 end
 
 function path = getJarPath(files)
+
 
 % Assume the jar is either in the Matlab path or under the same folder as
 % this file
