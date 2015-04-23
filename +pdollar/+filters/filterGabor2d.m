@@ -56,6 +56,7 @@ Fodd=Fodd/norm(Fodd(:),1);
 
 % display
 if( show )
+  import pdollar.filters.*;
   filterVisualize( Feven, show );
   filterVisualize( Fodd, show+1 );
 end

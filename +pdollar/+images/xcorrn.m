@@ -37,7 +37,7 @@ nd = ndims(A);
 if(nd~=ndims(A)); error('xcorrn: T and A must have same ndims'); end;
 
 % flip for conv purposes
-if(nd==2); T=rot90(T,2); else for d=1:nd; T=flipdim(T,d); end; end
+if(nd==2); T=rot90(T,2); else for d=1:nd; T=flip(T,d); end; end
 
 % convolve [in frequency or spatial domain]
 C = pdollar.images.convnFast( A, T, shape );

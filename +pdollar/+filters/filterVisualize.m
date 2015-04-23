@@ -38,6 +38,8 @@ function filterVisualize( f, show, arg )
 % Copyright 2014 Piotr Dollar.  [pdollar-at-gmail.com]
 % Licensed under the Simplified BSD License [see external/bsd.txt]
 
+import pdollar.images.*;
+
 if( nargin<2 || isempty(show) ); show=1; end;
 if( nargin<3 || isempty(arg) ); arg=[]; end;
 nd = ndims(f); if(isvector(f)); nd=1; end;

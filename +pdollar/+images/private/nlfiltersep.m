@@ -52,7 +52,7 @@ function I = nlfiltersep( I, dims, shape, fun, varargin )
 % Licensed under the Simplified BSD License [see external/bsd.txt]
 
 params=varargin; nd=ndims(I); siz=size(I);
-[dims,er]=checkNumArgs(dims,size(siz),0,1); error(er);
+[dims,er]=pdollar.matlab.checkNumArgs(dims,size(siz),0,1); error(er);
 assert(any(strcmp(shape,{'same','valid','full','block'})));
 
 if(strcmp(shape,'block'))
