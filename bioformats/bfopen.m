@@ -50,7 +50,7 @@ function [result] = bfopen(id, varargin)
 
 % OME Bio-Formats package for reading and converting biological file formats.
 %
-% Copyright (C) 2007 - 2014 Open Microscopy Environment:
+% Copyright (C) 2007 - 2015 Open Microscopy Environment:
 %   - Board of Regents of the University of Wisconsin-Madison
 %   - Glencoe Software, Inc.
 %   - University of Dundee
@@ -153,14 +153,14 @@ for s = 1:numSeries
         else
             colorMaps{s, i} = r.get16BitLookupTable()';
         end
-        
-        warning off
+
+        warning_state = warning ('off');
         if ~isempty(colorMaps{s, i})
             newMap = single(colorMaps{s, i});
             newMap(newMap < 0) = newMap(newMap < 0) + bppMax;
             colorMaps{s, i} = newMap / (bppMax - 1);
         end
-        warning on
+        warning (warning_state);
 
 
         % build an informative title for our figure
