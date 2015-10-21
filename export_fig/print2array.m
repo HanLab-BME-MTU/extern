@@ -164,6 +164,10 @@ function [A, bcol] = print2array(fig, res, renderer, gs_options)
             end
         end
     else
+        % Assaf patch to initiate renderer to OpenGL
+        if nargin < 3
+            renderer = '-opengl';
+        end
         err = false;
         % Set paper size
         old_pos_mode = get(fig, 'PaperPositionMode');

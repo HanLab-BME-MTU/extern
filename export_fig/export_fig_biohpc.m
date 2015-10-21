@@ -602,7 +602,7 @@ function [imageData, alpha] = export_fig_biohpc(varargin)
             end
             try
                 % Generate an eps
-                print2eps(tmp_nam, fig, [options.bb_padding, options.crop, options.fontswap], p2eArgs{:});
+                print2eps_biohpc(tmp_nam, fig, [options.bb_padding, options.crop, options.fontswap], p2eArgs{:});
                 % Remove the background, if desired
                 if options.transparent && ~isequal(get(fig, 'Color'), 'none')
                     eps_remove_background(tmp_nam, 1 + using_hg2(fig));
