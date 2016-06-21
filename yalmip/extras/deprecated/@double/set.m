@@ -4,7 +4,7 @@ function F = set(varargin)
 % I AM SO SORRY FOR MESSING WITH
 % INTERNAL FUNCTIONS; BUT I REALLY
 % WANT TO BE ABLE TO DO set([]) and set;
-
+warning('yalmip:double:set','Yalmip in extra intercepted set!');
 % CATCH MY CASES
 switch nargin
     case 0
