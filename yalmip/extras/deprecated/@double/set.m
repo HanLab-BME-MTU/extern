@@ -4,10 +4,10 @@ function F = set(varargin)
 % I AM SO SORRY FOR MESSING WITH
 % INTERNAL FUNCTIONS; BUT I REALLY
 % WANT TO BE ABLE TO DO set([]) and set;
-
-% Suppressing warning https://git.biohpc.swmed.edu/danuser/extern/commit/fdcc3e912cd4dca3f8fd70f08329db12315a40e7#note_4957
-%warning('yalmip:double:set','Yalmip in extra intercepted set!');
-
+global debuggingMode__
+if(~isempty(debuggingMode__) && debuggingMode__)
+    warning('yalmip:double:set','Yalmip in extra intercepted set!');
+end
 % CATCH MY CASES
 switch nargin
     case 0
