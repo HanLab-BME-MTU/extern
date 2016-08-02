@@ -1,8 +1,5 @@
 function output = callgurobi(interfacedata)
 
-% Author Johan Löfberg 
-% $Id: callgurobi.m,v 1.2 2010-03-23 11:11:46 joloef Exp $
-
 % Retrieve needed data
 options = interfacedata.options;
 F_struc = interfacedata.F_struc;
@@ -133,23 +130,22 @@ if ~isempty(K.sos.type)
 end
 
 % Call mex-interface
-solvertime = clock; 
+solvertime = tic;
 if isempty(binary_variables) & isempty(integer_variables) & isempty(semicont_variables)
     [x,val,flag,output,lambda] = gurobi_mex(C,SENSE,sparse(A),B,CTYPE,LB,UB,VARTYPE,options.gurobi);
 else
     [x,val,flag,output] = gurobi_mex(C,SENSE,sparse(A),B,CTYPE,LB,UB,VARTYPE,options.gurobi);
     lambda = [];
 end
+solvertime = toc(solvertime);
 
 % Gurobi assumes semi-continuous variables only can take negative values so
 % we negate semi-continuous violating this
- if length(x) == length(C)
-     if ~isempty(NegativeSemiVar)
+if length(x) == length(C)
+    if ~isempty(NegativeSemiVar)
         x(NegativeSemiVar) = -x(NegativeSemiVar);
-     end
- end
-
-if interfacedata.getsolvertime solvertime = etime(clock,solvertime);else solvertime = 0;end
+    end
+end
 
 problem = 0;
 if isa(lambda,'double')
@@ -210,10 +206,4 @@ else
 end
 
 % Standard interface 
-output.Primal      = x;
-output.Dual        = D_struc;
-output.Slack       = [];
-output.problem     = problem;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
+output = createOutputStructure(x,D_struc,[],problem,infostr,solverinput,solveroutput,solvertime);

@@ -1,8 +1,5 @@
 function output = calllinprog(interfacedata)
 
-% Author Johan Löfberg 
-% $Id: callbintprog.m,v 1.5 2007-02-08 13:51:23 joloef Exp $
-
 % Standard input interface
 options = interfacedata.options;
 F_struc = interfacedata.F_struc;
@@ -28,7 +25,6 @@ else
     A =-F_struc(K.f+1:end,2:end);
     b = F_struc(K.f+1:end,1);   
 end
-solvertime = clock; 
 
 % Any continuous varialbles
 if length(union(binary_variables,integer_variables)) < length(c)
@@ -107,14 +103,15 @@ if options.savedebug
     save bintprogdebug c A b Aeq beq ops
 end
 
+solvertime = tic;
 [x,fmin,flag,output] = bintprog(c, A, b, sparse(Aeq), beq, x0,ops);
+solvertime = toc(solvertime);
 
 % Go back to integer variables
 if ~isempty(x)
     x = xbase + H*x;
 end
 
-solvertime = etime(clock,solvertime);
 problem = 0;
 
 % No duals
@@ -157,11 +154,4 @@ else
 end
 
 % Standard interface 
-output.Primal      = x;
-output.Dual        = D_struc;
-output.Slack       = [];
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
+output = createOutputStructure(x,D_struc,[],problem,infostr,solverinput,solveroutput,solvertime);

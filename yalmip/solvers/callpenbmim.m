@@ -1,8 +1,5 @@
 function output = callpenbmi(interfacedata);
 
-% Author Johan Löfberg
-% $Id: callpenbmim.m,v 1.24 2007-07-28 14:09:01 joloef Exp $
-
 if any(interfacedata.variabletype > 2)
     % Polynomial problem, YALMIP has to bilienarize
     interfacedata.high_monom_model=[];
@@ -191,9 +188,9 @@ end
 
 if options.showprogress;showprogress(['Calling ' interfacedata.solver.tag],options.showprogress);end
 
-solvertime = clock; 
+solvertime = tic;
 [f,xout,u,iflag,niter,feas] = penbmim(pen);
-solvertime = etime(clock,solvertime);
+solvertime = toc(solvertime);
 
 if options.saveduals & isempty(zrow)
     
@@ -282,14 +279,7 @@ else
 end
 
 % Standard interface 
-output.Primal      = x(:);
-output.Dual        = D_struc;
-output.Slack       = [];
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
+output = createOutputStructure(x(:),D_struc,[],problem,infostr,solverinput,solveroutput,solvertime);
 
 function output = callpenbmi_with_bilinearization(interfacedata);
 

@@ -155,7 +155,7 @@ options.avoidequalitybounds=1;
 
 % Normalize...
 if isa(Constraints,'constraint')
-    Constraints = set(Constraints);
+    Constraints = lmi(Constraints);
 end
 
 if ~isempty(Constraints)
@@ -169,7 +169,15 @@ if ~isempty(Constraints)
         tempOps = options;
         tempOps.sos.model = 2;
         tempOps.verbose = max(0,tempOps.verbose-1);
-        [Constraints,Objective] = compilesos([Constraints,parametric(x)],Objective,tempOps);
+        parameter_sos = [x;u;recover(depends(Objective))];
+        parameter_sos = depends(parameter_sos);
+        for i = 1:length(Constraints)
+            if ~is(Constraints,'sos')
+                parameter_sos = [parameter_sos depends(Constraints(i))];
+            end
+        end
+        parameter_sos = recover(parameter_sos);
+        [Constraints,Objective] = compilesos(Constraints,Objective,tempOps,parameter_sos);
     end
 end
 
@@ -187,14 +195,14 @@ end
 
 if ~isempty(Constraints) & any(is(Constraints,'uncertain'))
     [Constraints,Objective,failure] = robustify(Constraints,Objective,options);
-    [aux1,aux2,aux3,model] = export(set(x == repmat(pi,nIn*mIn,1))+Constraints,Objective,options,[],[],0);
+    [aux1,aux2,aux3,model] = export((x == repmat(pi,nIn*mIn,1))+Constraints,Objective,options,[],[],0);
 else
-    [aux1,aux2,aux3,model] = export(set(x == repmat(pi,nIn*mIn,1))+Constraints,Objective,options,[],[],0);    
+    [aux1,aux2,aux3,model] = export((x == repmat(pi,nIn*mIn,1))+Constraints,Objective,options,[],[],0);    
 end
 
 if ~isempty(aux3)
     if isstruct(aux3)
-        if ismember(aux3.problem, [-5 -4 -3 -2 -1 14])
+        if ismember(aux3.problem, [-9 -5 -4 -3 -2 -1 14])
             error(['Failed exporting the model: ' aux3.info])
         end
     end
@@ -257,16 +265,17 @@ sys.map = map;
 sys.input.expression = x;
 sys.output.expression = u;
 sys.output.z = z;
+sys.lastsolution = [];
 % This is not guaranteed to give the index in the order the variables where
 % given (tested in test_optimizer2
 % [a,b,c] = find(sys.model.F_struc(1:prod(sys.dimin),2:end));
 % Could be done using
-% [b,a,c] = find(sys.model.F_struc(1:prod(sys.dimin),2:end)');
+[b,a,c] = find(sys.model.F_struc(1:prod(sys.dimin),2:end)');
 % but let us be safe
-b = [];
-for i = 1:prod(sys.dimin)
-    b = [b;find(sys.model.F_struc(i,2:end))];
-end
+%b = [];
+%for i = 1:prod(sys.dimin)
+%    b = [b;find(sys.model.F_struc(i,2:end))];
+%end
 sys.parameters = b;
 used_in = find(any(sys.model.monomtable(:,b),2));
 Q = sys.model.Q;
@@ -279,7 +288,7 @@ if nnz(Q)>0
 else
     problematicQP = 0;
 end
-if any(sum(sys.model.monomtable(used_in,:) | sys.model.monomtable(used_in,:),2) > 1 | problematicQP) | ~isempty(sys.model.evalMap)
+if  any(sum(sys.model.monomtable(used_in,:),2)>1) | any(sum(sys.model.monomtable(used_in,:) | sys.model.monomtable(used_in,:),2) > 1) | problematicQP | ~isempty(sys.model.evalMap) | any(any(sys.model.monomtable<0))
     sys.nonlinear = 1;
 else
     sys.nonlinear = 0;
@@ -287,30 +296,6 @@ end
 sys.F = Constraints;
 sys.h = Objective;
 sys.ops = options;
-
-% This data is used in eliminatevariables (nonlinear parameterizations)
-% A lot of performance is gained by precomputing them
-% This will work as long as there a no zeros in the parameters, which might
-% cause variables to dissapear (as in x*parameter >=0, parameter = 0)
-% (or similiar effects happen)
-sys.model.precalc.newmonomtable = sys.model.monomtable;
-sys.model.precalc.rmvmonoms = sys.model.precalc.newmonomtable(:,sys.parameters);
-sys.model.precalc.newmonomtable(:,sys.parameters) = 0;
-sys.model.precalc.Qmap = [];
-% R2012b...
-try
-   % [ii,jj,kk] = unique(sys.model.precalc.newmonomtable*gen_rand_hash(0,size(sys.model.precalc.newmonomtable,2),1),'rows','stable');
-    [ii,jj,kk] = stableunique(sys.model.precalc.newmonomtable*gen_rand_hash(0,size(sys.model.precalc.newmonomtable,2),1));
- %   [ii,jj,kk] = unique(sys.model.precalc.newmonomtable,'rows','stable');
-    sys.model.precalc.S = sparse(kk,1:length(kk),1);
-    sys.model.precalc.skipped = setdiff(1:length(kk),jj);    
-    sys.model.precalc.blkOneS = blkdiag(1,sys.model.precalc.S');     
-catch
-    % Optimizer should crash on old versions when trying to solve nonlinear
-    % replacement problems
-   % sys.model.precalc.S=[];
-   % sys.model.precalc.skipped=[];
-end
 
 sys.complicatedEvalMap = 0;
 % Are all nonlinear operators acting on simple parameters? Elimination
@@ -323,8 +308,8 @@ for i = 1:length(sys.model.evalMap)
         sys.complicatedEvalMap = 1;
     end
 end
-    
-if sys.nonlinear & ~sys.complicatedEvalMap%isempty(sys.model.evalMap)
+
+if sys.nonlinear & ~sys.complicatedEvalMap
     % These artificial equalities are removed if we will use eliminate variables
     sys.model.F_struc(1:length(sys.parameters),:) = [];
     sys.model.K.f = sys.model.K.f - length(sys.parameters);
@@ -337,20 +322,50 @@ if sys.nonlinear & ~sys.complicatedEvalMap%isempty(sys.model.evalMap)
         end
     end
     sys.model.evalParameters = evalParameters;
+end
+
+% This data is used in eliminatevariables (nonlinear parameterizations)
+% A lot of performance is gained by precomputing them
+% This will work as long as there a no zeros in the parameters, which might
+% cause variables to dissapear (as in x*parameter >=0, parameter = 0)
+% (or similiar effects happen)
+sys.model.precalc.newmonomtable = sys.model.monomtable;
+sys.model.precalc.rmvmonoms = sys.model.precalc.newmonomtable(:,sys.parameters);
+sys.model.precalc.newmonomtable(:,sys.parameters) = 0;
+sys.model.precalc.Qmap = [];
+% R2012b...
+try
+    [ii,jj,kk] = stableunique(sys.model.precalc.newmonomtable*gen_rand_hash(0,size(sys.model.precalc.newmonomtable,2),1));
+    sys.model.precalc.S = sparse(kk,1:length(kk),1);
+    sys.model.precalc.skipped = setdiff(1:length(kk),jj);    
+    sys.model.precalc.blkOneS = blkdiag(1,sys.model.precalc.S');     
+catch  
+end
+    
+if sys.nonlinear & ~sys.complicatedEvalMap
     
     % Precompute some structures
     newmonomtable = sys.model.monomtable;
     rmvmonoms = newmonomtable(:,[sys.parameters;evalParameters]);
     % Linear indexation to fixed monomial terms which have to be computed
-    [ii1,jj1] = find((rmvmonoms ~= 0) & (rmvmonoms ~= 1));
-    sys.model.precalc.aux = rmvmonoms*0+1;
+    % [ii1,jj1] = find((rmvmonoms ~= 0) & (rmvmonoms ~= 1));
+    [ii1,jj1] = find( rmvmonoms < 0 | rmvmonoms > 1 | fix(rmvmonoms) ~= rmvmonoms);    
     sys.model.precalc.index1 = sub2ind(size(rmvmonoms),ii1,jj1);    
     sys.model.precalc.jj1 = jj1;    
-    
+            
     % Linear indexation to linear terms
-    [ii2,jj2] = find(rmvmonoms == 1);   
-    sys.model.precalc.index2 = sub2ind(size(rmvmonoms),ii2,jj2);    
-    sys.model.precalc.jj2 = jj2;    
+    linterms = rmvmonoms == 1;
+    if ~isempty(jj1) | any(sum(linterms,2)>1)
+        [ii2,jj2] = find(linterms);
+        sys.model.precalc.index2 = sub2ind(size(rmvmonoms),ii2,jj2);
+        sys.model.precalc.jj2 = jj2;
+        sys.model.precalc.aux = rmvmonoms*0+1;
+    else
+        [ii2,jj2] = find(linterms);
+        sys.model.precalc.index2 = ii2;
+        sys.model.precalc.jj2 = jj2;
+        sys.model.precalc.aux = ones(size(rmvmonoms,1),1);
+    end
     
     sys.model.newmonomtable = model.monomtable;
     sys.model.rmvmonoms =  sys.model.newmonomtable(:,[sys.parameters;evalParameters]);
@@ -358,14 +373,23 @@ if sys.nonlinear & ~sys.complicatedEvalMap%isempty(sys.model.evalMap)
    
     sys.model.removethese = find(~any(sys.model.newmonomtable,2));
     sys.model.keepingthese = find(any(sys.model.newmonomtable,2));    
-    
-  %  sys.model.removethese = unique(sys.model.removethese);
-  %  sys.model.keepingthese = setdiff(sys.model.keepingthese,sys.model.removethese);
 end
 
 sys = class(sys,'optimizer');
 
 function i = uniqueRows(x);
 B = getbase(x);
+% Quick check for trivially unique rows, typical 99% case
+[n,m] = size(B);
+if n == m-1 && nnz(B)==n
+    if isequal(B,[spalloc(n,1,0) speye(n)])
+        i = 1:n;
+        return
+    end
+end
+if  length(unique(B*randn(size(B,2),1))) == n
+    i = 1:n;
+    return
+end
 [temp,i,j] = unique(B,'rows');
 i = i(:);

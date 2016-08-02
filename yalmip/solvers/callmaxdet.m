@@ -1,8 +1,5 @@
 function output = callmaxdet(interfacedata);
 
-% Author Johan Löfberg
-% $Id: callmaxdet.m,v 1.6 2006-12-18 14:42:28 joloef Exp $ 
-
 [F_struc,F_blksz,G_struc,G_blksz] = sedumi2maxdet(interfacedata.F_struc,interfacedata.K); 
 
 c = interfacedata.c;
@@ -29,10 +26,10 @@ problem = 0;
 solvertimephase1=0;
 D_struc = [];
 if isempty(x0)
-    solvertimephase1 = clock; 
+    solvertimephase1 = tic;
     showprogress('Calling MAXDET/phase1',options.showprogress);
     [x0,z0,w0,problem,infostr,solveroutput] = callmaxdetphase1(full(F_struc),full(F_blksz), full(G_struc),full(G_blksz), full(c), options);
-    solvertimephase1 = etime(clock,solvertimephase1);
+    solvertimephase1 = toc(solvertimephase1);
 end
 if (problem~=0) | (onlyfeasible==1)
     if isempty(x0)
@@ -44,14 +41,14 @@ if (problem~=0) | (onlyfeasible==1)
 else
     z0=zeros(size(F_struc,1),1);
     w0=zeros(size(G_struc,1),1);	
-    solvertime = clock;
+    solvertime = tic;
     showprogress('Calling MAXDET',options.showprogress);
     if options.verbose==0
         evalc('[x,Z,W,ul,hist,infostr]=maxdet(full(F_struc),F_blksz,full(G_struc), G_blksz,c'',x0,z0,w0,options.maxdet.AbsTol,options.maxdet.RelTol,options.maxdet.gam,options.maxdet.NTiters);');
     else
         [x,Z,W,ul,hist,infostr]=maxdet(full(F_struc),F_blksz,full(G_struc), G_blksz,c',x0,z0,w0,options.maxdet.AbsTol,options.maxdet.RelTol,options.maxdet.gam,options.maxdet.NTiters);
     end
-    solvertime = etime(clock,solvertime)+solvertimephase1;
+    solvertime = toc(solvertime)+solvertimephase1;
     
     D_struc = [Z;W];
     
@@ -77,49 +74,8 @@ else
     infostr = yalmiperror(problem,'MAXDET');	
 end
 
-
 % Standard interface 
-output.Primal      = x;
-output.Dual        = D_struc;
-output.Slack       = [];
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = [];
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+output = createOutputStructure(x,D_struc,[],problem,infostr,[],solveroutput,solvertime);
 
 function [x0,z0,w0,problem,infostr,solveroutput] = callmaxdetphase1(F_struc,F_blksz, G_struc,G_blksz, c, options);
 

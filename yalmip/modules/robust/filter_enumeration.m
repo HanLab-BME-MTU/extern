@@ -20,9 +20,13 @@ else
                 vertices = [];
                 lb = separatedZmodel{1}.lb(:)';
                 ub = separatedZmodel{1}.ub(:)';
-                for i = 0:2^n-1
-                    vertices = [vertices;lb+dec2decbin(i,n).*(ub-lb)];
-                end
+                E = dec2bin(0:2^n-1,n)';                
+                E = double(E(:))-48;                
+                E = reshape(E,n,2^n);
+                vertices = (repmat(lb(:),1,2^n) + E.*(repmat(ub(:),1,2^n)-repmat(lb(:),1,2^n)))';
+                %for i = 0:2^n-1
+                %    vertices = [vertices;lb+dec2decbin(i,n).*(ub-lb)];
+                %end
                 if ops.verbose
                     disp([' - Enumerated ' num2str(2^n) ' vertices'])
                 end
@@ -77,9 +81,9 @@ else
                 K = aux.K;
                 A = -aux.F_struc((1+K.f):(K.f + K.l),2:end);
                 b =  aux.F_struc((1+K.f):(K.f + K.l),1);
-                P = polytope(A,b);
+                P = polytope(full(A),full(b));
                 try
-                    vertices = extreme(polytope(A,b))';
+                    vertices = extreme(P)';
                 catch
                     error('The uncertainty space is unbounded (could be an artefact of YALMIPs modelling of nonolinear oeprators).')
                 end
@@ -121,7 +125,7 @@ function F = replaceVertices(F_xw,w,vertices,VariableType,ops)
 
 F_xw_lp = F_xw(find(is(F_xw,'elementwise')));
 F_xw_socp_sdp = F_xw -  F_xw_lp;
-F = set([]);
+F = ([]);
 
 x_Flp = depends(F_xw_lp);
 uncAux = yalmip('auxvariablesW');
@@ -134,12 +138,12 @@ w = flush(w);
 
 if length(F_xw_lp)>0
     rLP = [];
-    if ~isempty(uncAux)
+    if ~isempty(uncAux)     
         z = sdpvar(repmat(length(uncAux),1,size(vertices,2)),repmat(1,1,size(vertices,2)),'full');
     end
     for i = 1:size(vertices,2)
         temp = replace(sdpvar(F_xw_lp),w,vertices(:,i),0);
-        if ~isempty(uncAux)
+        if ~isempty(uncAux)            
             temp = replace(temp,uncAux,z{i});
         end
         rLP = [rLP;temp];
@@ -147,12 +151,12 @@ if length(F_xw_lp)>0
     
     % FIXME: More general detection of silly constraints
     if isa(rLP,'double') & all(rLP>=-eps^0.75)
-        F = set([]);
+        F = ([]);
     else
         % Easily generates redundant constraints
         [aux,index] = uniquesafe(getbase(rLP),'rows');
         try
-            F = set(rLP(index(randperm(length(index)))) >= 0);
+            F = (rLP(index(randperm(length(index)))) >= 0);
         catch
             1
         end
@@ -166,7 +170,7 @@ for j = 1:length(F_xw_socp_sdp)
         if ~isempty(uncAux)
             temp = replace(temp,uncAux,z{i});
         end
-        F = F + set(temp);
+        F = F + lmi(temp);
     end
 end
 

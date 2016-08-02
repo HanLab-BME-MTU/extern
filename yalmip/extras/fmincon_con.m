@@ -28,6 +28,15 @@ if model.nonlinearinequalities
     g = full(model.Anonlinineq*xevaled(:)-model.bnonlinineq);
 end
 
+if nnz(model.K.q) > 0
+    top = 1;
+    for i = 1:length(model.K.q)
+        z = model.F_struc(top:top+model.K.q(i)-1,:)*[1;xevaled];
+        g = [g;-(z(1)^2 - z(2:end)'*z(2:end))];
+        top = top + model.K.q(i);
+    end
+end
+
 if model.nonlinearequalities
     geq = full(model.Anonlineq*xevaled(:)-model.bnonlineq);
 end
@@ -36,16 +45,15 @@ dgAll_test = [];
 
 if nargout == 2 || ~model.derivative_available
     return
-elseif ~isempty(dgAll_test) & isempty(model.evalMap)
+elseif ~isempty(dgAll_test) & isempty(model.evalMap) 
     dgAll = dgAll_test;
-elseif isempty(model.evalMap) & (model.nonlinearinequalities | model.nonlinearequalities)
-   % allA = [model.Anonlineq;model.Anonlinineq];
-   % dgAll = [];
+elseif isempty(model.evalMap) & (model.nonlinearinequalities==0) & (model.nonlinearequalities==0) & (model.nonlinearcones==0) & any(model.K.q)
+    dg = computeConeDeriv(model,xevaled);
+elseif isempty(model.evalMap) & (model.nonlinearinequalities | model.nonlinearequalities | model.nonlinearcones) 
     n = length(model.c);
-    linearindicies = model.linearindicies;
-    %mtNonlinear = model.monomtable(model.nonlinearindicies,:);
-    xevaled = zeros(1,n);
-    xevaled(linearindicies) = x;
+    linearindicies = model.linearindicies;    
+ %   xevaled = zeros(1,n);
+ %   xevaled(linearindicies) = x;
     % FIXME: This should be vectorized
     
     news = model.fastdiff.news;
@@ -62,74 +70,64 @@ elseif isempty(model.evalMap) & (model.nonlinearinequalities | model.nonlineareq
         O(nz) = x(ceil(nz/length(c))).^allDerivemt(nz);        
         zzz = c.*prod(O,2);               
     end
+                          
+    newdxx = model.fastdiff.newdxx;
+    newdxx(model.fastdiff.linear_in_newdxx) = zzz;                
+    %newdxx = newdxx';
     
-    if 1
-        if 0
-        a1 = news(1:length(c),2);
-        a2 = model.nonlinearindicies(news(1:length(c),1))';
-        nn = max(max(length(linearindicies)),max(news(:,2)));
-        mm = max(max(linearindicies),max(model.nonlinearindicies(news(:,1))));
-        %  newdxx = spalloc(length(linearindicies),max(a2),length(linearindicies));
-        %   newdxx = spalloc(nn,mm,length(linearindicies));
-        %   iii = sub2ind(size(newdxx),a1(:),a2(:));
-        %   newdxx(iii) = zzz;
-        
-        % Moved from the for-loop below*
-        a1 = [a1(:);(1:length(linearindicies))'];
-        a2 = [a2(:);linearindicies(:)];
-        %zzz = [zzz;repmat(1,length(linearindicies),1)];
-        zzz = [zzz;ones(length(linearindicies),1)];
-        newdxx = sparse(a1,a2,zzz,nn,mm);
-        else
-            newdxx = model.fastdiff.newdxx;
-            newdxx(model.fastdiff.linear_in_newdxx) = zzz;
-        end
-        
-        %    newdxx = spalloc(length(linearindicies),max(a2),length(linearindicies));
-        %    iii = sub2ind(size(newdxx),a1,a2);
-        %    newdxx(iii) = zzz;
-        %    newdxx = sparse(a1,a2,zzz);
-    else
-        newdxx = spalloc(length(linearindicies),max(linearindicies),length(linearindicies));
-        for i = 1:length(c)
-            newdxx(news(i,2),model.nonlinearindicies(news(i,1)))=zzz(i);%c(i)*prod(x(:)'.^allDerivemt(i,:));
-        end
-    end
-
-    % * moved up
-    %ii = sub2ind(size(newdxx),1:length(linearindicies),linearindicies);
-%     %newdxx(ii) = 1;
-%     for i = 1:length(linearindicies)
-%        newdxx(i,linearindicies(i)) = 1;
-%     end
-    
-    newdxx = newdxx';
-    if ~isempty(model.Anonlineq)
-    %    newdxx = newdxx';
-        dgAll = model.Anonlineq*newdxx;
-    else
-        dgAll = [];
+    if ~isempty(model.Anonlineq)      
+        dgeq = model.Anonlineq*newdxx; 
     end
     if ~isempty(model.Anonlinineq)
-    %    newdxx = newdxx';
-        aux = model.Anonlinineq*newdxx;
-        dgAll = [dgAll;aux];
-    end    
-  %  dgAll = allA*newdxx';
+        dg = model.Anonlinineq*newdxx;        
+    end
     
-else
-    allA = [model.Anonlineq;model.Anonlinineq];
-  %  requested = any(allA',2);
-  %  [i,j,k] = find((model.deppattern(find(requested),:)));
-  %  requested(j) = 1;
+    if nnz(model.K.q)>0
+        dg = [dg;computeConeDeriv(model,xevaled,newdxx);];
+    end    
+else    
     requested = model.fastdiff.requested;
-    dx = apply_recursive_differentiation(model,xevaled,requested,model.Crecursivederivativeprecompute);
-    dgAll = allA*dx;
+    dx = apply_recursive_differentiation(model,xevaled,requested,model.Crecursivederivativeprecompute);    
+    conederiv = computeConeDeriv(model,xevaled,dx);   
+    if ~isempty(model.Anonlineq)
+        dgeq = [model.Anonlineq*dx];  
+    end
+    if ~isempty(model.Anonlinineq)
+        dg = [model.Anonlinineq*dx];
+    end    
+    if ~isempty(conederiv)
+        dg = [dg;conederiv];
+    end
 end
 
-if  model.nonlinearequalities
-    dgeq = dgAll(1:size(model.Anonlineq,1),:)';
+if model.nonlinearequalities
+    dgeq = dgeq';
 end
-if model.nonlinearinequalities
-    dg = dgAll(size(model.Anonlineq,1)+1:end,:)';
+if model.nonlinearinequalities | any(model.K.q)
+    dg = dg';
+end
+    
+
+function conederiv = computeConeDeriv(model,z,dzdx)
+conederiv = [];
+z = z(:);
+if any(model.K.q)
+    top = 1 + model.K.f + model.K.l;  
+    for i = 1:length(model.K.q)
+        d = model.F_struc(top,1);
+        c = model.F_struc(top,2:end)';
+        b = model.F_struc(top+1:top+model.K.q(i)-1,1);
+        A = model.F_struc(top+1:top+model.K.q(i)-1,2:end);
+        
+        if nargin == 2
+            % No inner derivative
+            
+            conederiv = [conederiv;(2*A(:,model.linearindicies)'*(A(:,model.linearindicies)*z(model.linearindicies)+b)-2*c(model.linearindicies)*(c(model.linearindicies)'*z(model.linearindicies)+d))'];
+        else
+            % inner derivative
+            aux = 2*z'*(A'*A-c*c')*dzdx+2*(b'*A-d*c')*dzdx;
+            conederiv = [conederiv;aux];
+        end
+        top = top + model.K.q(i);
+    end
 end

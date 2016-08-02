@@ -10,10 +10,10 @@ end
 
 % Normalize data
 if isa(Y,'constraint')
-    Y=set(Y,[],[],1);
+    Y=lmi(Y,[],[],1);
 end
 if isa(X,'constraint')
-    X=set(X,[],[],1);
+    X=lmi(X,[],[],1);
 end
 if isa(X,'lmi') & isa(Y,'sdpvar')
     temp = X;
@@ -70,7 +70,13 @@ else
     f = reshape(f,nf*mf,1);
     di = binvar(nf*mf,1);
     F = linearnegativeconstraint_iff_binary(f,di,M,m,zero_tolerance);
-    F = [F, X>=sum(di)-length(di)+1, X <= di];
+    if length(X)==1
+        % X is true if any di
+        F = [F, X>=sum(di)-length(di)+1, X <= di];
+    else
+        % This must be a vectorized X(i) iff f(i)
+        F = [F, di == X];
+    end
     
     % di=0 means the ith hypeplane is violated
     % X=1 means we are in the polytope
@@ -90,7 +96,7 @@ else
     end
     if size(S,1) > 0
         % Add cut cannot be outside both constraints
-        F = F + set(S*di >= 1);
+        F = F + (S*di >= 1);
     end
 end
 

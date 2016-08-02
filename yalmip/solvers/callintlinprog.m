@@ -39,9 +39,9 @@ if options.savedebug
     save intlinprogdebug c intcon A b Aeq beq lb ub ops x0
 end
  
-solvertime = clock; 
+solvertime = tic;
 [x,fval,exitflag,output] = intlinprog(c, intcon, A, b, Aeq, beq, lb, ub,ops);
-solvertime = etime(clock,solvertime);
+solvertime = toc(solvertime);
 problem = 0;
 
 if isempty(x)
@@ -85,11 +85,4 @@ else
 end
 
 % Standard interface 
-output.Primal      = x(:);
-output.Dual        = [];
-output.Slack       = [];
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
+output = createOutputStructure(x(:),[],[],problem,infostr,solverinput,solveroutput,solvertime);

@@ -1,8 +1,5 @@
 function output = callglpk(interfacedata)
 
-% Author Johan Löfberg 
-% $Id: callglpk.m,v 1.21 2007-07-31 14:39:13 joloef Exp $
-
 % Retrieve needed data
 options = interfacedata.options;
 F_struc = interfacedata.F_struc;
@@ -54,6 +51,7 @@ A =-F_struc(:,2:end);
 if length(B)==0;
     A = C';
     B = 1e6;
+    K.l = 1;
 end
 % Optimized code, make a lot of difference when you make this call 10000
 % times in a branch and bound setting...
@@ -71,9 +69,9 @@ if options.glpk.msglev==1
 end
 
 % Call mex-interface
-solvertime = clock; 
+solvertime = tic;
 [x,FMIN,STATUS,LAMBDA_EXTRA] = glpkmex(SENSE,C,A,B,CTYPE,LB,UB,VARTYPE,options.glpk,options.glpk.lpsolver,options.glpk.save);
-if interfacedata.getsolvertime solvertime = etime(clock,solvertime);else solvertime = 0;end
+solvertime = toc(solvertime);
 problem = 0;
 
 if options.saveduals
@@ -98,7 +96,7 @@ end
 switch STATUS
     case {5,171,180,151,200}
         problem = 0;
-    case {110,182,173,183,0,213,204,209}
+    case {4,110,182,173,183,0,213,204,209}
         problem = 1;
     case 214
         problem = 2;
@@ -148,10 +146,4 @@ else
 end
 
 % Standard interface 
-output.Primal      = x;
-output.Dual        = D_struc;
-output.Slack       = [];
-output.problem     = problem;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
+output = createOutputStructure(x,D_struc,[],problem,yalmiperror(problem,interfacedata.solver.tag),solverinput,solveroutput,solvertime);

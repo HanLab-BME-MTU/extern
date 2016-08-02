@@ -1,13 +1,11 @@
 function [F_struc,K,KCut,schur_funs,schur_data,schur_variables] = lmi2sedumistruct(F)
 %lmi2sedumistruct   Internal function: Converts LMI to format needed in SeDuMi
-%
-% % Author Johan Löfberg
-% % $Id: lmi2sedumistruct.m,v 1.35 2009-09-29 12:02:40 joloef Exp $
 
 nvars = yalmip('nvars'); %Needed lot'sa times...
 
 % We first browse to see what we have got and the
 % dimension of F_struc (massive speed improvement)
+F = flatten(F);
 type_of_constraint = zeros(length(F.LMIid),1);%zeros(size(F.clauses,2),1);
 any_cuts = 0;
 for i = 1:length(F.LMIid)%size(F.clauses,2)
@@ -24,6 +22,7 @@ schur_funs = [];
 schur_variables = [];
 
 sdp_con = find(type_of_constraint == 1 | type_of_constraint == 9 | type_of_constraint == 40);
+sdpstack_con = find(type_of_constraint == 57);
 lin_con = find(type_of_constraint == 2 | type_of_constraint == 12);
 equ_con = find(type_of_constraint == 3);
 qdr_con = find(type_of_constraint == 4);
@@ -166,13 +165,14 @@ for i = 1:length(cmp_con)
     K.c(i) = n;
 end
 
+qdr_con = union(qdr_con,mqdr_con);
 if length(qdr_con) > 0
     [F_struc,K,KCut] = recursive_socp_fix(F,F_struc,K,KCut,qdr_con,nvars,8,1);
 end
-
-if length(mqdr_con) > 0
-    [F_struc,K,KCut] = recursive_msocp_fix(F,F_struc,K,KCut,mqdr_con,nvars,inf,1);
-end
+% % 
+% if length(mqdr_con) > 0
+%    [F_struc,K,KCut] = recursive_msocp_fix(F,F_struc,K,KCut,mqdr_con,nvars,inf,1);
+% end
 
 
 % Rotated Lorentz cone constraints
@@ -422,8 +422,10 @@ F_struc = [oldF_struc F_struc];
 
 function [F_struc,K,KCut,schur_funs,schur_data,schur_variables] = recursive_sdp_fix(F,F_struc,K,KCut,schur_funs,schur_data,schur_variables,sdp_con,nvars,maxnsdp,startindex)
 
-% Check if we should recurse
-if length(sdp_con)>2*maxnsdp
+if isempty(sdp_con)
+    return
+    % Check if we should recurse
+elseif length(sdp_con)>2*maxnsdp
     % recursing costs, so do 4 in one step
     ind = 1+ceil(length(sdp_con)*(0:0.25:1));
     [F_struc1,K,KCut,schur_funs,schur_data,schur_variables] = recursive_sdp_fix(F,[],K,KCut,schur_funs,schur_data,schur_variables,sdp_con(ind(1):ind(2)-1),nvars,maxnsdp,startindex+ind(1)-1);
@@ -446,12 +448,14 @@ for i = 1:length(sdp_con)
     constraints = sdp_con(i);
     
     % Simple data
-    lmi_variables = getvariables(F.clauses{constraints}.data);
-    [n,m] = size(F.clauses{constraints}.data);
+    Fi = F.clauses{constraints};
+    X = Fi.data;
+    lmi_variables = getvariables(X);
+    [n,m] = size(X);
     ntimesm = n*m; %Just as well pre-calc
     
-    if is(F.clauses{constraints}.data,'gkyp')
-        ss = struct(F.clauses{constraints}.data);
+    if is(X,'gkyp')
+        ss = struct(X);
         
         nn = size(F.clauses{1}.data,1);
         bb = getbase(ss.extra.M);
@@ -466,14 +470,14 @@ for i = 1:length(sdp_con)
         schur_funs{i,1} = 'HKM_schur_GKYP';
         schur_variables{i,1} = lmi_variables;
         
-    elseif ~isempty(F.clauses{constraints}.schurfun)
-        schur_data{i,1} = F.clauses{constraints}.schurdata;
-        schur_funs{i,1} = F.clauses{constraints}.schurfun;
+    elseif ~isempty(Fi.schurfun)
+        schur_data{i,1} = Fi.schurdata;
+        schur_funs{i,1} = Fi.schurfun;
         schur_variables{i,1} = lmi_variables;
     end
     
     % get numerics
-    Fibase = getbase(F.clauses{constraints}.data);
+    Fibase = getbase(X);
     % now delete old data to save memory
     % F.clauses{constraints}.data=[];
     
@@ -492,7 +496,7 @@ for i = 1:length(sdp_con)
     end
     F_struc = [F_struc F_structemp];
     
-    if F.clauses{constraints}.cut
+    if Fi.cut
         KCut.s = [KCut.s i+startindex-1];
     end
     K.s(i+startindex-1) = n;
@@ -517,17 +521,21 @@ function [F_struc,K,KCut] = recursive_socp_fix(F,F_struc,K,KCut,qdr_con,nvars,ma
 if length(qdr_con)>2*maxnsocp
     % recursing costs, so do 4 in one step
     ind = 1+ceil(length(qdr_con)*(0:0.25:1));
-    [F_struc1,K,KCut] = recursive_socp_fix(F,[],K,KCut,qdr_con(ind(1):ind(2)-1),nvars,maxnsocp,startindex+ind(1)-1);
-    [F_struc2,K,KCut] = recursive_socp_fix(F,[],K,KCut,qdr_con(ind(2):ind(3)-1),nvars,maxnsocp,startindex+ind(2)-1);
-    [F_struc3,K,KCut] = recursive_socp_fix(F,[],K,KCut,qdr_con(ind(3):ind(4)-1),nvars,maxnsocp,startindex+ind(3)-1);
-    [F_struc4,K,KCut] = recursive_socp_fix(F,[],K,KCut,qdr_con(ind(4):ind(5)-1),nvars,maxnsocp,startindex+ind(4)-1);
+    [F_struc1,K1,KCut] = recursive_socp_fix(F,[],K,KCut,qdr_con(ind(1):ind(2)-1),nvars,maxnsocp,startindex+ind(1)-1);
+    [F_struc2,K2,KCut] = recursive_socp_fix(F,[],K,KCut,qdr_con(ind(2):ind(3)-1),nvars,maxnsocp,startindex+ind(2)-1);
+    [F_struc3,K3,KCut] = recursive_socp_fix(F,[],K,KCut,qdr_con(ind(3):ind(4)-1),nvars,maxnsocp,startindex+ind(3)-1);
+    [F_struc4,K4,KCut] = recursive_socp_fix(F,[],K,KCut,qdr_con(ind(4):ind(5)-1),nvars,maxnsocp,startindex+ind(4)-1);
     F_struc = [F_struc F_struc1 F_struc2 F_struc3 F_struc4];
+    K.q = [K1.q K2.q K3.q K4.q];
+    K.q(K.q==0)=[];
     return
 elseif length(qdr_con)>maxnsocp
     mid = ceil(length(qdr_con)/2);
-    [F_struc1,K,KCut] = recursive_socp_fix(F,[],K,KCut,qdr_con(1:mid),nvars,maxnsocp,startindex);
-    [F_struc2,K,KCut] = recursive_socp_fix(F,[],K,KCut,qdr_con(mid+1:end),nvars,maxnsocp,startindex+mid);
+    [F_struc1,K1,KCut] = recursive_socp_fix(F,[],K,KCut,qdr_con(1:mid),nvars,maxnsocp,startindex);
+    [F_struc2,K2,KCut] = recursive_socp_fix(F,[],K,KCut,qdr_con(mid+1:end),nvars,maxnsocp,startindex+mid);
     F_struc = [F_struc  F_struc1  F_struc2];
+    K.q = [K1.q K2.q];
+    K.q(K.q==0)=[];
     return
 end
 
@@ -556,9 +564,10 @@ for i = 1:length(qdr_con)
     end
     % ...and add them together (efficient for large structures)
     F_struc = [F_struc F_structemp];
-    K.q(i+startindex-1) = n;
+   % K.q(i+startindex-1) = n;
+    K.q = [K.q ones(1,m)*n];
 end
-
+K.q(K.q==0)=[];
 
 function [F_struc,K,KCut] = recursive_msocp_fix(F,F_struc,K,KCut,qdr_con,nvars,maxnsocp,startindex);
 

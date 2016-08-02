@@ -18,9 +18,16 @@ end
 if model.f > 0
     obj = [obj '+' num2str(model.f)];
 end
+if isempty(obj)
+    obj = [];
+else
+    if obj(1)=='+'
+        obj = obj(2:end);
+    end
 % Append quadratic term
-obj = ['@(x) ' obj];
-obj = eval(obj);
+    obj = ['@(x) ' obj];
+    obj = eval(obj);
+end
 
 % Create string representing nonlinear constraints
 if length(cu)>0
@@ -37,6 +44,7 @@ if length(cu)>0
     cu(remove) = [];
     con = [con ']'];
     con = strrep(con,'sqrtm_internal','sqrt');
+    con = strrep(con,'slog(x','log(1+x');
     con = ['@(x) ' con];
     con = eval(con);
 else
@@ -72,15 +80,21 @@ switch model.options.verbose
         opts.display = 'iter';
 end
 if model.options.savedebug    
-    save scipnldebug obj con A ru rl cl cu lb ub x0 opts
+    save scipnldebug obj con A ru rl cl cu xtype lb ub x0 opts
 end
 
-solvertime = clock;
+solvertime = tic;
 [x,fval,exitflag,info] = opti_scipnl(obj,A,rl,ru,lb,ub,con,cl,cu,xtype,[],opts);%,x0,opts);
-solvertime = etime(clock,solvertime);
+solvertime = toc(solvertime);
 
 % Check, currently not exhaustive...
 switch exitflag
+    case 0
+        if ~isempty(strfind(info.Status,'Exceed'))
+            problem = 3;
+        else
+            problem = 9;
+        end
     case 1
         problem = 0;
     case {2,-1}
@@ -137,14 +151,47 @@ if pos
     % This is a nonlinear operator
     map = model.evalMap{pos};
     % We might hqave vectorized things to compute several expressions at the same time
-    j = find(map.computes == i);
-    j = map.variableIndex(j);
-    % we have f(x(j)), but have to map back to linear indicies
-    jl = find(model.linearindicies == j);
-    if isempty(jl)
-        z =  [map.fcn '(' createmonomstring(model.monomtable(j,:),model)  ')'];
+    if length(map.computes) == 1 && length(map.variableIndex) > 1
+        if isequal(map.fcn,'plog')
+            j1 = find(model.linearindicies == map.variableIndex(1));
+            j2 = find(model.linearindicies == map.variableIndex(2));
+            if isempty(j1)
+                z1 = createmonomstring(model.monomtable(map.variableIndex(1),:),model);
+            else
+                z1 = ['x(' num2str(j1) ')'];
+            end
+            if isempty(j2)
+                z1 =  createmonomstring(model.monomtable(map.variableIndex(2),:),model);
+            else
+                z2 =  ['x(' num2str(j2) ')'];
+            end
+            z = [z1 '*log(' z2 '/' z1 ')'];
+        else
+        z = [map.fcn '('];
+        for j = map.variableIndex
+            jl = find(model.linearindicies == j);
+            if isempty(jl)
+                z =  [z createmonomstring(model.monomtable(j,:),model)];
+            else
+                z =  [z 'x(' num2str(jl) ')'];
+            end
+            if j == length(map.variableIndex)
+                z = [z ')'];
+            else
+                z = [z ','];
+            end
+        end
+        end
     else
-        z =  [map.fcn '(x(' num2str(jl) '))'];
+        j = find(map.computes == i);
+        j = map.variableIndex(j);
+        % we have f(x(j)), but have to map back to linear indicies
+        jl = find(model.linearindicies == j);
+        if isempty(jl)
+            z =  [map.fcn '(' createmonomstring(model.monomtable(j,:),model)  ')'];
+        else
+            z =  [map.fcn '(x(' num2str(jl) '))'];
+        end
     end
 else
     i = find(model.linearindicies == i);

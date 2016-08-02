@@ -1,6 +1,4 @@
 function output = callnage04mbf(varargin)
-% Author Johan Löfberg 
-% $Id: callnage04mbf.m,v 1.6 2006-04-10 08:08:47 joloef Exp $
 
 % Retrieve needed data
 interfacedata = varargin{1};
@@ -49,19 +47,13 @@ otherwise
     msglev = 5*options.verbose;
     ifail = -1;
 end
-solvertime = clock; 
+solvertime = tic;
 [x,istate,objlp,clambda,ifail] = e04mbf(full(lb),full(ub),zeros(length(c),1),full(c),full(A),msglev,options.nag.itmax,ifail);%options.nag.bigbnd,options.nag.orthog);
-solvertime = etime(clock,solvertime);
+solvertime = toc(solvertime);
 problem = 0;
 
 % Internal format for duals
-%if sent_bounds
-  %  D_struc_bound = -clambda(1:length(c));
- %   D_struc = -clambda(length(c)+1:end);   
- %   D_struc = [repmat(inf,length(c)*2,1);D_struc];
- %else
-    D_struc = -clambda(length(c)+1:end);
-    %end
+D_struc = -clambda(length(c)+1:end);
 
 switch ifail
 case {-1,0}
@@ -104,11 +96,4 @@ else
 end
 
 % Standard interface 
-output.Primal      = x;
-output.Dual        = D_struc;
-output.Slack       = [];
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
+output = createOutputStructure(x,D_struc,[],problem,infostr,solverinput,solveroutput,solvertime);

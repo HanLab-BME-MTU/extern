@@ -9,9 +9,20 @@ switch class(varargin{1})
 
     case 'sdpvar'
         if isa(varargin{2},'sdpvar')
-            error('x^y currently not supported for SDPVAR x and SDPVAR y')
+            x = varargin{2};
+            y = varargin{1};
+            varargout{1} = exp(y*log(x)); %x^y = exp(log(x^y))          
         else
-            varargout{1} = InstantiateElementWise(mfilename,varargin{:});
+            if length(varargin{1}) > 1 || size(varargin{2},1) ~= size(varargin{2},2)
+                error('Inputs must be a scalar and a square matrix. To compute elementwise POWER, use POWER (.^) instead.');
+            end
+            x = varargin{2};
+            y = varargin{1};
+            if isa(x,'double') && x==1 && length(y)==1
+                varargout{1} = 1;
+            else                
+                varargout{1} = InstantiateElementWise(mfilename,varargin{:});
+            end
         end
 
     case 'char'
@@ -25,7 +36,7 @@ switch class(varargin{1})
             operator = struct('convexity','none','monotonicity','decreasing','definiteness','positive','model','callback');
         else
             % Base is negative, so the power has to be an integer
-            F = set(integer(X));
+            F = (integer(X));
             operator = struct('convexity','none','monotonicity','decreasing','definiteness','none','model','callback');
         end
 

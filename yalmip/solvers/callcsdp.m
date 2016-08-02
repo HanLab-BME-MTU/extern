@@ -22,13 +22,13 @@ if options.savedebug
 end
     
 if options.showprogress;showprogress(['Calling ' interfacedata.solver.tag],options.showprogress);end
-solvertime = clock; 
+solvertime = tic;
 if options.verbose==0 % to fix display bug reported from user
     evalc('[x_s,y_s,z_s,info]=csdp(-F_struc(:,2:end),-c,F_struc(:,1),K,pars);');
 else
     [x_s,y_s,z_s,info]=csdp(-F_struc(:,2:end),-full(c),F_struc(:,1),K,pars);
 end
-solvertime = etime(clock,solvertime);
+solvertime = toc(solvertime);
 
 % We solve dual problem with CSDP
 Dual = x_s;
@@ -71,11 +71,4 @@ else
 end
 
 % Standard interface 
-output.Primal      = x;
-output.Dual        = Dual;
-output.Slack       = z_s;
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
+output = createOutputStructure(x,Dual,z_s,problem,infostr,solverinput,solveroutput,solvertime);

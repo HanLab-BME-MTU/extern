@@ -26,8 +26,7 @@ function sys = sdpvar(varargin)
 %
 %   A scalar is defined as a 1x1 matrix
 %
-%   Higher-dimensional matrices are also supported, although this currently
-%   is an experimental feature with limited use. The type flag applies to
+%   Higher-dimensional matrices are also supported. The type flag applies to
 %   the lowest level slice.
 %
 %     X = SDPVAR(n,n,n,'full')      Full nxnxn matrix
@@ -46,14 +45,11 @@ function sys = sdpvar(varargin)
 %
 %   See also INTVAR, BINVAR, methods('sdpvar'), SEE
 
-% Author Johan Löfberg
-% $Id: sdpvar.m,v 1.58 2010-02-25 11:00:23 joloef Exp $
+% Turn this on if you want to use factor tracking (i.e, the solver STRUL)
+global FACTORTRACKING 
+FACTORTRACKING = 0;
 
 superiorto('double');
-try
-    superiorto('intval');
-catch
-end
 if nargin==0
     sys = sdpvar(1,1);
     return
@@ -64,7 +60,24 @@ if isstruct(varargin{1})
     return
 end
 
-%if nargin == 1
+% Quick cell-based only for real full/symmetric matrices, so just
+% iteratively call sdpvar to generate all cells
+if length(varargin{1}) > 2 && nargin <= 4 && nargin > 2
+    if (nargin == 4 && isequal('complex',varargin{4})) || (nargin >= 3 && (isequal('toeplitz',varargin{3}) || isequal('hankel',varargin{3})))
+        n = varargin{1};
+        m = varargin{2};
+        structure = varargin{3};
+        if nargin == 3
+            field = 'real';
+        else
+            field = varargin{4};
+        end
+        for i = 1:length(varargin{1})
+            sys{i} = sdpvar(n(i),m(i),structure,field);
+        end
+        return
+    end
+end
 
 % To speed up dualization, we keep track of primal SDP cones
 % [0 0] :  Nothing known (cleared in some operator, or none-cone to start with)
@@ -165,6 +178,7 @@ switch nargin
         else
             matrix_type = 'full';
             nvar = sum(n.*m);
+            conicinfo = [-1 0];
         end
     case 2
         n = varargin{1};
@@ -183,6 +197,7 @@ switch nargin
         else
             matrix_type = 'full';
             nvar = sum(n.*m);
+            conicinfo = [-1 0];
         end
     case {3,4}
         n = varargin{1};
@@ -254,13 +269,16 @@ switch nargin
                     else
                         matrix_type = 'symmetric';
                         nvar = sum(n.*(n+1)/2);
+                        conicinfo = [1 0];
                     end
 
                 case 4
                     matrix_type = 'full';
                     nvar = sum(n.*m);
+                    conicinfo = [-1 0];
                     if nvar==1
                         matrix_type = 'symmetric';
+                        conicinfo = [1 0];
                     end
 
                 case 5
@@ -370,8 +388,13 @@ switch nargin
         sys.extra.opname = '';
         sys.conicinfo = 0;
         sys.originalbasis = 'unknown';
-        sys.leftfactors{1} = speye(sys.dim(1));
-        sys.rightfactors{1} = speye(sys.dim(2));
+        if FACTORTRACKING
+            sys.leftfactors{1} = speye(sys.dim(1));
+            sys.rightfactors{1} = speye(sys.dim(2));
+        else
+            sys.leftfactors = [];
+            sys.rightfactors = [];
+        end        
         sys.midfactors = [];
         % Find zero-variables
         constants = find(sys.lmi_variables==0);
@@ -385,7 +408,9 @@ switch nargin
         else
             sys = class(sys,'sdpvar');
         end
-        sys.midfactors{1} = sys;
+        if FACTORTRACKING
+            sys.midfactors{1} = sys;
+        end
         return
     case 6 % Fast version for internal use
         sys.basis = varargin{5};
@@ -399,8 +424,13 @@ switch nargin
         sys.extra.opname = '';
         sys.conicinfo = 0;
         sys.originalbasis = 'unknown';
-        sys.leftfactors{1} = speye(sys.dim(1));
-        sys.rightfactors{1} = speye(sys.dim(2));
+        if FACTORTRACKING
+            sys.leftfactors{1} = speye(sys.dim(1));
+            sys.rightfactors{1} = speye(sys.dim(2));
+        else
+            sys.leftfactors = [];
+            sys.rightfactors = [];
+        end
         sys.midfactors = [];
         % Find zero-variables
         constants = find(sys.lmi_variables==0);
@@ -414,7 +444,9 @@ switch nargin
         else
             sys = class(sys,'sdpvar');
         end
-        sys.midfactors{1} = sys;
+        if FACTORTRACKING
+            sys.midfactors{1} = sys;
+        end
         return
     case 7 % Fast version for internal use
         sys.basis = varargin{5};
@@ -428,8 +460,13 @@ switch nargin
         sys.extra.opname = '';
         sys.conicinfo = varargin{7};
         sys.originalbasis = 'unknown';
-        sys.leftfactors{1} =  speye(sys.dim(2));
-        sys.rightfactors{1} =  speye(sys.dim(2));
+        if FACTORTRACKING
+            sys.leftfactors{1} =  speye(sys.dim(2));
+            sys.rightfactors{1} =  speye(sys.dim(2));
+        else
+            sys.leftfactors = [];
+            sys.rightfactors = [];
+        end
         sys.midfactors = [];
         % Find zero-variables
         constants = find(sys.lmi_variables==0);
@@ -443,9 +480,20 @@ switch nargin
         else
             sys = class(sys,'sdpvar');
         end
-        sys.midfactors{1} = sys;
+        if FACTORTRACKING
+            sys.midfactors{1} = sys;
+        end
         return
-
+        
+    case 8
+        sys = varargin{8};
+        if isempty(sys.lmi_variables)
+            sys = full(reshape(sys.basis(:,1),sys.dim(1),sys.dim(2)));
+        else
+            sys = class(sys,'sdpvar');
+        end
+        return
+                
     otherwise
         error('Wrong number of arguments in sdpvar creation');
 end
@@ -474,14 +522,15 @@ for blk = 1:length(n)
                 basis{blk} = sparse([0 1]);
             else
                 % Hrm...fast but completely f*d up
-                Y = reshape(1:n(blk)^2,n(blk),n(blk));
-                Y = tril(Y);
-                Y = (Y+Y')-diag(sparse(diag(Y)));
-                [uu,oo,pp] = unique(Y(:));
-                if 1
-                    basis{blk} = sparse(1:n(blk)^2,pp+1,1);
+                % Resuse old basis
+                if blk > 1 && n(blk) == n(blk-1)
+                    basis{blk} = basis{blk-1};
                 else
-                    basis{blk} = lazybasis(n^2,1+(n*(n+1)/2),1:n(blk)^2,pp+1,ones(n(blk)^2,1));
+                    Y = reshape(1:n(blk)^2,n(blk),n(blk));
+                    Y = tril(Y);
+                    Y = (Y+Y')-diag(sparse(diag(Y)));
+                    [uu,oo,pp] = unique(Y(:));
+                    basis{blk} = sparse(1:n(blk)^2,pp+1,1);
                 end
             end
 
@@ -538,6 +587,10 @@ for blk = 1:length(n)
             basis = [BasisReal BasisImag];
 
         case 'skew'
+            if n==1
+                sys = 0;
+                return
+            end
             basis = spalloc(n^2,1+nvar,2);
             l = 2;
             an_empty = spalloc(n,n,2);
@@ -552,25 +605,30 @@ for blk = 1:length(n)
             end
 
         case 'skew complex'
-            basis = spalloc(n^2,1+nvar,2);
-            l = 2;
-            an_empty = spalloc(n,n,2);
-            for i=1:n
-                for j=i+1:n,
-                    temp = an_empty;
-                    temp(i,j)=1;
-                    temp(j,i)=-1;
-                    basis(:,l)=temp(:);
-                    l = l+1;
+            if n==1
+                sys = sdpvar(1,1)*sqrt(-1);
+                return
+            else
+                basis = spalloc(n^2,1+nvar,2);
+                l = 2;
+                an_empty = spalloc(n,n,2);
+                for i=1:n
+                    for j=i+1:n,
+                        temp = an_empty;
+                        temp(i,j)=1;
+                        temp(j,i)=-1;
+                        basis(:,l)=temp(:);
+                        l = l+1;
+                    end
                 end
-            end
-            for i=1:n
-                for j=i+1:n,
-                    temp = an_empty;
-                    temp(i,j)=sqrt(-1);
-                    temp(j,i)=-sqrt(-1);
-                    basis(:,l)=temp(:);
-                    l = l+1;
+                for i=1:n
+                    for j=i+1:n,
+                        temp = an_empty;
+                        temp(i,j)=sqrt(-1);
+                        temp(j,i)=-sqrt(-1);
+                        basis(:,l)=temp(:);
+                        l = l+1;
+                    end
                 end
             end
 
@@ -652,37 +710,6 @@ for blk = 1:length(n)
 end
 
 appendYALMIPvariables(lmi_variables,mt,variabletype,hashed_monoms,current_hash);
-% % Update monomtable and pre-calculated variable type
-% n_mt = size(mt,1);
-% m_mt = size(mt,2);
-% newmt = [];
-% if min(lmi_variables)>m_mt % New variables
-%     if size(mt,1)~=size(mt,2)
-%         mt(size(mt,1),size(mt,1))=0;
-%     end
-%     % This was faster before. However in recent versions of matlab, there
-%     % is a compiled version of blkdiag available
-%     % fill=spalloc(size(mt,1),length(lmi_variables),0);   
-%     % mt=[mt fill;fill' speye(length(lmi_variables))]; 
-%     if isempty(mt)        
-%         mt = speye(length(lmi_variables));
-%         newmt = mt;
-%     else
-%         newmt = speye(length(lmi_variables));
-%         mt=blkdiag(mt,speye(length(lmi_variables)));
-%     end
-% else
-%     mt(lmi_variables,lmi_variables) = speye(length(lmi_variables));
-% end
-% variabletype(1,size(mt,1)) = 0;
-% if ~isempty(newmt)
-%     new_hash = 3*rand_hash(size(mt,2),size(newmt,2),1);
-%     hashed_monoms = [hashed_monoms;newmt*new_hash];
-%     current_hash = [current_hash;new_hash];
-%     yalmip('setmonomtable',mt,variabletype,hashed_monoms,current_hash);
-% else 
-%     yalmip('setmonomtable',mt,variabletype);
-% end
 
 % Create an object
 if isa(basis,'cell')
@@ -701,11 +728,18 @@ if isa(basis,'cell')
         sys{blk}.extra.opname = '';
         sys{blk}.conicinfo = conicinfo;
         sys{blk}.originalbasis = matrix_type;
-        sys{blk}.leftfactors{1} = speye(n(blk));
-        sys{blk}.rightfactors{1} = speye(m(blk));
-        sys{blk}.midfactors{1} = [];
+        if FACTORTRACKING
+            sys{blk}.leftfactors{1} = speye(n(blk));
+            sys{blk}.rightfactors{1} = speye(m(blk));
+        else
+            sys{blk}.leftfactors = [];
+            sys{blk}.rightfactors = [];
+        end
+        sys{blk}.midfactors = [];
         sys{blk} = class(sys{blk},'sdpvar');
-        sys{blk}.midfactors{1} = sys{blk};
+        if FACTORTRACKING
+            sys{blk}.midfactors{1} = sys{blk};
+        end
     end
     if length(n)==1
         sys = sys{1};
@@ -722,24 +756,35 @@ else
     sys.extra.opname = '';
     sys.conicinfo = conicinfo;
     sys.originalbasis = matrix_type;
-    sys.leftfactors{1} = speye(n);
-    sys.rightfactors{1} = speye(m);
-    sys.midfactors{1} = [];
+    if FACTORTRACKING
+        sys.leftfactors{1} = speye(n);
+        sys.rightfactors{1} = speye(m);
+    else
+        sys.leftfactors = [];
+        sys.rightfactors = [];
+    end
+    sys.midfactors = [];
     sys = class(sys,'sdpvar');
-    sys.midfactors{1} = sys;
+    if FACTORTRACKING
+        sys.midfactors{1} = sys;
+    end
     if isequal(matrix_type,'hankel')
         % To speed up generation, we have just created a vector, and now
         % hankelize it
         sys.dim(2) = 1;
         sys = hankel(sys);
-        sys.leftfactors{1} = eye(sys.dim(1));
-        sys.midfactors{1} = sys;
-        sys.rightfactors{1} = eye(sys.dim(1));
+        if FACTORTRACKING
+            sys.leftfactors{1} = eye(sys.dim(1));
+            sys.midfactors{1} = sys;
+            sys.rightfactors{1} = eye(sys.dim(1));
+        end
     elseif isequal(matrix_type,'toeplitz')
         sys.dim(2) = 1;
         sys = toeplitz(sys);
-        sys.leftfactors{1} = eye(sys.dim(1));
-        sys.midfactors{1} = sys;
-        sys.rightfactors{1} = eye(sys.dim(1));
+        if FACTORTRACKING
+            sys.leftfactors{1} = eye(sys.dim(1));
+            sys.midfactors{1} = sys;
+            sys.rightfactors{1} = eye(sys.dim(1));
+        end
     end
 end

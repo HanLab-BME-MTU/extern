@@ -1,8 +1,5 @@
 function output = callbpmpd(interfacedata)
 
-% Author Johan Löfberg 
-% $Id: callbpmpd.m,v 1.4 2005-05-07 13:53:20 joloef Exp $
-
 % Retrieve needed data
 options = interfacedata.options;
 F_struc = interfacedata.F_struc;
@@ -54,9 +51,9 @@ if options.savedebug
 end
 
 if options.showprogress;showprogress(['Calling ' interfacedata.solver.tag],options.showprogress);end
-solvertime = clock; 
+solvertime = tic;
 [x,y,s,w,how] = bp(Q, A, b, c, e,llist,lval,ulist,uval,opts);
-if interfacedata.getsolvertime solvertime = etime(clock,solvertime);else solvertime = 0;end
+solvertime = toc(solvertime);
 
 problem = 0;
 
@@ -101,13 +98,5 @@ else
     solveroutput = [];
 end
 
-
-
 % Standard interface 
-output.Primal      = x;
-output.Dual        = D_struc;
-output.Slack       = [];
-output.problem     = problem;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
+output = createOutputStructure(x,D_struc,[],problem,infostr,solverinput,solveroutput,solvertime);

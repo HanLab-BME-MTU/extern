@@ -1,8 +1,5 @@
 function output = callsparsepop(model)
 
-% Author Johan Löfberg 
-% $Id: callsedumi.m,v 1.30 2008-06-09 06:29:48 joloef Exp $
-
 % Retrieve needed data
 options = model.options;
 F_struc = model.F_struc;
@@ -91,17 +88,17 @@ end
 % Call sparsePOP
 % *********************************************
 if options.showprogress;showprogress(['Calling ' model.solver.tag],options.showprogress);end
-solvertime = clock; 
 problem = 0;  
 lb(isinf(lb)) = -1.0e10;
 ub(isinf(ub)) = 1.0e10;
 
+solvertime = tic;
 if options.verbose==0
     evalc('[param,SDPobjValue,POP,cpuTime,SDPsolverInfo,SDPinfo] = sparsePOP(obj,constraint,lb,ub,paramin);');
 else
     [param,SDPobjValue,POP,cpuTime,SDPsolverInfo,SDPinfo] = sparsePOP(obj,constraint,lb,ub,paramin);
 end
-if model.getsolvertime solvertime = etime(clock,solvertime);else solvertime = 0;end
+solvertime = toc(solvertime);
 
 if ~isempty(POP.xVect)
     Primal = zeros(length(c),1);
@@ -134,12 +131,5 @@ else
     solveroutput = [];
 end
 
-% Standard interface 
-output.Primal      = Primal;
-output.Dual        = [];
-output.Slack       = [];
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
+% Standard interface
+output = createOutputStructure(Primal,[],[],problem,infostr,solverinput,solveroutput,solvertime);

@@ -1,10 +1,8 @@
-function [problem,integer_variables,binary_variables,parametric_variables,uncertain_variables,semicont_variables,quad_info] = categorizeproblem(F,P,h,relax,parametric,evaluation,F_vars)
+function [problem,integer_variables,binary_variables,parametric_variables,uncertain_variables,semicont_variables,quad_info] = categorizeproblem(F,P,h,relax,parametric,evaluation,F_vars,exponential_cone)
 %categorizeproblem          Internal function: tries to determine the type of optimization problem
 
-% Author Johan Löfberg
-% $Id: categorizeproblem.m,v 1.24 2009-05-29 08:05:12 joloef Exp $
-
-Counter = size(F.clauses,2);
+F = flatten(F);
+Counter = length(F.LMIid);
 Ftype = zeros(Counter,1);
 
 real_data = 1;
@@ -19,6 +17,7 @@ bilin_constraint = 0;
 sigm_constraint = 0;
 rank_constraint = 0;
 rank_objective = 0;
+exp_cone = 0;
 
 parametric_variables = [];
 kyp_prob  = 0;
@@ -30,6 +29,7 @@ gkyp_prob  = 0;
 problem.objective.linear = 0;
 problem.objective.quadratic.convex = 0;
 problem.objective.quadratic.nonconvex = 0;
+problem.objective.quadratic.nonnegative = 0;
 problem.objective.polynomial = 0;
 problem.objective.maxdet.convex = 0;
 problem.objective.maxdet.nonconvex = 0;
@@ -72,6 +72,7 @@ problem.complex = 0;
 problem.parametric = parametric;
 problem.interval = 0;
 problem.evaluation = evaluation;
+problem.exponentialcone = exponential_cone;
 
 % ********************************************************
 % Make a list of all globally available discrete variables
@@ -153,7 +154,7 @@ for i = 1:Counter
     if any_rank_variables
         rank_constraint = rank_constraint | any(ismember(getvariables(Fi.data),rank_variables));
     end
-    
+           
     % Check for equalities violating GP definition    
     if problem.constraint.equalities.multiterm == 0
         if Fi.type==3
@@ -210,7 +211,16 @@ for i = 1:Counter
                         error('Report bug in problem classification (sigmonial constraint)');
                 end
             else
-                deg = degree(Fi.data);
+                %deg = degree(Fi.data);
+                types = variabletype(getvariables(Fi.data));
+                if ~any(types)
+                    deg = 1;
+                elseif any(types==1) || any(types==2)
+                    deg = 2;
+                else
+                    deg = NaN;
+                end
+                
                 switch deg
                     
                     case 1
@@ -340,15 +350,6 @@ if ~isempty(uncertain_variables)
     problem.uncertain = 1;
 end
 
-if (relax==1) | (relax==2)
-    problem.constraint.integer = 0;
-    problem.constraint.binary = 0;
-    problem.constraint.sos2 = 0;
-    problem.constraint.semicont = 0;
-    int_data = 0;
-    bin_data = 0;
-    scn_data = 0;
-end
 if (relax==1) | (relax==3)
     problem.constraint.equalities.linear = problem.constraint.equalities.linear | problem.constraint.equalities.quadratic | problem.constraint.equalities.polynomial | problem.constraint.equalities.sigmonial;
     problem.constraint.equalities.quadratic = 0;
@@ -373,6 +374,7 @@ if (relax==1) | (relax==3)
     bilin_constraint = 0;
     sigm_constraint = 0;
     problem.evaluation = 0;
+    problem.exponentialcone = 0;
 end
 
 % Analyse the objective function
@@ -412,6 +414,11 @@ if (~isempty(h)) & ~h_is_linear &~(relax==1) &~(relax==3)
         if info==0
             % OK, we have some kind of quadratic expression
             % Find involved variables
+            if all(nonzeros(Q)>=0)
+                problem.objective.quadratic.nonnegative = 1;
+            else
+                problem.objective.quadratic.nonnegative = 0;
+            end
             index = find(any(Q,2));
             if length(index) < length(Q)
                 Qsub = Q(index,index);
@@ -432,16 +439,20 @@ if (~isempty(h)) & ~h_is_linear &~(relax==1) &~(relax==3)
                 [R,p]=chol(Q);
             end
             if p~=0
-                Q = full(Q);
-                if min(eig(Q))>=-1e-10
-                    p=0;
-                    try
-                        [U,S,V]=svd(Q);
-                    catch
-                        [U,S,V]=svd(full(Q));
+                if any(~diag(Q) & any(triu(Q,1),2))
+                    % Diagonal zero but non-zero outside, cannot be convex
+                else
+                    Q = full(Q);
+                    if min(eig(Q))>=-1e-10
+                        p=0;
+                        try
+                            [U,S,V]=svd(Q);
+                        catch
+                            [U,S,V]=svd(full(Q));
+                        end
+                        i = find(diag(S)>1e-10);
+                        R = sqrt(S(1:max(i),1:max(i)))*V(:,1:max(i))';
                     end
-                    i = find(diag(S)>1e-10);
-                    R = sqrt(S(1:max(i),1:max(i)))*V(:,1:max(i))';
                 end
             end
             if p==0
@@ -461,6 +472,16 @@ if (~isempty(h)) & ~h_is_linear &~(relax==1) &~(relax==3)
     end
 else
     problem.objective.linear = ~isempty(h);
+end
+
+if (relax==1) | (relax==2)
+    problem.constraint.integer = 0;
+    problem.constraint.binary = 0;
+    problem.constraint.sos2 = 0;
+    problem.constraint.semicont = 0;
+    int_data = 0;
+    bin_data = 0;
+    scn_data = 0;
 end
 
 function p = multipletermsInEquality(Fi);

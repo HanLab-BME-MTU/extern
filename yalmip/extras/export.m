@@ -1,8 +1,8 @@
 function [model,recoverdata,diagnostic,interfacedata] = export(varargin)
 %EXPORT  Exports YALMIP problem to solver specific format
 %
-%   [MODEL,RECOVERYMODEL,DIAGNOSTIC,INTERNAL] = EXPORT(F,h,options) is the common command to
-%   export optimization problems of the following kind
+%   [MODEL,RECOVERYMODEL,DIAGNOSTIC,INTERNAL] = EXPORT(F,h,options) is the
+%   common command to export optimization problems of the following kind
 %
 %    min        h
 %    subject to
@@ -24,9 +24,6 @@ function [model,recoverdata,diagnostic,interfacedata] = export(varargin)
 %   The RECOVERYMODEL is used to relate a solution of the exported model
 %   to the original variables in YALMIP.
 
-% Arrrgh, new format with logdet much better, but we have to
-% take care of old code, requires some testing...
-varargin = combatible({varargin{:}});
 nargin = length(varargin);
 % *********************************
 % CHECK INPUT
@@ -42,7 +39,7 @@ else
     end
 
     if isa(F,'constraint')
-        F = set(F);
+        F = lmi(F);
     end
 end
 
@@ -72,7 +69,7 @@ if nargin>=2
         end
         h = getcx(h);       
         if isempty(F)
-           F = set([]);
+           F = ([]);
         end
         
     else
@@ -115,6 +112,8 @@ if any(is(F,'uncertain'))
     [F,h] = robustify(F,h,options);
 end
 
+F = flatten(F);
+
 % ******************************************
 % Export SOS problem to SOS first
 % ******************************************
@@ -155,20 +154,10 @@ switch lower(solver.tag)
  
     case 'cplex-ibm'
         
-        % Hack to handle CPLEX slow treatment of paramters. Remove all
-        % default settings, so optimizer runs fast
-        try
-            o1 = cplexoptimset('cplex');
-            o2 = interfacedata.options.cplex;
-            n = fieldnames(o1);
-            for i = 1:length(n)
-                if isequal(o1.(n{i}),o2.(n{i}))
-                    interfacedata.options.cplex = rmfield(interfacedata.options.cplex,n{i});                    
-                end
-            end
-            model = yalmip2cplex(interfacedata);
-        catch
-        end
+        % Hack to handle CPLEX slow treatment of parameters. Remove all
+        % default settings, so optimizer runs fast        
+        interfacedata.options = prunecplexoptions(interfacedata.options);        
+        model = yalmip2cplex(interfacedata);
 
     case 'ecos'
         model = yalmip2ecos(interfacedata);      
@@ -195,12 +184,20 @@ switch lower(solver.tag)
         else
             model.prob = yalmip2mosek(interfacedata);
         end
-                    
+        model.param = interfacedata.options.mosek;
+   
+    case 'linprog'
+        model = yalmip2quadprog(interfacedata);
+        model = rmfield(model,'Q');
+        
     case 'quadprog'
         model = yalmip2quadprog(interfacedata);
         
     case {'sedumi-1.05','sedumi-1.1','sedumi-1.3'}        
-        model = yalmip2sedumi(interfacedata);
+        model = yalmip2sedumi(interfacedata);  
+        
+   case {'scs-direct','scs-indirect'}
+        model = yalmip2scs(interfacedata);  
         
     case {'powersolver'}        
         model = yalmip2powersolver(interfacedata);
@@ -227,6 +224,9 @@ switch lower(solver.tag)
                 
     case 'pensdp-penopt'        
         model = yalmip2pensdp(interfacedata);
+        
+    case 'penlab'
+        model.penstruct = sedumi2penbmi(interfacedata.F_struc,interfacedata.c,interfacedata.Q,interfacedata.K,interfacedata.monomtable,interfacedata.options,interfacedata.x0);
                 
     case 'mpt'
         interfacedata.parametric_variables = find(ismember(recoverdata.used_variables,getvariables(F(find(is(F,'parametric'))))));
@@ -235,202 +235,11 @@ switch lower(solver.tag)
                 
     case 'penbmi-penopt'        
         model.penstruct = sedumi2penbmi(interfacedata.F_struc,interfacedata.c,interfacedata.Q,interfacedata.K,interfacedata.monomtable,interfacedata.options,interfacedata.x0);
-               
+        
+    case {'qpip','qpas'}
+        model = yalmip2quadprog(interfacedata);
+        model.options = interfacedata.options.qpip;
+        
     otherwise
         model = [];
-end
-
-
-
-function newinputformat = combatible(varargin)
-
-varargin = varargin{1};
-
-classification = 0;
-% 0 : Ambigious
-% 1 : Old
-% 2 : New
-
-% Try some fast methods to determine...
-m = length(varargin);
-if m==1
-    classification = 2;
-elseif m>=3 & isstruct(varargin{3})
-    classification = 2;
-elseif m>=4 & isstruct(varargin{4})
-    classification = 1;
-elseif m>=2 & isa(varargin{2},'lmi')
-    classification = 1;
-elseif m>=3 & isa(varargin{3},'sdpvar')
-    classification = 1;
-elseif m>=2 & isa(varargin{2},'sdpvar') & min(size(varargin{2}))==1
-    classification = 2;
-elseif m>=2 & isa(varargin{2},'sdpvar') & prod(size(varargin{2}))>=1
-    classification = 1;
-elseif m>=2 & isa(varargin{2},'logdet')
-    classification = 2;
-elseif m==2 & isempty(varargin{2})
-    classification = 2;
-elseif m>=3 & isempty(varargin{2}) & isempty(varargin{3})
-    classification = 2;
-end
-
-if classification==0
-    warning('I might have interpreted this problem wrong due to the new input format in version 3. To get rid of this warning, use an options structure');
-    classification = 2;
-end
-
-if classification==2
-    newinputformat = varargin;
-else
-    newinputformat = varargin;
-    P = varargin{2};
-    % 99.9% of the cases....
-    if isempty(P)
-        newinputformat = {newinputformat{[1 3:end]}};
-    else
-        if isa(P,'lmi')
-            P = sdpvar(P);
-        end
-        if m>=3
-            cxP = newinputformat{3}-logdet(P);
-            newinputformat{3}=cxP;
-        else
-            cxP = -logdet(P);
-            newinputformat{3}=cxP;
-        end
-        newinputformat = {newinputformat{[1 3:end]}};
-    end
-end
-
-
-
-function model = yalmip2gurobimex(interfacedata)
-% Retrieve needed data
-options = interfacedata.options;
-F_struc = interfacedata.F_struc;
-Q       = interfacedata.Q;
-c       = interfacedata.c;
-K       = interfacedata.K;
-integer_variables = interfacedata.integer_variables;
-binary_variables = interfacedata.binary_variables;
-semicont_variables = interfacedata.semicont_variables;
-ub      = interfacedata.ub;
-lb      = interfacedata.lb;
-x0      = interfacedata.x0;
-interfacedata.gettime = 0;
-n = length(c);
-
-if ~isempty(ub)
-    LB = lb;
-    UB = ub;
-    LB(binary_variables)  = round(LB(binary_variables));
-    UB(binary_variables)  = round(UB(binary_variables));
-    LB(integer_variables) = round(LB(integer_variables));
-    UB(integer_variables) = round(UB(integer_variables));
-else
-    LB = [];
-    UB = [];
-end
-
-if options.showprogress;showprogress('Calling GUROBI',options.showprogress);end
-
-if ~isempty(semicont_variables)
-    % Bounds must be placed in LB/UB
-    [LB,UB,cand_rows_eq,cand_rows_lp] = findulb(F_struc,K,LB,UB);
-    F_struc(K.f+cand_rows_lp,:)=[];
-    F_struc(cand_rows_eq,:)=[];
-    K.l = K.l-length(cand_rows_lp);
-    K.f = K.f-length(cand_rows_eq);
-    
-    redundant = find(LB<=0 & UB>=0);
-    semicont_variables = setdiff(semicont_variables,redundant);
-        
-end
-
-SENSE = 1;     % Minimize
-C = full(c);   % Must be full
-if size(F_struc,1)>0
-    B = full(F_struc(:,1));         % Must be full
-    A =-F_struc(:,2:end);
-else
-    B = [];
-    A = [];
-end
-
-% Optimized code, make a lot of difference when you make this call 10000
-% times in a branch and bound setting...
-CTYPE = [char(ones(K.f,1)*61); char(ones(K.l,1)*60)];
-VARTYPE = char(ones(length(c),1)*67);
-VARTYPE(setdiff(integer_variables,semicont_variables)) = 'I';
-VARTYPE(binary_variables)  = 'B';  % Should not happen except from bmibnb
-VARTYPE(setdiff(semicont_variables,integer_variables)) = 'S';  % Should not happen except from bmibnb
-VARTYPE(intersect(semicont_variables,integer_variables)) = 'N';
-
-% Gurobi assumes semi-continuous variables only can take negative values so
-% we negate semi-continuous violating this
-NegativeSemiVar = [];
-if ~isempty(semicont_variables)
-    NegativeSemiVar = find(UB(semicont_variables) < 0);
-    if ~isempty(NegativeSemiVar)
-        temp = UB(semicont_variables(NegativeSemiVar));
-        UB(semicont_variables(NegativeSemiVar)) = -LB(semicont_variables(NegativeSemiVar));
-        LB(semicont_variables(NegativeSemiVar)) = -temp;
-        A(:,semicont_variables(NegativeSemiVar)) = -A(:,semicont_variables(NegativeSemiVar));
-        C(semicont_variables(NegativeSemiVar)) = -C(semicont_variables(NegativeSemiVar));
-        if ~isempty(x0)
-            x0(NegativeSemiVar) = -NegativeSemiVar;
-        end
-    end
-end
-
-if nnz(Q)>0
-    [ii,jj,kk] = find(Q);
-    ii = ii-1;
-    jj = jj-1;
-    comp = computer;
-    % According to Wotao's testing
-    if isempty(strfind(comp,'64')) | isequal(comp,'GLNXA64') | isequal(comp,'PCWIN64')
-        options.gurobi.QP.qrow = int32(ii)';
-        options.gurobi.QP.qcol = int32(jj)';
-    elseif strfind(comp,'MACI64')
-        options.gurobi.QP.qrow = int32(ii)';
-        options.gurobi.QP.qcol = int32(jj)';    
-    else
-        options.gurobi.QP.qrow = int64(ii)';
-        options.gurobi.QP.qcol = int64(jj)';
-    end
-    options.gurobi.QP.qval = kk';
-end
-        
-if ~options.verbose
-    options.gurobi.DisplayInterval = 0;
-    options.gurobi.Display = 0;
-end
-
-if ~isempty(x0)
-    options.gurobi.Start = x0(:)';
-end
-
-if options.savedebug
-    save gurobidebug
-end
-
-if ~isempty(K.sos.type)
-    options.gurobi.SOS.weights = spalloc(length(c),length(K.sos.type),0);
-    for i = 1:length(K.sos.type)
-        options.gurobi.SOS.types(i)= int32(str2num(K.sos.type(i)));
-        options.gurobi.SOS.weights(K.sos.variables{i},i) = 1:length(K.sos.variables{i});
-    end
-end
-model.C = C;
-
-
-% Call mex-interface
-solvertime = clock; 
-if isempty(binary_variables) & isempty(integer_variables) & isempty(semicont_variables)
-    [x,val,flag,output,lambda] = gurobi_mex(C,SENSE,sparse(A),B,CTYPE,LB,UB,VARTYPE,options.gurobi);
-else
-    [x,val,flag,output] = gurobi_mex(C,SENSE,sparse(A),B,CTYPE,LB,UB,VARTYPE,options.gurobi);
-    lambda = [];
 end
