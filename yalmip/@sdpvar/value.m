@@ -152,10 +152,12 @@ if ~isempty(allextended)
                                 if isessentiallyhermitian(val)
                                     val = max(0,real(det(val)))^(1/n);
                                 else
-                                    val = geomean(val);
+                                    val =  prod(val).^(1./(size(val,1)));
                                 end
+                            elseif min(n,m)>1
+                                val = prod(val).^(1./(size(val,1)));
                             else
-                                val = geomean(val);
+                                val = prod(val).^(1./(length(val)));
                             end
                         else
                             val = nan;
@@ -178,11 +180,26 @@ if ~isempty(allextended)
                         end
                 
                     case 'or'
-                        val = any([extstruct.arg{1:end-1}]);
+                        temp = [extstruct.arg{1:end-1}];
+                        if any(isnan(temp))
+                            val = NaN;
+                        else
+                            val = any(temp);
+                        end
                     case 'and'
-                        val = all([extstruct.arg{1:end-1}]);
+                        temp = [extstruct.arg{1:end-1}];
+                        if any(isnan(temp))
+                            val = NaN;
+                        else
+                            val = all(temp);
+                        end
                     case 'xor'
-                        val = nnz([extstruct.arg{1:end-1}]) == 1;
+                        temp = [extstruct.arg{1:end-1}];
+                        if any(isnan(temp))
+                            val = NaN;
+                        else
+                            val = nnz([extstruct.arg{1:end-1}]) == 1;
+                        end
                     case 'abs'
                         try
                             % ABS has predefined binary appended to
@@ -230,6 +247,9 @@ if ~isempty(nonlinears)
                     
                     switch extstruct.fcn
 
+                        case 'abs'
+                            val = feval(extstruct.fcn,extstruct.arg{1:end-2});
+                        
                         case 'sort'
                             w = sort(extstruct.arg{1});
                             val = w(extstruct.arg{2});

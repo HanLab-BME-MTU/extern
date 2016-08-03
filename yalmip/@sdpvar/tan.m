@@ -1,9 +1,6 @@
 function varargout = tan (varargin)
 %TAN (overloaded)
 
-% Author Johan Löfberg
-% $Id: tan.m,v 1.10 2007-08-02 18:16:26 joloef Exp $
-
 switch class(varargin{1})
 
     case 'double'
@@ -17,7 +14,7 @@ switch class(varargin{1})
         operator = struct('convexity','none','monotonicity','none','definiteness','none','model','callback');
         operator.convexhull = [];
         operator.bounds = @bounds;
-        operator.derivative = @(x)(-1./cos(x));
+        operator.derivative = @(x)(sec(x).^2);
 
         varargout{1} = [];
         varargout{2} = operator;

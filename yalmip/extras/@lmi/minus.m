@@ -1,17 +1,18 @@
 function sys = minus(X,Y)
 %MINUS (overloaded)
 
-% Author Johan Löfberg
-% $Id: minus.m,v 1.1 2004-12-07 08:46:53 johanl Exp $
-
 if isempty(X)
-    sys = set([]);
+    sys = ([]);
     return
 end
 
 if isempty(Y)
     sys = X;
     return
+end
+
+if isa(Y,'double') || isa(X,'double')
+    error('You cannot substract a point from a set of constraint. Constraint substraction is only used removal of constraints. To translate a set, use REPLACE')
 end
 
 idX = getlmiid(X);

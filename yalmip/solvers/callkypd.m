@@ -1,8 +1,5 @@
 function diagnostic = callkypd(F,h,options)
 
-% Author Johan Löfberg 
-% $Id: callkypd.m,v 1.9 2009-10-14 12:12:41 joloef Exp $
-
 %F = constraint2kyp(F);
 kyps = is(F,'kyp');
 if all(kyps)
@@ -117,9 +114,9 @@ matrixinfo.M  = Mi;
 matrixinfo.A  = A;
 
 try
-    solvertime = clock; 
+    solvertime = tic; 
     [u,Popt,xopt,Zopt] = kypd_solver(matrixinfo,options);
-    solvertime = etime(clock,solvertime);
+    solvertime = toc(solvertime);
     
     % SAVE PRIMALS
     setsdpvar(recover(x_variables),xopt);

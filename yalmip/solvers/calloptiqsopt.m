@@ -1,8 +1,5 @@
 function output = calloptiqsopt(interfacedata)
 
-% Author Johan Löfberg 
-% $Id: callopticlp.m,v 1.6 2005-05-07 13:53:20 joloef Exp $
-
 % Standard input interface
 options = interfacedata.options;
 F_struc = interfacedata.F_struc;
@@ -21,19 +18,17 @@ else
     b =[F_struc(K.f+1:end,1);F_struc(1:K.f,1)];    
 end
 
+opts = options.qsopt;
 opts.nin = length(b)-K.f;
-%opts.tolfun = options.clp.primaltolerance;
-opts.maxiter = options.clp.maxnumiterations;
-opts.maxtime = options.clp.maxnumseconds;
 opts.display = options.verbose;
 
 if options.savedebug    
     save qsoptdebug c A b  lb ub opts
 end
 
-solvertime = clock; 
+solvertime = tic;
 [x,fval,exitflag] = qsopt(full(c), A, full(b), full(lb), full(ub),opts);
-if interfacedata.getsolvertime solvertime = etime(clock,solvertime);else solvertime = 0;end
+solvertime = toc(solvertime);
 
 % No duals
 D_struc = [];
@@ -73,11 +68,4 @@ else
 end
 
 % Standard interface 
-output.Primal      = x(:);
-output.Dual        = D_struc;
-output.Slack       = [];
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
+output = createOutputStructure(x,D_struc,[],problem,infostr,solverinput,solveroutput,solvertime);

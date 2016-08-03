@@ -49,6 +49,10 @@ otherwise
     p.options.verbose = 0;
 end
 
+% CPLEX handles options insanely slow, so we remove all default values in
+% case cplex will be used
+p.options = prunecplexoptions(p.options);
+
 timing.total = tic;
 timing.uppersolve = 0;
 timing.lowersolve = 0;
@@ -77,10 +81,25 @@ p.feasible = 1;
 p.changedbounds = 1;
 
 % *************************************************************************
+% Initialize some diagnostic counters
+% *************************************************************************
+p.counter.lpsolved = 0;
+p.counter.lowersolved = 0;
+p.counter.uppersolved = 0;
+% *************************************************************************
 % Some preprocessing to put the model in a better format
 % *************************************************************************
 p = convert_perspective_log(p);
 n_in = length(p.c);
+
+% *************************************************************************
+% Copy positivity terms in cones to LPs to use these in bound propagation
+% *************************************************************************
+if nnz(p.K.q)>0
+    pos = p.K.f + p.K.l + cumsum([1 p.K.q(1:end-1)]);
+    p.F_struc = [p.F_struc(1:p.K.f+p.K.l,:);p.F_struc(pos,:);p.F_struc(1+p.K.f+p.K.l:end,:)];
+    p.K.l = p.K.l + length(pos);
+end
 
 % *************************************************************************
 % Save information about the applicability of some bound propagation
@@ -90,6 +109,11 @@ p.boundpropagation.sepquad = 1;
 % *************************************************************************
 % Extract bounds from model using direct information available
 % *************************************************************************
+bounds = yalmip('getbounds',p.used_variables);
+if isequal(size(bounds),size(p.lb))
+    p.lb = max(p.lb,bounds(:,1));
+    p.ub = min(p.ub,bounds(:,2));
+end
 p = compile_nonlinear_table(p);
 p = presolve_bounds_from_domains(p);
 p = presolve_bounds_from_modelbounds(p);
@@ -114,6 +138,7 @@ p = update_monomial_bounds(p);
 p = presolve_bounds_from_inequalities(p);
 p = update_eval_bounds(p);
 p = update_monomial_bounds(p);
+p = presolve_quadratic_psdbound(p);
 % *************************************************************************
 % For quadratic nonconvex programming over linear constraints, we
 % diagonalize the problem to obtain less number of bilinear terms. Not
@@ -127,7 +152,7 @@ end
 % *************************************************************************
 % Try to generate a feasible solution, by using avialable x0 (if usex0=1),
 % or by trying the zero solution, or my trying the (lb+ub)/2 solution. Note
-% that we do this here before the problem possibly is bilinearized, thus
+% that we do this here b4efore the problem possibly is bilinearized, thus
 % avoiding to introduce possibly complicating bilinear constraints
 % *************************************************************************
 [p,x_min,upper] = initializesolution(p);
@@ -163,7 +188,6 @@ end
 % Sigmonial terms are converted to evaluation based expressions.
 % *************************************************************************
 p = convert_sigmonial_to_sdpfun(p);
-%p = convert_polynomial_to_sdpfun(p);
 
 % *************************************************************************
 % The bilinear solver does not support non-quadratic models
@@ -330,8 +354,8 @@ if p.feasible
     % *******************************
     % RUN BILINEAR BRANCH & BOUND
     % *******************************
-    [x_min,solved_nodes,lower,upper,lower_hist,upper_hist,timing] = branch_and_bound(p,x_min,upper,timing);
-    
+    [x_min,solved_nodes,lower,upper,lower_hist,upper_hist,timing,counter] = branch_and_bound(p,x_min,upper,timing);
+       
     % ********************************
     % CREATE SOLUTION AND DIAGNOSTICS
     % ********************************
@@ -349,6 +373,7 @@ if p.feasible
         problem = 3;
     end
 else
+    counter = p.counter;
     problem = 1;
     x_min = repmat(nan,length(p.c),1);
     solved_nodes = 0;
@@ -359,9 +384,9 @@ end
 
 timing.total = toc(timing.total);
 if p.options.bmibnb.verbose
-    disp(['* Timing: ' num2str(ceil(100*timing.uppersolve/timing.total)) '% spent in upper solver']);
-    disp(['*         ' num2str(ceil(100*timing.lowersolve/timing.total)) '% spent in lower solver']);
-    disp(['*         ' num2str(ceil(100*timing.domainreduce/timing.total)) '% spent in LP-based domain reduction']);
+    disp(['* Timing: ' num2str(ceil(100*timing.uppersolve/timing.total)) '% spent in upper solver (' num2str(counter.uppersolved) ' problems solved)']);
+    disp(['*         ' num2str(ceil(100*timing.lowersolve/timing.total)) '% spent in lower solver (' num2str(counter.lowersolved) ' problems solved)']);
+    disp(['*         ' num2str(ceil(100*timing.domainreduce/timing.total)) '% spent in LP-based domain reduction (' num2str(counter.lpsolved) ' problems solved)']);
 end
 
 x_min = dediagonalize(p,x_min);
@@ -385,6 +410,11 @@ function pnew = diagonalize_quadratic_program(p);
 pnew = p;
 pnew.V = [];
 pnew.diagonalized = 0;
+
+% No quadratic terms
+if all(p.variabletype == 0)
+    return
+end
 
 % Any polynomial terms or simple linear by some reason
 if any(p.variabletype > 2) & ~all(p.variabletype == 0) | p.options.bmibnb.diagonalize==0

@@ -1,8 +1,5 @@
-function [solver,problem,forced_choice] = selectsolver(options,ProblemClass,solvers,socp_are_really_qc);
+function [solver,problem,forced_choice] = selectsolver(options,ProblemClass,solvers,socp_are_really_qc,allsolvers);
 %SELECTSOLVER Internal function to select solver based on problem category
-
-% Author Johan Löfberg
-% $Id: selectsolver.m,v 1.18 2008-04-24 11:15:13 joloef Exp $
 
 problem = 0;
 
@@ -11,6 +8,13 @@ force_solver = yalmip('solver');
 if length(force_solver)>0
     options.solver = force_solver;
 end
+
+% YALMIP has discovered in an previous call that the model isn't a GP, and
+% now searches for a non-GP solver
+if options.thisisnotagp
+    ProblemClass.gppossible = 0;
+end
+
 % ***************************************************
 % Maybe the user is stubborn and wants to pick solver
 % ***************************************************
@@ -22,12 +26,7 @@ if length(options.solver)>0 & isempty(findstr(options.solver,'*'))
         options.solver = strrep(options.solver,'+','');
     end
     % Create tags with version also        
-    temp = solvers;
-    for i = 1:length(temp)
-        if length(temp(i).version)>0
-            temp(i).tag = lower([temp(i).tag '-' temp(i).version]);
-        end
-    end
+    temp = expandSolverName(solvers);  
     
     opsolver = lower(options.solver);
     splits = findstr(opsolver,',');
@@ -45,12 +44,23 @@ if length(options.solver)>0 & isempty(findstr(options.solver,'*'))
     index1 = [];
     index2 = [];
     for i = 1:length(names)
-        index1 = [index1 find(strcmp(lower({solvers.tag}),names{i}))];
-        index2 = [index1 find(strcmp(lower({temp.tag}),names{i}))];
+        index1 = [index1 find(strcmpi({solvers.tag},names{i}))];
+        index2 = [index1 find(strcmpi({temp.tag},names{i}))];
     end
     if isempty(index1) & isempty(index2)
+        % Specified solver not found among available solvers
+        % Is it even a supported solver
+        temp = expandSolverName(allsolvers);
+        for i = 1:length(names)
+            index1 = [index1 find(strcmp(lower({allsolvers.tag}),names{i}))];
+            index2 = [index1 find(strcmp(lower({temp.tag}),names{i}))];
+        end
+        if isempty(index1) & isempty(index2)
+            problem = -9;
+        else
+            problem = -3;
+        end
         solver = [];
-        problem = -3;
         return;
     else
         solvers = solvers(union(index1,index2));
@@ -332,8 +342,7 @@ end
 if ProblemClass.constraint.sos2
     keep = ones(length(solvers),1);
     for i = 1:length(solvers)                      
-         %keep(i) = solvers(i).constraint.integer | solvers(i).constraint.binary | solvers(i).constraint.sos2;            
-         keep(i) = solvers(i).constraint.sos2;            
+         keep(i) = solvers(i).constraint.integer | solvers(i).constraint.binary | solvers(i).constraint.sos2;                       
     end
     solvers = solvers(find(keep));
 end  
@@ -402,12 +411,23 @@ if ~forced_choice
 end
 
 % ******************************************************
-% General functions (exp, log,...)
+% Exponential cone representable (exp, log,...)
 % ******************************************************
 keep = ones(length(solvers),1);
 if ~forced_choice
     for i = 1:length(solvers)
-        keep(i) = (ProblemClass.evaluation <= solvers(i).evaluation);
+        keep(i) = (ProblemClass.exponentialcone <= solvers(i).exponentialcone) || (ProblemClass.exponentialcone <= solvers(i).evaluation);
+    end
+    solvers = solvers(find(keep));
+end
+
+% ******************************************************
+% General functions (sin, cos,...)
+% ******************************************************
+keep = ones(length(solvers),1);
+if ~forced_choice
+    for i = 1:length(solvers)
+        keep(i) = (ProblemClass.evaluation <= solvers(i).evaluation) || (ProblemClass.exponentialcone && solvers(i).exponentialcone);
     end
     solvers = solvers(find(keep));
 end
@@ -498,8 +518,15 @@ if ~isempty(solver)
             solver.constraint.inequalities.semidefinite.quadratic = 1;
             solver.constraint.inequalities.semidefinite.polynomial = 1;
             solver.dual = 1;
+            solver.evaluation = 1;
         end
     end
 end
 
+function temp = expandSolverName(temp)
+for i = 1:length(temp)
+    if length(temp(i).version)>0
+        temp(i).tag = lower([temp(i).tag '-' temp(i).version]);
+    end
+end
 

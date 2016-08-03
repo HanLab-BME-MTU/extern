@@ -14,9 +14,6 @@ function varargout = plot(varargin)
 % n:  #vertices [double ] (default 100 in 2D and 300 otherwise)
 % options: options structure from sdpsettings
 
-% Author Johan Löfberg
-% $Id: plot.m,v 1.18 2010-03-31 14:27:39 joloef Exp $
-
 % Get the onstraints
 if nargin<1
     return
@@ -88,7 +85,7 @@ end
 % All we change later is the cost vector
 %sol = solvesdp(F,sum(x),opts);
 [model,recoverdata,diagnostic,internalmodel] = export(F,[],opts,[],[],0);
-if isempty(internalmodel) | (~isempty(diagnostic) & diagnostic.problem)
+if isempty(internalmodel) | (~isempty(diagnostic) && diagnostic.problem)
     error('Could not create model. Can you actually solve problems with this model?')
 end
 internalmodel.options.saveduals = 0;
@@ -202,7 +199,14 @@ errorstatus = sol.problem;
 
 
 function p = plotSet(x_opt,color,options)
-if size(x_opt,1)==2
+if size(x_opt,1)==1
+    p = line(x_opt,[0 0],'color',color);
+    set(p,'LineStyle',options.plot.wirestyle);   
+    set(p,'LineStyle',options.plot.wirestyle);   
+    set(p,'LineWidth',options.plot.linewidth);
+    set(p,'EdgeColor',options.plot.edgecolor);
+    set(p,'Facealpha',options.plot.shade);    
+elseif size(x_opt,1)==2
     p = patch(x_opt(1,:),x_opt(2,:),color);
     set(p,'LineStyle',options.plot.wirestyle);   
     set(p,'LineWidth',options.plot.linewidth);
@@ -251,6 +255,8 @@ try % Try to ensure that we close h
     angles = (0:(n))*2*pi/n;
     if length(x)==2
         c = [cos(angles);sin(angles)];
+    elseif length(x) == 1
+        c = [-1 1];n = 2;
     else
         c = randn(3,n);
     end

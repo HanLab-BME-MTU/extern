@@ -1,9 +1,6 @@
 function y = horzcat(varargin)
 %HORZCAT (overloaded)
 
-% Author Johan Löfberg 
-% $Id: horzcat.m,v 1.17 2010-01-13 14:18:15 joloef Exp $  
-
 prenargin = nargin;
 % Fast exit
 if prenargin<2
@@ -42,9 +39,13 @@ end
 nblocks = size(varargin,2);
 
 isasdpvar = zeros(nblocks,1);
+isachar = zeros(nblocks,1);
 for i = 1:nblocks
-    isasdpvar(i) = isa(varargin{i},'sdpvar');
-    isachar(i)   = isa(varargin{i},'char');
+    if isa(varargin{i},'sdpvar')
+        isasdpvar(i) = 1;
+    elseif isa(varargin{i},'char');
+        isachar(i) = 1;
+    end
 end
 
 % Finish if this is a symbolic expression
@@ -153,25 +154,3 @@ for i = 1:length(varargin)
 end
 y = cleandoublefactors(y);
 y = flushmidfactors(y);
-
-% if length(y.midfactors)>1
-%     keep = ones(1,length(y.midfactors));
-%     for i = 1:length(y.midfactors)-1
-%         for j = 2:length(y.midfactors)
-%             if keep(j)
-%                 if isequal(y.midfactors{j},y.midfactors{i})
-%                     if isequal(y.leftfactors{j},y.leftfactors{i})
-%                         keep(j) = 0;
-%                         y.rightfactors{i} = y.rightfactors{i}+y.rightfactors{j};
-%                     end
-%                 end
-%             end
-%         end
-%     end
-%     if ~all(keep)
-%         y.leftfactors = {y.leftfactors{find(keep)}};
-%         y.midfactors = {y.midfactors{find(keep)}};
-%         y.rightfactors = {y.rightfactors{find(keep)}};
-%     end        
-% end
-

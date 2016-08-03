@@ -1,8 +1,5 @@
 function output = calllogdetppa(interfacedata)
 
-% Author Johan Löfberg
-% $Id: calllogdetppa.m,v 1.21 2010-01-13 13:49:21 joloef Exp $ 
-
 % Retrieve needed data
 options = interfacedata.options;
 F_struc = interfacedata.F_struc;
@@ -65,12 +62,13 @@ if options.savedebug
 end
 
 if options.showprogress;showprogress(['Calling ' interfacedata.solver.tag],options.showprogress);end
-solvertime = clock;
+solvertime = tic;
 if options.verbose==0 % SDPT3 does not run silent despite printyes=0!
    evalc('[obj,X,y,Z,info,runhist] =   logdetPPA(blk,A,C,b,mu0,options.logdetppa);');
 else    
     [obj,X,y,Z,info,runhist] =  logdetPPA(blk,A,C,b,mu0,options.logdetppa);            
 end
+solvertime = toc(solvertime);
 
 % Create YALMIP dual variable and slack
 Dual = [];
@@ -116,11 +114,6 @@ if any(K.m > 0)
    % Dual = [];
 end
 
-% if options.removethem
-% Dual = [];
-% end
-
-solvertime = etime(clock,solvertime);
 Primal = -y;  % Primal variable in YALMIP
 problem = -7;
 % 
@@ -165,14 +158,7 @@ else
 end
 
 % Standard interface 
-output.Primal      = Primal;
-output.Dual        = Dual;
-output.Slack       = Slack;
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
+output = createOutputStructure(Primal,Dual,[],problem,infostr,solverinput,solveroutput,solvertime);
 
 function [F_struc,K] = deblock(F_struc,K);
 X = any(F_struc(end-K.s(end)^2+1:end,:),2);

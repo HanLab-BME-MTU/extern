@@ -150,9 +150,13 @@ model.c(removethese)=[];
 if nnz(model.Q)>0
     model.c = model.c + 2*model.Q(keepingthese,removethese)*value;
 end
-model.Q(removethese,:) = [];
-model.Q(:,removethese) = [];
 
+if nnz(model.Q)==0
+    model.Q = spalloc(length(model.c),length(model.c),0);
+else
+    model.Q(removethese,:) = [];
+    model.Q(:,removethese) = [];
+end
 model.c = model.c.*monomgain;
 keptvariables(removethese) = [];
 
@@ -188,8 +192,15 @@ model.lb(skipped) = [];
 model.ub(skipped) = [];
 newmonomtable(skipped,:) = [];
 newmonomtable(:,skipped) = [];
-model.Q(:,skipped)=[];
-model.Q(skipped,:)=[];
+
+
+if nnz(model.Q)==0
+    model.Q = spalloc(length(model.c),length(model.c),0);
+else
+    model.Q(:,skipped)=[];
+    model.Q(skipped,:)=[];
+end
+
 keptvariables(skipped) = [];
 
 model.monomtable = newmonomtable;
@@ -223,6 +234,38 @@ end
 if ~isempty(model.semicont_variables)
    temp=ismember(keptvariables,model.semicont_variables);
     model.semicont_variables = find(temp);  
+end
+
+% Check if there are remaining strange terms. This occurs in #152
+% FIXME: Use code above recursively instead...
+if ~model.solver.objective.sigmonial & any(model.variabletype == 4)
+    % Bugger. There are signomial terms left, despite elimination, and the
+    % solver does not handle this. YALMIP has introduced an intermediate
+    % variable which is a nasty function of the parameter.      
+    signomials = find(model.variabletype == 4);
+    involved = [];
+    for i = 1:length(signomials)
+        m = model.monomtable(signomials(i),:);
+        involved = [involved;find(m ~= fix(m) | m < 0)];
+    end
+    involved = unique(involved);
+    [lb,ub] = findulb(model.F_struc,model.K,model.lb,model.ub);
+    if all(lb(involved) == ub(involved))
+        % Now add equality constraints to enforce       
+        for i = signomials
+            m = model.monomtable(i,:);
+            involved = find(m ~= fix(m) | m < 0);
+            gain = lb(involved).^m(involved);
+            s = zeros(1,size(model.F_struc,2));
+            multiplies = setdiff(find(m),involved);
+            s(i+1) = 1;
+            s(multiplies+1) = -gain;
+            model.F_struc = [s;model.F_struc];
+            model.K.f = model.K.f + 1;
+        end
+    else
+        error('Did not manage to instatiate model. Complicating terms remaining');
+    end
 end
 
 function model = compressModel(model)

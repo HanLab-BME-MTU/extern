@@ -18,10 +18,14 @@ function varargout = implies(varargin)
 % Examples
 %
 %  binvar X Y; F = implies(X,Y);
-%  binvar X;sdpvar Y; F = implies(X,Y>=5);
-%  binvar X;Y=sdpvar(3,1); F = implies(X,[sum(Y);Y(2)]>=[5;0]);
+%  binvar X;sdpvar Y; F = [implies(X,Y>=5), -10 <= Y <= 100];
+%  binvar X;Y=sdpvar(3,1); F = [implies(X,[sum(Y);Y(2)]>=[5;0]), -1<= Y <= 10];
 %
 % Note
+%
+%  All variables in the expressions have to be explicitly bounded somewhere
+%  in the model (implicit constraints are not sufficients such as [Y <= Z,...,Z<= 10]
+%
 %  Using implies with X non-binary is highly sensitive numerically.
 %  The problem comes from the definition of 0 in a floating-point
 %  environment, and precision in the solver. To account for this,
@@ -35,10 +39,6 @@ function varargout = implies(varargin)
 %
 %   See also @SDPVAR/AND, @SDPVAR/OR, IFF
 
-% Author Johan Löfberg
-% $Id: implies.m,v 1.6 2009-05-15 10:32:42 joloef Exp $
-
-
 % There are some cases to take care of...
 %
 % X --> Y     binary/binary :                     Implemented
@@ -48,22 +48,6 @@ function varargout = implies(varargin)
 
 X = varargin{1};
 Y = varargin{2};
-
-% % Call recursicely on X -> (A,B,...)
-% if isa(varargin{1},'sdpvar') & (isa(varargin{2},'lmi') | isa(varargin{2},'constraint'))
-%     if length(varargin{1})==1 & length(varargin{2})>1
-%         F = set([]);
-%         for i = 1:length(varargin{2})
-%             if nargin == 3
-%                 F = F + implies(varargin{1},varargin{2}(i),varargin{3});
-%             else
-%                 F = F + implies(varargin{1},varargin{2}(i));
-%             end
-%         end
-%         varargout{1} = F;
-%         return
-%     end
-% end
 
 if isempty(X)
     varargout{1} = [];

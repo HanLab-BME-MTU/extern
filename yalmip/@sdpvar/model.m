@@ -11,11 +11,7 @@ function [properties,F,arguments,fcn]=model(X,method,options,extstruct,w)
 % sdpvar x y;
 % t = min(x,y);
 % [properties,F] = model(t)
-% Gives F = [t<x, t<y]
-
-% Author Johan Löfberg
-% $Id: model.m,v 1.62 2009-05-05 07:20:46 joloef Exp $
-
+% Gives F = [t<=x, t<=y]
 
 extvar = getvariables(X);
 arguments   = cell(1,length(extvar));
@@ -48,10 +44,16 @@ fcn = extstruct.fcn;
 try
     n = yalmip('nvars');
     [F,properties,arguments] = feval(fcn,method,extstruct.var,extstruct.arg{1:end-1});
+    if isa(F,'constraint')
+        F = lmi(F);
+    end
     newAux = n+1:yalmip('nvars');
-    involved = [];
-    for i = 1:length(extstruct.arg)-1
-        involved = union(involved,getvariables(extstruct.arg{i}));
+    involved = getvariables(extstruct.arg{1});
+    for i = 2:length(extstruct.arg)-1
+        vars = getvariables(extstruct.arg{i});
+        if ~isempty(vars)           
+            involved = union(involved,vars);
+        end
     end
     if ~isempty(options)
         if ~(strcmp(options.robust.auxreduce,'none'))

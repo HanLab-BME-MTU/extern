@@ -1,8 +1,5 @@
 function output = callgpposy(interfacedata)
 
-% Author Johan Löfberg
-% $Id: callgpposy.m,v 1.13 2008-01-22 13:36:20 joloef Exp $
-
 % Retrieve needed data
 options = interfacedata.options;
 F_struc = interfacedata.F_struc;
@@ -70,9 +67,9 @@ if problem == 0
         save gpposydebug A b szs
     end
        
-    if interfacedata.getsolvertime solvertime = clock; end
+    solvertime = tic;
     [x,status,lambda,nu] = gpposy(A,b,szs,G,h,lb,ub,double(options.verbose)==0);
-    if interfacedata.getsolvertime solvertime = etime(clock,solvertime);else solvertime = 0;end
+    solvertime = toc(solvertime);
 
     Primal = zeros(length(c),1);
 
@@ -117,11 +114,4 @@ else
 end
 
 % Standard interface
-output.Primal      = Primal;
-output.Dual        = Dual;
-output.Slack       = [];
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
+output = createOutputStructure(Primal,Dual,[],problem,infostr,solverinput,solveroutput,solvertime);

@@ -27,15 +27,27 @@ if isequal(subs.type,'()')
     
 elseif isequal(subs.type,'.')
     
-    switch subs.subs
-        case 'model'
-            varargout{1} = self.model;
-        otherwise
-            error('Field not accesible')
+    if length(subs) == 1
+        switch subs.subs            
+            case 'options'
+                varargout{1} = self.model.options;
+            case 'model'  
+                varargout{1} = self.model;
+            otherwise
+                error('Field not accesible. You can only acsess P.options')
+        end
+    else
+        error('Field not accesible. You can only acsess P.options')
     end
     
 elseif isequal(subs.type,'{}')
 
+    if self.model.options.usex0
+        if nargout < 5
+            warning('If you intend to use initial guesses, you must save fifth output [sol,~,~,~,P] = P{p}');
+        end
+    end
+    
     % This is not really supported yet...
     if isa(subs.subs{1},'sdpvar')
         varargout{1} = yalmip('definemulti','optimizer_operator',subs(1).subs{1},self,self.dimout);
@@ -79,12 +91,16 @@ elseif isequal(subs.type,'{}')
     aux2 = [];
     for i = 1:dimBlocks(1)
         aux2 = [];
+        try
         for j = 1:length(subs.subs{1})
             temp = subs.subs{1}{j}(:,left(j):self.diminOrig{j}(2)+left(j)-1,:);
             temp = temp(:);
             temp = temp(self.mask{j});
             aux2 = [aux2;temp];
              left(j) = left(j) + self.diminOrig{j}(2);
+        end
+        catch
+            error('The dimension on a supplied parameter value does not match the definition.');
         end
         %left = left + self.diminOrig{1}(2);
         aux = [aux aux2];
@@ -104,8 +120,20 @@ elseif isequal(subs.type,'{}')
         if self.nonlinear & ~self.complicatedEvalMap%isempty(self.model.evalMap)
             originalModel = self.model;
             [self.model,keptvariables,infeasible] = eliminatevariables(self.model,self.parameters,thisData(:));
+            % Turn off equality presolving for simple programs. equality
+            % presolve has benefits when the are stuff like log
+            self.model.presolveequalities = length(self.model.evalMap > 0);
             if ~infeasible                          
+                if self.model.options.usex0                 
+                    self.model.x0 = zeros(length(self.model.c),1);
+                    self.model.x0 = self.lastsolution;
+                else
+                    self.model.x0 = [];
+                end
                 eval(['output = ' self.model.solver.call '(self.model);']);
+                if output.problem == 0 && self.model.options.usex0                    
+                     self.lastsolution = output.Primal;
+                end
                 x = originalModel.c*0;
                 x(keptvariables) = output.Primal;
                 output.Primal = x;
@@ -122,8 +150,16 @@ elseif isequal(subs.type,'{}')
                     error('After fixing parameters, there are still nonlinear operators in the model, but the solver does not support this. Note that YALMIP is not guaranteed to remove all operators, even though they only contain parametric expressions. As an example, exp(1+parameter) will not be reduced, while exp(parameter) will. You will have to use another solver, or reparameterize your model (look at exp(1+parameter) as a new parameter instead)');
                 end
                 self.model.F_struc(1:prod(self.dimin),1) = thisData(:);
-            end         
-            output = self.model.solver.callhandle(self.model);           
+            end
+            if self.model.options.usex0
+                self.model.x0 = self.lastsolution;
+            else
+                self.model.x0 = [];
+            end
+            output = self.model.solver.callhandle(self.model);
+            if output.problem == 0 && self.model.options.usex0
+                self.lastsolution = output.Primal;
+            end
         end
         if output.problem==1
             output.Primal = output.Primal+nan;

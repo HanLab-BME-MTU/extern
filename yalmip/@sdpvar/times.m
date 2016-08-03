@@ -1,9 +1,6 @@
 function y = times(X,Y)
 %TIMES (overloaded)
 
-% Author Johan Löfberg
-% $Id: times.m,v 1.30 2009-09-28 12:53:16 joloef Exp $
-
 % Check dimensions
 [n,m]=size(X);
 if ~((prod(size(X))==1) || (prod(size(Y))==1))
@@ -21,6 +18,16 @@ if isa(Y,'blkvar')
     Y = sdpvar(Y);
 end
 
+if isa(X,'double')
+    if any(isnan(X))
+        error('Multiplying NaN with an SDPVAR makes no sense.');
+    end
+end
+if isa(Y,'double')
+    if any(isnan(Y))
+        error('Multiplying NaN with an SDPVAR makes no sense.');
+    end
+end
 
 if isempty(X)
     YY = full(reshape(Y.basis(:,1),Y.dim(1),Y.dim(2)));
@@ -38,6 +45,8 @@ if (isa(X,'sdpvar') && isa(Y,'sdpvar'))
     if (X.typeflag==5) && (Y.typeflag==5)
         error('Product of norms not allowed');
     end
+    
+  
 
     try
         
@@ -51,6 +60,15 @@ if (isa(X,'sdpvar') && isa(Y,'sdpvar'))
         if length(X.lmi_variables)==numel(X) 
             if length(Y.lmi_variables) == numel(Y) 
                 if numel(X)==numel(Y)
+                    
+                    % This looks promising. write as (x0+X)*(y0+Y)
+                    X0 = reshape(X.basis(:,1),X.dim);
+                    Y0 = reshape(Y.basis(:,1),Y.dim);
+                    Xsave = X;
+                    Ysave = Y;
+                    X.basis(:,1)=0;
+                    Y.basis(:,1)=0;
+                                          
                     if nnz(X.basis)==numel(X)
                         if nnz(Y.basis)==numel(Y)
                             D = [spalloc(numel(Y),1,0) speye(numel(Y))];
@@ -61,25 +79,30 @@ if (isa(X,'sdpvar') && isa(Y,'sdpvar'))
                                     generated_monoms = mt(X.lmi_variables,:) +  mt(Y.lmi_variables,:);
                                     generated_hash = generated_monoms*hash;
                                     keep = zeros(1,numel(X));
-                                    for i = 1:numel(X)
-                                        if generated_hash(i)
-                                            before = find(abs(hashedMT-generated_hash(i))<eps);
-                                            if isempty(before)
-                                                %  mt = [mt;generated_monoms(i,:)];
-                                                keep(i) = 1;
-                                                Z.lmi_variables(i) = size(mt,1)+nnz(keep);
+                                    
+                                    if all(generated_hash) &&  all(diff(sort([generated_hash;hashedMT])))
+                                        Z.lmi_variables =  size(mt,1)+(1:numel(X));
+                                        keep = keep + 1;
+                                    else
+                                        for i = 1:numel(X)
+                                            if generated_hash(i)
+                                                before = find(abs(hashedMT-generated_hash(i))<eps);
+                                                if isempty(before)
+                                                    %  mt = [mt;generated_monoms(i,:)];
+                                                    keep(i) = 1;
+                                                    Z.lmi_variables(i) = size(mt,1)+nnz(keep);
+                                                else
+                                                    Z.lmi_variables(i) = before;
+                                                end
                                             else
-                                                Z.lmi_variables(i) = before;
+                                                Z.lmi_variables(i) = 0;
                                             end
-                                        else
-                                            Z.lmi_variables(i) = 0;
                                         end
                                     end
-                                    
                                     if any(keep)
                                         keep = find(keep);
                                         mt = [mt;generated_monoms(keep,:)];
-                                        yalmip('setmonomtable',mt);
+                                        yalmip('setmonomtable',mt,[],[hashedMT;generated_hash(keep)],hash);
                                     end
                                                                                                              
                                     if any(diff(Z.lmi_variables)<0)
@@ -96,6 +119,7 @@ if (isa(X,'sdpvar') && isa(Y,'sdpvar'))
                                     
                                     Z.conicinfo = [0 0];
                                     Z.extra.opname='';
+                                    Z = Z + X0.*Y0 + X0.*Y + X.*Y0;
                                     Z = flush(Z);
                                     y = clean(Z);
                                     return
@@ -104,6 +128,8 @@ if (isa(X,'sdpvar') && isa(Y,'sdpvar'))
                         end
                     end
                 end
+                X = Xsave;
+                Y = Ysave;
             end
         end
         

@@ -11,16 +11,13 @@ function [F,properties,arguments,fcn]=model(X,method,options,extstruct)
 % sdpvar x y;
 % t = min(x,y);
 % [F,properties] = epigraph(t)
-% Gives (F = set(t<x) + set(t<y))
+% Gives (F = (t<=x) + (t<=y))
 %
 % sdpvar x y
 % t = max(norm([x;y],1+y))
 % [F,properties] = epigraph(t)
-% Gives (F = set(u<t) + set(1+y<t))
+% Gives (F = (u<=t) + (1+y<=t))
 % where u is the variable modelling norm([x;y])
-
-% Author Johan Löfberg
-% $Id: model.m,v 1.1 2006-08-10 18:00:21 joloef Exp $
 
 extvar = getvariables(X);
 arguments   = cell(1,length(extvar));

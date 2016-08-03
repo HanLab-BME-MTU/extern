@@ -1,4 +1,4 @@
-function x = integer(x)
+function x = parametric(x)
 %PARAMETRIC Defines a variable as parametric
 %
 %   F = PARAMETRIC(x) is used to describe the set of parametric variables
@@ -10,16 +10,12 @@ function x = integer(x)
 %    x : SDPVAR object
 %
 %   OUTPUT
-%    F : SET object
+%    F : Constraint object
 %
 %   EXAMPLE
-%    F = set(prametric(x));           % Full verbose notation
-%    F = parametric(x);               % Short notation
+%    F = parametric(x);             
 %
 %   See also SOLVEMP, SDPVAR
-
-% Author Johan Löfberg
-% $Id: parametric.m,v 1.1 2006-08-10 18:00:21 joloef Exp $
 
 x.typeflag = 13;
 x = lmi(x);

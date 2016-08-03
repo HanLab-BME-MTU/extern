@@ -1,8 +1,5 @@
 function output = callqpip(interfacedata)
 
-% Author Johan Löfberg
-% $Id: callqpip.m,v 1.4 2007-05-22 13:40:36 joloef Exp $
-
 % Retrieve needed data
 options = interfacedata.options;
 model = yalmip2quadprog(interfacedata);
@@ -13,9 +10,9 @@ if options.savedebug
 end
 
 if options.showprogress;showprogress(['Calling ' interfacedata.solver.tag],options.showprogress);end
-solvertime = clock;
+solvertime = tic;
 [x,flag,lm] = qpip(model.Q, model.c, model.A, model.b, model.Aeq, model.beq, model.lb, model.ub, options.verbose,options.qpip.mu,options.qpip.method);
-if interfacedata.getsolvertime solvertime = etime(clock,solvertime);else solvertime = 0;end
+solvertime = toc(solvertime);
 
 % Internal format for duals
 if ~isempty(lm)
@@ -52,12 +49,5 @@ else
     solveroutput = [];
 end
 
-% Standard interface
-output.Primal      = x(:);
-output.Dual        = D_struc;
-output.Slack       = [];
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
+% Standard interface 
+output = createOutputStructure(x(:),D_struc,[],problem,infostr,solverinput,solveroutput,solvertime);

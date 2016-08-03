@@ -65,9 +65,9 @@ end
 
 prob=penlab(penm);  
 
-solvertime = clock;
+solvertime = tic;
 prob.solve();       
-solvertime = etime(clock,solvertime);
+solvertime = toc(solvertime);
 x = prob.x;
 
 % Duals currently not supported

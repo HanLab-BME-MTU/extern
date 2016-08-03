@@ -8,9 +8,10 @@ function assign(X,value,ls)
 %                   will be issued.
 %
 % ASSIGN(X,value,1) Least square assignment.
-
-% Author Johan Löfberg
-% $Id: assign.m,v 1.5 2007-10-04 11:27:53 joloef Exp $
+%
+% After assigning values to decision variables, these can be communicated
+% to the solver as an initial guess by turning on the option 'usex0' in the
+% options structure sent to optimize.
 
 if nargin<3
     ls = 0;

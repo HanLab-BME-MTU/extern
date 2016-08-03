@@ -1,8 +1,6 @@
 function Freal = imag2reallmi(F)
 
-% Author Johan Löfberg
-% $Id: imag2reallmi.m,v 1.6 2006-12-18 14:42:28 joloef Exp $
-
+F = flatten(F);
 Counter = size(F.clauses,2);
 Freal = F;
 j=1;
@@ -20,8 +18,8 @@ for i = 1:Counter
                 else
                     % Fast without tracking
                     reF=real(F.clauses{j}.data);
-                    imF=imag(F.clauses{j}.data);                                            
-                    Freal.clauses{j}.data = kron(eye(2),reF) + kron([0 1;-1 0],imF);
+                    imF=imag(F.clauses{j}.data);                                                               
+                    Freal.clauses{j}.data = [reF imF;-imF reF];
                 end
                 
                 j = j+1;

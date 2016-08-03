@@ -1,9 +1,11 @@
 function Z = mtimes(X,Y)
 %MTIMES (overloaded)
 
-% Check classes
-X_is_spdvar = isa(X,'sdpvar');
-Y_is_spdvar = isa(Y,'sdpvar');
+% Cannot use isa here since blkvar is marked as sdpvar
+X_class = class(X);
+Y_class = class(Y);
+X_is_spdvar = strcmp(X_class,'sdpvar');
+Y_is_spdvar = strcmp(Y_class,'sdpvar');
 
 % Convert block objects
 if ~X_is_spdvar
@@ -42,14 +44,29 @@ if X_is_spdvar && Y_is_spdvar
     end
 end
 
+if ~X_is_spdvar
+    if any(isnan(X))
+       error('Multiplying NaN with an SDPVAR makes no sense.');
+    end
+end
+if ~Y_is_spdvar
+    if any(isnan(Y))
+       error('Multiplying NaN with an SDPVAR makes no sense.');
+    end
+end
+
 % Different code for
 % 1 : SDPVAR * DOUBLE
 % 2 : DOUBLE * SDPVAR
 % 3 : SDPVAR * SDPVAR
 switch 2*X_is_spdvar+Y_is_spdvar
     case 3
-        X = flush(X);
-        Y = flush(Y);
+        if ~isempty(X.midfactors)
+            X = flush(X);
+        end
+        if ~isempty(Y.midfactors)
+            Y = flush(Y);
+        end
         try
             % HACK: Return entropy when user types x*log(x)
             if isequal(Y.extra.opname,'log')
@@ -65,13 +82,13 @@ switch 2*X_is_spdvar+Y_is_spdvar
                 end
             end
 
-            x_isscalar =  X.dim(1)*X.dim(2)==1;
-            y_isscalar =  Y.dim(1)*Y.dim(2)==1;
-
             ny = Y.dim(1);
             my = Y.dim(2);
             nx = X.dim(1);
             mx = X.dim(2);
+            
+            x_isscalar =  nx*mx==1;
+            y_isscalar =  ny*my==1;
 
             [mt,oldvariabletype,mt_hash,hash] = yalmip('monomtable');
 
@@ -130,8 +147,10 @@ switch 2*X_is_spdvar+Y_is_spdvar
                     index_X = [ones(1,length(X.lmi_variables))];
                     index_Y = index_X;
                 case 1
-                    index_X = [ones(1,length(X.lmi_variables)) zeros(1,length(Y.lmi_variables))];
-                    index_Y = [zeros(1,length(X.lmi_variables)) ones(1,length(Y.lmi_variables))];
+                    oX = ones(1,length(X.lmi_variables));
+                    oY = ones(1,length(Y.lmi_variables));
+                    index_X = [oX 0*oY];
+                    index_Y = [oX*0 oY];
                 case 2
                     index_X = [zeros(1,length(Y.lmi_variables)) ones(1,length(X.lmi_variables))];
                     index_Y = [ones(1,length(Y.lmi_variables)) zeros(1,length(X.lmi_variables))];
@@ -155,7 +174,7 @@ switch 2*X_is_spdvar+Y_is_spdvar
             speyemy = sparse(1:my,1:my,1,my,my);
 
             % Linear terms
-            inner_vector_product = (X.dim(1)==1 & Y.dim(2)==1 & (X.dim(2) == Y.dim(1)));
+            inner_vector_product = (nx==1 && my==1 && (mx == ny));
             if inner_vector_product
                 base1=Xbase*Y.basis;base1=base1(2:end);
                 base2=Ybase.'*X.basis;base2=base2(2:end);
@@ -608,11 +627,9 @@ switch 2*X_is_spdvar+Y_is_spdvar
                     Z = addleftfactor(Z,X);
                     return
                 end
-            else
-                Z.dim(1) = n_Y;
-                Z.dim(2) = m_Y;
+            else               
                 try
-                    Z.basis = sparse(X)*Y.basis;
+                    Z.basis = X*Z.basis;
                 catch
                     % This works better when low on memory in some cases
                     [i,j,k] = find(Y.basis);
@@ -621,7 +638,9 @@ switch 2*X_is_spdvar+Y_is_spdvar
                 Z.conicinfo = [0 0];
                 Z.extra.opname='';
                 Z = addleftfactor(Z,X);
-                Z = clean(Z);
+                if X==0
+                    Z = clean(Z);
+                end
                 return
             end
         elseif y_isscalar
@@ -702,7 +721,7 @@ function Z = fix_variable_order(Z)
 % Fucked up order (lmi_variables should be sorted)
 if any(diff(Z.lmi_variables)<0)
     [i,j]=sort(Z.lmi_variables);
-    Z.basis = [Z.basis(:,1) Z.basis(:,j+1)];
+    Z.basis = [Z.basis(1:end,1) Z.basis(:,j+1)];
     Z.lmi_variables = Z.lmi_variables(j);
 end
 
@@ -776,20 +795,32 @@ args = args.arg{1};
 if isequal(X,args)
     Z = -entropy(X);
     return
-else
-    if isequal(getbase(args),[0 1])
-        mt = yalmip('monomtable');
-        v = mt(getvariables(args),:);
-        vb = v(find(v));
-        if v(getvariables(X))==1 && min(vb)==-1 && max(vb)==1
-            Z = plog([X;recover(find(v==-1))]);
-        else
-            Z = [];
+end
+if 0%isequal(getvariables(args),getvariables(X)) 
+    % Possible f(x)*log(f(x))
+    [i,j,k] = find(getbase(args));
+    [ii,jj,kk] = find(getbase(X));
+    if isequal(i,ii) && isequal(j,jj)
+        scale = kk(1)./k(1)
+        if all(abs(kk./k - kk(1)./k(1)) <= 1e-12)
+           Z = -scale*entropy(args); 
+           return
         end
+    end
+end
+if isequal(getbase(args),[0 1]) &&  isequal(getbase(X),[0 1])
+    mt = yalmip('monomtable');
+    v = mt(getvariables(args),:);
+    vb = v(find(v));
+    if v(getvariables(X))==1 && min(vb)==-1 && max(vb)==1
+        Z = plog([X;recover(find(v==-1))]);
     else
         Z = [];
     end
+else
+    Z = [];
 end
+
 
 function yes = isdiagonal(X)
 

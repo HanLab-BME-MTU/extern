@@ -1,8 +1,5 @@
 function output = calldsdp(interfacedata)
 
-% Author Johan Löfberg
-% $Id: calldsdp.m,v 1.5 2008-04-14 07:41:27 joloef Exp $
-
 % Retrieve needed data
 options = interfacedata.options;
 F_struc = interfacedata.F_struc;
@@ -24,13 +21,13 @@ end
 options.dsdp.dual_quadratic=spalloc(length(c),length(c),0);
 
 options.dsdp.printyes = (options.verbose>0);
-solvertime = clock; 
 if options.showprogress;showprogress(['Calling ' interfacedata.solver.tag],options.showprogress);end
 
 if options.savedebug
     save dsdpdebug A C b options.dsdp
 end
 
+solvertime = tic;
 if isempty(x0)
     if options.saveduals | options.savesolveroutput
         if options.verbose==0 % to fix display bug reported from user
@@ -60,7 +57,7 @@ else
         end
     end
 end
-solvertime = etime(clock,solvertime);
+solvertime = toc(solvertime);
 
 % Create dual variable in internal format
 if options.saveduals
@@ -112,11 +109,4 @@ else
 end
 
 % Standard interface 
-output.Primal      = x;
-output.Dual        = D_struc;
-output.Slack       = [];
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
+output = createOutputStructure(x,D_struc,[],problem,infostr,solverinput,solveroutput,solvertime);

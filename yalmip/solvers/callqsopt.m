@@ -1,8 +1,5 @@
 function output = callqsopt(interfacedata)
 
-% Author Johan Löfberg 
-% $Id: callqsopt.m,v 1.3 2005-05-07 13:53:20 joloef Exp $
-
 % Retrieve needed data
 options = interfacedata.options;
 F_struc = interfacedata.F_struc;
@@ -30,10 +27,9 @@ options.qsopt.verbose = options.verbose;
 if options.savedebug
     save qsoptdebug
 end
-solvertime = clock; 
-
+solvertime = tic;
 [x,lambda,STATUS] = qsopt(c,-F_struc(1+K.f:end,2:end),F_struc(1+K.f:end,1),-F_struc(1:K.f,2:end),F_struc(1:K.f,1),lb,ub,options.qsopt);
-solvertime = etime(clock,solvertime);
+solvertime = toc(solvertime);
 problem = 0;
 
 if options.saveduals
@@ -73,12 +69,36 @@ else
 	solveroutput = [];
 end
 
+% Standard interface
+Primal      = solution.x(:);
+Dual        = solution.D_struc;
+problem     = solution.problem;
+infostr     = yalmiperror(solution.problem,interfacedata.solver.tag);
+if ~options.savesolverinput
+    solverinput = [];
+else
+    solverinput = model;
+end
+if ~options.savesolveroutput
+    solveroutput = [];
+else
+    solveroutput = solveroutput;
+end
+% Standard interface
+Primal      = solution.x(:);
+Dual        = solution.D_struc;
+problem     = solution.problem;
+infostr     = yalmiperror(solution.problem,interfacedata.solver.tag);
+if ~options.savesolverinput
+    solverinput = [];
+else
+    solverinput = model;
+end
+if ~options.savesolveroutput
+    solveroutput = [];
+else
+    solveroutput = solveroutput;
+end
 % Standard interface 
-output.Primal      = x(:);
-output.Dual        = D_struc;
-output.Slack       = [];
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
+output = createOutputStructure(Primal,Dual,[],problem,infostr,solverinput,solveroutput,solvertime);
+
