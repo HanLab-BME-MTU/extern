@@ -14,29 +14,37 @@ end
 
 options = interfacedata.options;
 n_original = length(interfacedata.c);
-model = yalmip2cplex(interfacedata);
-
+[model,nonlinearremain] = yalmip2cplex(interfacedata);
+if nonlinearremain
+    error('Nonlinear monomials remain when calling CPLEX. If you are using OPTIMIZER, ensure your model really is solvable by CPLEX for fixed parameters. If you still think so, please report this and ask for a feature improvement.');
+end
 if options.savedebug
     save cplexdebug model
 end
 
 % Call mex-interface
 showprogress('Calling CPLEX',options.showprogress);
-solvertime = clock;
 if isempty(model.integer_variables) & isempty(model.binary_variables) & isempty(model.semicont_variables) & isempty(model.K.sos.type)
     if options.verbose
+        solvertime = tic;
         [x,fval,exitflag,output] = cplexqcp(model.H, model.f, model.Aineq,model.bineq,model.Aeq,model.beq,model.Li,model.Qi,model.ri,model.lb,model.ub,model.x0,model.options);
+        solvertime = toc(solvertime);
     else
+        solvertime = tic;
         evalc('[x,fval,exitflag,output] = cplexqcp(model.H, model.f, model.Aineq,model.bineq,model.Aeq,model.beq,model.Li,model.Qi,model.ri,model.lb,model.ub,model.x0,model.options);');
+        solvertime = toc(solvertime);
     end
 else
     if options.verbose
+        solvertime = tic;
         [x,fval,exitflag,output] = cplexmiqcp(model.H, model.f, model.Aineq,model.bineq,model.Aeq,model.beq,model.Li,model.Qi,model.ri,model.K.sos.type,model.K.sos.variables,model.K.sos.weight,model.lb,model.ub,model.ctype',model.x0,model.options);
+        solvertime = toc(solvertime);
     else
+        solvertime = tic;
         evalc('[x,fval,exitflag,output] = cplexmiqcp(model.H, model.f, model.Aineq,model.bineq,model.Aeq,model.beq,model.Li,model.Qi,model.ri,model.K.sos.type,model.K.sos.variables,model.K.sos.weight,model.lb,model.ub,model.ctype'',model.x0,model.options);');
+        solvertime = toc(solvertime);
     end
 end
-if interfacedata.getsolvertime solvertime = etime(clock,solvertime);else solvertime = 0;end
 
 if length(x) == length(model.f)
     if ~isempty(model.NegativeSemiVar)
@@ -93,11 +101,4 @@ else
 end
 
 % Standard interface
-output.Primal      = x;
-output.Dual        = D_struc;
-output.Slack       = [];
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
+output = createOutputStructure(x,D_struc,[],problem,infostr,solverinput,solveroutput,solvertime);

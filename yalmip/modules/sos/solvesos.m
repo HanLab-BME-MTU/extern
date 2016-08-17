@@ -34,8 +34,8 @@ function [sol,m,Q,residuals,everything] = solvesos(F,obj,options,params,candidat
 %                Warning, these residuals are not computed on matrix sos-of-squares
 %
 %   EXAMPLE
-%    x = sdpvar(1);solvesos(set(sos(x^4+x^3+1)));                    % Simple decompositions
-%    x = sdpvar(1);t = sdpvar(1);solvesos(set(sos(x^4+x^3+1-t)),-t); % Lower bound by maximizing t
+%    x = sdpvar(1);solvesos((sos(x^4+x^3+1)));                    % Simple decompositions
+%    x = sdpvar(1);t = sdpvar(1);solvesos((sos(x^4+x^3+1-t)),-t); % Lower bound by maximizing t
 %
 %   NOTES
 %
@@ -86,16 +86,20 @@ if nargin<5
 end
 
 if isa(F,'constraint')
-    F = set(F);
+    F = lmi(F);
 end
 
 if isempty(options)
     options = sdpsettings;
+else
+    if ~isa(options,'struct')
+        error('The third argument should be an options structure');
+    end
 end
 
 % Lazy syntax (not official...)
 if nargin==1 & isa(F,'sdpvar')
-    F = set(sos(F));
+    F = (sos(F));
 end
 
 if ~isempty(options)

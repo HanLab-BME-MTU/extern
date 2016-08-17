@@ -43,9 +43,9 @@ end
 % CALL PENSDP
 %**************************
 showprogress('Calling PENSDP',options.showprogress);
-solvertime = clock; 
+solvertime = tic;
 [x, fx, u, iresults, fresults, iflag] = pen(penstruct);
-solvertime = etime(clock,solvertime);
+solvertime = toc(solvertime);
 
 % Get dual variable (this must be possible to do easier...)
 u = u(:);
@@ -107,15 +107,7 @@ else
 end
 
 % Standard interface 
-output.Primal      = x(:);
-output.Dual        = D_struc;
-output.Slack       = [];
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
-
+output = createOutputStructure(x(:),D_struc,[],problem,infostr,solverinput,solveroutput,solvertime);
 
 
 

@@ -1,23 +1,34 @@
 function y = mpower(x,d)
 %MPOWER (overloaded)
 
-% Author Johan Löfberg
-% $Id: mpower.m,v 1.27 2009-10-14 07:28:42 joloef Exp $
+if (numel(d)>1) || (size(x,1) ~= size(x,2))
+   error('Inputs must be a scalar and a square matrix. To compute elementwise POWER, use POWER (.^) instead.');
+end
 
-%Sanity check
-if isa(d,'sdpvar')
+if isa(d,'sdpvar')  
+    if numel(x) > 1
+        if isa(x,'sdpvar')
+            error('x^d not support SDPVARMATRIX^SDPVARSCALAR')
+        else
+            if isnumeric(x)
+                [V,D] = eig(x);
+                if ~isreal(D)
+                    error('Matrix power x^d requires x to have real eigenvalues');
+                end                
+                D = real(D);
+                y = V*diag(diag(D).^d)*inv(V);
+                return                
+            else
+                error('Object class not support in x^d');
+            end
+        end
+    end
+    d = flush(d);d.conicinfo = [0 0];
     y = power_internal1(d,x);
     return
 end
 
 x = flush(x);
-
-if prod(size(d))>1
-    error('The power must be scalar.');
-end
-if x.dim(1)~=x.dim(2) 
-    error('Matrix must be square.')
-end
     
 % Trivial cases
 if d==0
@@ -93,51 +104,30 @@ if x.dim(1)>1 | x.dim(2)>1
 else %Integer power of scalar
     
     base = x.basis;
-    if 0%isequal(base,[0 1]) % Unit scalar can be done fast
-        [mt,variabletype] = yalmip('monomtable');
-        %var = getvariables(x);
+    if isequal(base,[0 1]) % Unit scalar can be done fast
+        [mt,variabletype,hashes,hash] = yalmip('monomtable');     
         var = x.lmi_variables;
-        if var > size(mt,2)
-            nl_var = find(mt(var,:));
-            possible = find(any(mt(:,nl_var),2));
-%            possible = 1:size(mt,1);
-        else
-            possible = find(mt(:,var));
-        end
-        if length(possible)==1
-            % Even faster, we don't need to search, cannot have been
-            % definded earlier, since only the linear terms is in monom
-            % table                        
-            newmt = mt(var,:)*d;
+        newmt = mt(var,:)*d;
+        newhash = newmt*hash;
+        previous_var = findhash(hashes , newhash);
+        if isempty(previous_var)
             mt = [mt;newmt];
-           % mt(end,size(mt,1))=0;
             yalmip('setmonomtable',mt,[variabletype newvariabletypegen(newmt)]);
             y = x;
             y.lmi_variables = size(mt,1);
         else
-            hash = randn(size(mt,2),1);
-            mt_hash = mt*hash;
-            mt_hash = mt_hash(possible);
-            previous_var = findhash(mt_hash , (d*mt(var,:))*hash,size(mt_hash,1));
-            if isempty(previous_var)
-                newmt = mt(var,:)*d;
-                %        mt(end+1,:) = newmt;
-                mt = [mt;newmt];
-                yalmip('setmonomtable',mt,[variabletype newvariabletypegen(newmt)]);
-                y = x;
-                y.lmi_variables = size(mt,1);
-            else
-                previous_var = possible(previous_var);
-                y = x;
-                y.lmi_variables = previous_var;
-            end
+            y = x;
+            y.lmi_variables = previous_var;
         end
+            
     else % General scalar
         switch d
             case 0
                 y = 1;
             case 1
                 y = x;
+            case 2
+                y = x*x;
             otherwise
                 if even(d)
                     z = mpower(x,d/2);

@@ -9,7 +9,7 @@ function varargout = optimize(varargin)
 %            Constraint
 %
 %   NOTES
-%    To obtain solution for a variable, use DOUBLE.
+%    To obtain solution for a variable, use VALUE.
 %    To obtain dual variable for a constraint, use DUAL.
 %    See YALMIPERROR for error codes returned in output.
 %
@@ -24,11 +24,8 @@ function varargout = optimize(varargin)
 %   EXAMPLE
 %    A = randn(15,5);b = rand(15,1)*5;c = randn(5,1);
 %    x = sdpvar(5,1);
-%    diagnostics = optimize(A*x<=b,c'*x);double(x)
+%    diagnostics = optimize(A*x<=b,c'*x);value(x)
 %
-%   See also SDPVAR, @SDPVAR/DOUBLE, SDPSETTINGS, YALMIPERROR
+%   See also SDPVAR, @SDPVAR/VALUE, SDPSETTINGS, YALMIPERROR
 
-% Author Johan Löfberg
-% $Id: optimize.m,v 1.75 2010-04-06 06:32:49 joloef Exp $
-
-varargout{:} = solvesdp(varargin{:});
+[varargout{1:nargout}] = solvesdp(varargin{:});

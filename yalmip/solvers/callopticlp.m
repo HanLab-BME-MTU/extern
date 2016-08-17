@@ -1,8 +1,5 @@
 function output = callopticlp(interfacedata)
 
-% Author Johan Löfberg 
-% $Id: callopticlp.m,v 1.6 2005-05-07 13:53:20 joloef Exp $
-
 % Standard input interface
 options = interfacedata.options;
 F_struc = interfacedata.F_struc;
@@ -39,10 +36,9 @@ if options.savedebug
     save clpdebug c A b  lb ub opts H
 end
 
-solvertime = clock; 
+solvertime = tic;
 [x,fval,exitflag,iter,lambda] = clp(H,full(c), A, rl, ru, lb, ub,opts);
-
-if interfacedata.getsolvertime solvertime = etime(clock,solvertime);else solvertime = 0;end
+solvertime = toc(solvertime);
 
 % No duals
 D_struc = -lambda.dual_row;
@@ -87,11 +83,4 @@ else
 end
 
 % Standard interface 
-output.Primal      = x(:);
-output.Dual        = D_struc;
-output.Slack       = [];
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
+output = createOutputStructure(x(:),D_struc,[],problem,infostr,solverinput,solveroutput,solvertime);

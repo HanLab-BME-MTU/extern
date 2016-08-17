@@ -148,9 +148,9 @@ if options.savedebug
 end
 
 if options.showprogress;showprogress(['Calling ' interfacedata.solver.tag],options.showprogress);end
-solvertime = clock;
+solvertime = tic;
 [obj,X,y,Z,info,runhist] =  sdpt3(blk,A,C,b,options.sdpt3,[],x0,[]);            
-
+solvertime = toc(solvertime);
 
 % Create YALMIP dual variable and slack
 Dual = [];
@@ -196,7 +196,6 @@ if any(K.m > 0)
    % Dual = [];
 end
 
-solvertime = etime(clock,solvertime);
 Primal = -y;  % Primal variable in YALMIP
 
 % Convert error code
@@ -245,14 +244,7 @@ else
 end
 
 % Standard interface 
-output.Primal      = Primal;
-output.Dual        = Dual;
-output.Slack       = Slack;
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
+output = createOutputStructure(Primal,Dual,[],problem,infostr,solverinput,solveroutput,solvertime);
 
 function [F_struc,K] = deblock(F_struc,K);
 X = any(F_struc(end-K.s(end)^2+1:end,:),2);

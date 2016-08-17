@@ -1,14 +1,12 @@
 function [P,x] = polyhedron(X,options)
-% polyhedron  Converts set object to MPT polyhedron object        
+% polyhedron  Converts constraint to MPT polyhedron object        
 %
 % P     = polyhedron(F)
 % [P,x] = polyhedron(F)
 %
 % P : polyhedron object (Requires the Multi-parametric Toolbox)
 % x : sdpvar object defining the variables in the polyhedron
-% F : Object with linear inequalities
-
-% Author Johan Löfberg
+% F : Constraint object with linear inequalities
 
 if nargin < 2
     options = sdpsettings;
@@ -52,7 +50,7 @@ else
             beq = H(1:p.K.f);
             A = H(p.K.f+1:end,:);
             b = K(p.K.f+1:end);    
-            Pi = polyhedron('A',A,'b',b,'Ae',Aeq,'be',beq);            
+            Pi = Polyhedron('A',A,'b',b,'Ae',Aeq,'be',beq);            
             P = [P Pi];
         end
     end

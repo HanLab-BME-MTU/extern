@@ -49,9 +49,9 @@ if options.savedebug
     save pensdpmdebug pen
 end
 if options.showprogress;showprogress('Calling PENSDP',options.showprogress);end
-if interfacedata.getsolvertime solvertime = clock; end
+solvertime = tic;
 [f,x,u,iflag,niter,feas] = pensdpm(pen);
-if interfacedata.getsolvertime solvertime = etime(clock,solvertime);else solvertime = 0;end
+solvertime = toc(solvertime);
 
 % Get dual variable (this must be possible to do easier...)
 if options.saveduals | options.dimacs
@@ -117,15 +117,6 @@ else
 end
 
 % Standard interface 
-output.Primal      = x(:);
-output.Dual        = D_struc;
-output.Slack       = [];
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
-
-
+output = createOutputStructure(x(:),D_struc,[],problem,infostr,solverinput,solveroutput,solvertime);
 
 

@@ -27,7 +27,7 @@ function [Fdual,objdual,X,t,err,complexInfo] = dualize(F,obj,auto,extlp,extend,o
 % Check for unsupported problems
 
 if isempty(F)
-    F = set([]);
+    F = ([]);
 end
 
 complexInfo = [];
@@ -51,9 +51,9 @@ elseif isa(obj,'logdet')
         end
     end
     LogDetTerm = 1;
-    Ftemp = set([]);
+    Ftemp = ([]);
     for i = 1:length(Plogdet)
-        Ftemp = Ftemp + set(Plogdet{i} >= 0,'LOGDET');
+        Ftemp = Ftemp + [(Plogdet{i} >= 0) : 'LOGDET'];
     end
     F = Ftemp + F;
 end
@@ -64,7 +64,7 @@ p2 = ~(islinear(F) & islinear(obj));
 p3 = any(is(F,'integer')) | any(is(F,'binary'));
 if p1 | p2 | p3
     if nargout == 5
-        Fdual = set([]);objdual = [];y = []; X = []; t = []; err = 1;
+        Fdual = ([]);objdual = [];y = []; X = []; t = []; err = 1;
     else
         problems = {'Cannot dualize complex-valued problems','Cannot dualize nonlinear problems','Cannot dualize discrete problems'};
         error(problems{min(find([p1 p2 p3]))});
@@ -97,7 +97,7 @@ if nargin<4 || isempty(extlp)
 end
 
 % Cones and equalities
-F_AXb = set([]);
+F_AXb = ([]);
 
 
 % Shiftmatrix is a bit messy at the moment.
@@ -145,7 +145,7 @@ for i = 1:length(F)
         if is(Fi,'socone')
             vars = getvariables(Fi);
             % Make sure these variables are not SDP cone variables
-            % This can actually only happen for set(X>0) + set(Xcone((2:end,1),X(1)))
+            % This can actually only happen for (X>0) + (Xcone((2:end,1),X(1)))
             if ~isempty(varSDP)
                 inSDP = any(varSDP(:,1)<=vars(1)& vars(1) <=varSDP(:,2)) | any(varSDP(:,1)<=vars(end)& vars(end) <=varSDP(:,2));
             else
@@ -186,7 +186,7 @@ if ~isempty(elementwise_index)
     if ~isempty(implicit_positive)        
         implicit_positive = setdiff(implicit_positive,getvariables(F_CONE));
         if ~isempty(implicit_positive) 
-            Flp = Flp + set(recover(implicit_positive) >= 0);
+            Flp = Flp + (recover(implicit_positive) >= 0);
         end
     end
 
@@ -280,13 +280,13 @@ if ~isempty(elementwise_index)
             nlp = lpconstraint(find(~lpcones));
             if ~isempty(nlp)
                 s = sdpvar(1,length(nlp));
-                F_AXb = F_AXb + set(nlp-s==0);
+                F_AXb = F_AXb + (nlp-s==0);
                 x = [x s];
             end
         elseif length(lpconstraint) > 0
             s = sdpvar(1,length(lpconstraint));
             x = [x s]; % New LP cones
-            F_AXb = F_AXb + set(lpconstraint-s==0);
+            F_AXb = F_AXb + (lpconstraint-s==0);
         end
     end
 
@@ -315,7 +315,7 @@ if ~isempty(elementwise_index)
             % variable
             xcone = x(find(~keep));
             s = sdpvar(1,length(xcone));
-            F_AXb = F_AXb + set(xcone-s==0);
+            F_AXb = F_AXb + (xcone-s==0);
             x = x(find(keep));
             x = [x s];
         end
@@ -338,8 +338,19 @@ if nnz(isSDP) > 0
         Fi = sdpvar(F(SDPindicies(i)));
         ns(i) = size(Fi,1);
         ms(i) = ns(i);
+        isc(i) = is(Fi,'complex');
     end
-    Slacks = sdpvar(ns,ms);
+    if any(isc)
+        for i = 1:length(ns)
+            if isc(i)
+                Slacks{i} = sdpvar(ns(i),ns(i),'hermitian','complex');
+            else
+                Slacks{i} = sdpvar(ns(i),ns(i));
+            end
+        end
+    else
+        Slacks = sdpvar(ns,ms);
+    end
     if ~isa(Slacks,'cell')
         Slacks = {Slacks};
     end
@@ -354,7 +365,11 @@ for i = 1:length(F)
         S  = Slacks{prei};prei = prei + 1;
         slack = Fi-S;
         ind = find(triu(reshape(1:n^2,n,n)));
-        F_AXb =  F_AXb + set(slack(ind)==0);
+        if is(slack,'complex')
+            F_AXb =  F_AXb + (real(slack(ind))==0) + (imag(slack(ind))==0);
+        else
+            F_AXb =  F_AXb + (slack(ind)==0);
+        end
         F_CONE = F_CONE + lmi(S,[],[],[],1);
         shiftMatrix{end+1} = spalloc(n,n,0);
         X{end+1}=S;
@@ -366,8 +381,12 @@ for i = 1:length(F)
         S  = sdpvar(n,1);
         %        S = Slacks{i};
         slack = Fi-S;
-        F_AXb =  F_AXb + set(slack==0);
-        F_CONE = F_CONE + set(cone(S(2:end),S(1)));
+        if is(slack,'complex')
+            F_AXb =  F_AXb + (real(slack)==0) + (imag(slack)==0);
+        else
+            F_AXb =  F_AXb + (slack==0);
+        end
+        F_CONE = F_CONE + (cone(S(2:end),S(1)));
         shiftMatrix{end+1} = spalloc(n,1,0);
         X{end+1}=S;
         keep(i)=0;
@@ -377,8 +396,12 @@ for i = 1:length(F)
         [n,m]  = size(Fi);
         S  = sdpvar(n,m,'full');        
         slack = Fi-S;
-        F_AXb =  F_AXb + set(slack==0);
-        F_CONE = F_CONE + set(cone(S));
+        if is(slack,'complex')
+            F_AXb =  F_AXb + (real(slack)==0) + (imag(slack)==0);
+        else
+            F_AXb =  F_AXb + (slack==0);
+        end
+        F_CONE = F_CONE + (cone(S));
         shiftMatrix{end+1} = spalloc(n,m,0);
         X{end+1}=S;
         keep(i)=0;
@@ -396,12 +419,12 @@ if any(AXbset)
     F = F(find(~AXbset));
 end
 
-% Is thee something we missed in our tests?
+% Is there something we missed in our tests?
 if length(F)>0
     error('DUALIZE can only treat standard SDPs (and LPs) at the moment.')
 end
 
-% If complex SDP cone, we make reformulate and call again on a real
+% If complex SDP cone, we reformulate and call again on a real-valued
 % problem. This leads to twice the amount of work, but it is a quick fix
 % for the moment
 if any(is(F_CONE,'complexsdpcone'))
@@ -438,9 +461,6 @@ if any(is(F_CONE,'complexsdpcone'))
             if ~isempty(F_AXb)
                 F_AXb = remap(F_AXb,[s0r s0i],replacement);
             end
-            if ~isempty(F_SOC)
-                F_SOC = remap(F_AXb,[s0r s0i],replacement);
-            end
             if ~isempty(obj)
                 obj = remap(obj,[s0r s0i],replacement);
             end
@@ -448,9 +468,13 @@ if any(is(F_CONE,'complexsdpcone'))
             X{i} = Xnew{top};
             top = top + 1;
         end
-        F_NEWCONES = [F_NEWCONES, X{i} >= 0];
+        if is(X{i},'hermitian')
+            F_NEWCONES = [F_NEWCONES, X{i} >= 0];
+        else 
+            F_NEWCONES = [F_NEWCONES, cone(X{i})];
+        end
     end  
-    F_reformulated = [F_NEWCONES, F_AXb, F_SOC, x>=0];
+    F_reformulated = [F_NEWCONES, F_AXb, x>=0];
     complexInfo.replaced = Xreplace;
     complexInfo.new = Xnew;
     [Fdual,objdual,X,t,err] = dualize(F_reformulated,obj,auto,extlp,extend);
@@ -743,11 +767,14 @@ if n_free>0
 end
 
 % Create dual
+if length(b) == 0
+    error('Dual program is somehow trivial (0 variables in dual)');
+end
 y = sdpvar(length(b),1);
 yvars = getvariables(y);
 cf = [];
 Af = [];
-Fdual = set([]);
+Fdual = ([]);
 for j = 1:n_cones
     if size(X{j},1)==size(X{j},2)
         % Yep, this is optimized...
@@ -777,7 +804,7 @@ if n_lp > 0
         if isa(z,'double')
             assign(x(:),z(:));
         else
-            Fdual = Fdual + set(z);
+            Fdual = Fdual + lmi(z);
             if ~isequal(keep,(1:length(x))')
                 x = x(keep);
             end
@@ -792,7 +819,7 @@ if n_free > 0
             error('Trivially unbounded!');
         end
     else
-        Fdual = Fdual + set(0 == CfreeAfreey);
+        Fdual = Fdual + (0 == CfreeAfreey);
     end
 end
 
@@ -812,6 +839,8 @@ if LogDetTerm
     end
     Fdual = Fdual - Fdual(1:length(Plogdet));
 end
+
+Fdual = setdualize(Fdual,1);
 
 function implicit_positive = detect_diagonal_terms(F)
 F = F(find(is(F,'sdp')));

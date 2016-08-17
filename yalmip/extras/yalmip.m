@@ -16,8 +16,6 @@ function  varargout = yalmip(varargin)
 %
 %   See also YALMIPTEST, YALMIPDEMO
 
-% Author Johan Löfberg
-
 persistent prefered_solver internal_sdpvarstate internal_setstate
 
 if nargin==0
@@ -26,7 +24,9 @@ if nargin==0
 end
 
 if isempty(internal_sdpvarstate)
-    more off
+    if exist('OCTAVE_VERSION', 'builtin') 
+        more off
+    end
     internal_sdpvarstate.monomtable = spalloc(0,0,0);   % Polynomial powers table
     internal_sdpvarstate.hashedmonomtable = [];         % Hashed polynomial powers table
     internal_sdpvarstate.hash = [];
@@ -120,7 +120,7 @@ switch varargin{1}
             temp = internal_sdpvarstate.monomtable(end-need_new+1:end,:);
             internal_sdpvarstate.hashedmonomtable = [internal_sdpvarstate.hashedmonomtable;temp*internal_sdpvarstate.hash];
         end
-        if nargin >= 3
+        if nargin >= 3 && ~isempty(varargin{3})
             internal_sdpvarstate.variabletype = varargin{3};
             if length(internal_sdpvarstate.variabletype) ~=size(internal_sdpvarstate.monomtable,1)
                 error('ASSERT')
@@ -211,32 +211,38 @@ switch varargin{1}
             availableHashes = [internal_sdpvarstate.ExtendedMap(correct_operator).Hash];
         end
         
+        if isempty(availableHashes) &&  length(vec_hashes)>1 && all(diff(sort(vec_hashes))>0)
+            simpleAllDifferentNew = 1;
+        else
+            simpleAllDifferentNew = 0;
+        end
+        
         for i = 1:numel(X)
             % we have to search through all scalar operators
             % to find this single element
-            found = 0;
-         %   Xi = X(i);
+            found = 0;            
             Xi = [];
-            if vec_isdoubles(i)%isa(Xi,'double')
-                found = 1;
-                y(i) = X(i);
-            else
-                if ~isempty(correct_operator)
-                    this_hash = vec_hashes(i);
-                    correct_hash = correct_operator(find(this_hash == availableHashes));
-                    %   for j = correct_operator
-                    if ~isempty(correct_hash)
-                         Xi = X(i);
-                    end
-                    for j = correct_hash(:)'
-                        % if this_hash == internal_sdpvarstate.ExtendedMap(j).Hash
-                        if isequal(Xi,internal_sdpvarstate.ExtendedMap(j).arg{1},1)
-                            allPreviouslyDefinedExtendedToIndex = [allPreviouslyDefinedExtendedToIndex i];
-                            allPreviouslyDefinedExtendedFromIndex = [allPreviouslyDefinedExtendedFromIndex j];
-                            found = 1;
-                            break
+            
+            if ~simpleAllDifferentNew
+                if vec_isdoubles(i)
+                    found = 1;
+                    y(i) = X(i);
+                else
+                    if ~isempty(correct_operator)
+                        this_hash = vec_hashes(i);
+                        correct_hash = correct_operator(find(this_hash == availableHashes));
+                        
+                        if ~isempty(correct_hash)
+                            Xi = X(i);
                         end
-                        % end
+                        for j = correct_hash(:)'
+                            if isequal(Xi,internal_sdpvarstate.ExtendedMap(j).arg{1},1)
+                                allPreviouslyDefinedExtendedToIndex = [allPreviouslyDefinedExtendedToIndex i];
+                                allPreviouslyDefinedExtendedFromIndex = [allPreviouslyDefinedExtendedFromIndex j];
+                                found = 1;
+                                break
+                            end
+                        end
                     end
                 end
             end
@@ -315,7 +321,7 @@ switch varargin{1}
             end
                                                                          
             for i = correct_operator                
-                if this_hash == internal_sdpvarstate.ExtendedMap(i).Hash
+             %   if this_hash == internal_sdpvarstate.ExtendedMap(i).Hash
                     if isequalwithequalnans(Arguments, {internal_sdpvarstate.ExtendedMap(i).arg{1:end-1}});
                         if length(internal_sdpvarstate.ExtendedMap(i).computes)>1
                             varargout{1} =  recover(internal_sdpvarstate.ExtendedMap(i).computes);
@@ -325,7 +331,7 @@ switch varargin{1}
                         varargout{1} = setoperatorname(varargout{1},varargin{2});
                         return
                     end
-                end
+             %   end
             end
         else
             this_hash = create_trivial_hash(firstSDPVAR({varargin{3:end}}));
@@ -415,7 +421,7 @@ switch varargin{1}
                         Xi = X(i);
                         if vec_isdoubles(i)%isa(Xi,'double')
                             found = 1;
-                            y(i) = X(i);
+                            y(i) = abs(X(i));
                         else
                             if ~isempty(correct_operator)
                                 this_hash = vec_hashes(i);                                
@@ -467,20 +473,34 @@ switch varargin{1}
                     % variables, and thus assumes no z in between. This
                     % will be generalized when R^n -> R^m is supported for
                     % real
-                    z = sdpvar(size(varargin{3},1),size(varargin{3},2),'full'); % Standard format     y=f(z),z==arg
-                    internal_sdpvarstate.auxVariables = [ internal_sdpvarstate.auxVariables  getvariables(z)];
+                    
+                    % Actually, we can skip these normalizing variables for
+                    % everything which isn't based on callbacks. This saves
+                    % a lot of setup time on huge models
+                    if ~(strcmp(varargin{2},'norm') || strcmp(varargin{2},'abs'))
+                        z = sdpvar(size(varargin{3},1),size(varargin{3},2),'full'); % Standard format     y=f(z),z==arg
+                        internal_sdpvarstate.auxVariables = [ internal_sdpvarstate.auxVariables  getvariables(z)];
+                    else
+                        z = [];
+                    end
                     internal_sdpvarstate.auxVariables = [ internal_sdpvarstate.auxVariables  getvariables(y)];
                 else
                     z = [];
                 end
                 for i = 1:nout
+                    % Avoid subsref to save time
+                    if nout == 1
+                        yi = y;
+                    else
+                        yi = y(i);
+                    end                
                     internal_sdpvarstate.ExtendedMap(end+1).fcn = varargin{2};
                     internal_sdpvarstate.ExtendedMap(end).arg = {varargin{3:end},z};
-                    internal_sdpvarstate.ExtendedMap(end).var = y(i);
+                    internal_sdpvarstate.ExtendedMap(end).var = yi;
                     internal_sdpvarstate.ExtendedMap(end).computes = getvariables(y);
                     internal_sdpvarstate.ExtendedMap(end).Hash = this_hash;
                     internal_sdpvarstate.ExtendedMapHashes = [internal_sdpvarstate.ExtendedMapHashes this_hash];
-                    internal_sdpvarstate.extVariables = [internal_sdpvarstate.extVariables getvariables(y(i))];
+                    internal_sdpvarstate.extVariables = [internal_sdpvarstate.extVariables getvariables(yi)];
                 end
                 y = setoperatorname(y,varargin{2});
         end
@@ -488,8 +508,8 @@ switch varargin{1}
             if isa(varargin{i},'sdpvar')
                 yalmip('setdependence',getvariables(y),getvariables(varargin{i}));
             end
-        end
-        varargout{1} = flush(y);
+        end        
+        varargout{1} = flush(clearconic(y));
         return
         
     case 'setdependence'
@@ -592,6 +612,15 @@ switch varargin{1}
                 i = i + 1;
             end
         end
+  
+     case 'expvariables'    
+        expvariables     = [];      
+        for i = 1:length(internal_sdpvarstate.ExtendedMap)
+           if any(strcmpi(internal_sdpvarstate.ExtendedMap(i).fcn,{'exp','pexp','log','slog','plog','logsumexp','kullbackleibler','entropy'}))
+             expvariables = [ expvariables internal_sdpvarstate.ExtendedMap(i).computes];
+           end
+        end
+        varargout{1} = expvariables;       
         
     case 'rankvariables'
         i = 1;
@@ -947,7 +976,7 @@ switch varargin{1}
         
         
     case {'version','ver'}
-        varargout{1} = '20140619';
+        varargout{1} = '20150919';
         
     case 'setintvariables'
         internal_sdpvarstate.intVariables = varargin{2};
@@ -1089,6 +1118,9 @@ switch varargin{1}
         internal_sdpvarstate.boundlist(indicies(:),2) = varargin{4};
         varargout{1}=0;
         
+    case 'extendedmap'
+        varargout{1} = internal_sdpvarstate.ExtendedMap;
+        
     case  'logicextvariables'
         logicextvariables = [];
         for i = 1:length(internal_sdpvarstate.ExtendedMap)
@@ -1181,5 +1213,6 @@ X = [];
 for i = 1:length(List)
     if isa(List{i},'sdpvar')
         X = List{i};
+        break
     end
 end

@@ -1,8 +1,5 @@
 function output = callsdpt331(interfacedata)
 
-% Author Johan Löfberg
-% $Id: callsdpt331.m,v 1.9 2006-03-20 19:32:21 joloef Exp $ 
-
 % Retrieve needed data
 options = interfacedata.options;
 F_struc = interfacedata.F_struc;
@@ -28,12 +25,13 @@ if options.savedebug
 end
 
 if options.showprogress;showprogress(['Calling ' interfacedata.solver.tag],options.showprogress);end
-solvertime = clock;
+solvertime = tic;
 if options.verbose==0 % SDPT3 does not run silent despite printyes=0!
    evalc('[obj,X,y,Z,info,runhist] =  sqlp(blk,A,C,b,options.sdpt3,[],x0,[]);');
 else
     [obj,X,y,Z,info,runhist] =  sqlp(blk,A,C,b,options.sdpt3,[],x0,[]);    
 end
+solvertime = toc(solvertime);
 
 % Create YALMIP dual variable and slack
 Dual = [];
@@ -74,8 +72,6 @@ if K.s(1)>0
         Slack = [Slack;Zi{i}(:)];     
     end
 end
-
-solvertime = etime(clock,solvertime);
 Primal = -y;  % Primal variable in YALMIP
 
 % Convert error code
@@ -124,11 +120,4 @@ else
 end
 
 % Standard interface 
-output.Primal      = Primal;
-output.Dual        = Dual;
-output.Slack       = Slack;
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
+output = createOutputStructure(Primal,Dual,[],problem,infostr,solverinput,solveroutput,solvertime);

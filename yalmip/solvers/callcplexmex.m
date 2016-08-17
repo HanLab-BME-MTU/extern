@@ -1,8 +1,5 @@
 function output = callcplexmex(interfacedata)
 
-% Author Johan Löfberg 
-% $Id: callcplexmex.m,v 1.4 2006-05-03 07:58:45 joloef Exp $
-
 % Retrieve needed data
 options = interfacedata.options;
 F_struc = interfacedata.F_struc;
@@ -49,13 +46,12 @@ if options.cplexmex.msglev>1
 end
 
 % Call mex-interface
-solvertime = clock; 
 if options.savedebug
 save cplexmexdebug
 end
-
+solvertime = tic;
 [x,OPT,STATUS,EXTRA]= cplexmex(SENSE,H,C,A,B,CTYPE,LB,UB,VARTYPE,x0,options.cplexmex);
-solvertime = etime(clock,solvertime);
+solvertime = toc(solvertime);
 problem = 0;
 
 D_struc = -EXTRA.lambda;
@@ -103,11 +99,4 @@ else
 end
 
 % Standard interface 
-output.Primal      = x;
-output.Dual        = D_struc;
-output.Slack       = [];
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
+output = createOutputStructure(x,D_struc,[],problem,infostr,solverinput,solveroutput,solvertime);

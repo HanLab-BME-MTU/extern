@@ -1,8 +1,5 @@
 function output = callsdpnal(interfacedata)
 
-% Author Johan Löfberg
-% $Id: callsdpnal.m,v 1.21 2010-01-13 13:49:21 joloef Exp $ 
-
 % Retrieve needed data
 options = interfacedata.options;
 F_struc = interfacedata.F_struc;
@@ -17,7 +14,7 @@ if ~isempty(ub)
     [F_struc,K] = addbounds(F_struc,K,ub,lb);
 end
 
-[blk,A,C,b,oldKs]=sedumi2sdpt3(F_struc(:,1),F_struc(:,2:end),c,K,options.sdpt3.smallblkdim);
+[blk,A,C,b,oldKs]=sedumi2sdpt3(F_struc(:,1),F_struc(:,2:end),c,K,1);
 
 if options.savedebug
     ops = options.sdpnal;
@@ -25,12 +22,19 @@ if options.savedebug
 end
 
 if options.showprogress;showprogress(['Calling ' interfacedata.solver.tag],options.showprogress);end
-solvertime = clock;
+solvertime = tic;
 if options.verbose==0
-   evalc('[obj,X,y,Z,info,runhist] =  sdpnal(blk,A,C,b,options.sdpnal);');
+    evalc('[obj,X,y,Z,info,runhist] =  sdpnal(blk,A,C,b,options.sdpnal);');
 else
-    [obj,X,y,Z,info,runhist] =  sdpnal(blk,A,C,b,options.sdpnal);            
+    switch interfacedata.solver.tag
+        case 'SDPNAL-0.3'
+            %[obj,X,y,Z,info,runhist] =  sdpnalplus(blk,A,C,b,[],[],[],[],[],options.sdpnal);   
+            [obj,X,s,y,Z,Z2,y2,v,info,runhist] = sdpnalplus(blk,A,C,b,[],[],[],[],[],options.sdpnal);   
+        otherwise
+            [obj,X,y,Z,info,runhist] =  sdpNAL(blk,A,C,b,options.sdpnal);
+    end
 end
+solvertime = toc(solvertime);
 
 % Create YALMIP dual variable and slack
 Dual = [];
@@ -71,23 +75,32 @@ if K.s(1)>0
         Slack = [Slack;Zi{i}(:)];     
     end
 end
-
-solvertime = etime(clock,solvertime);
 Primal = -y;  % Primal variable in YALMIP
 
 % No error code available
-switch info.termcode
-    case -1
-        problem = 4;
-    case 0
-        problem = 0;
-    case 1
-        problem = 5;
-    case 2
-        problem = 3;   
-    otherwise
-        problem = 11;
+if isfield(info,'termcode')
+    switch info.termcode
+        case -1
+            problem = 4;
+        case 0
+            problem = 0;
+        case 1
+            problem = 5;
+        case 2
+            problem = 3;
+        otherwise
+            problem = 11;
+    end
+else
+    if isfield(info,'msg')
+        if isequal(info.msg,'maximum iteration reached')
+            problem = 3; 
+        else
+            problem = 9;
+        end
+    end
 end
+
 infostr = yalmiperror(problem,interfacedata.solver.tag);
 
 if options.savesolveroutput
@@ -112,14 +125,8 @@ else
 end
 
 % Standard interface 
-output.Primal      = Primal;
-output.Dual        = Dual;
-output.Slack       = Slack;
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
+output = createOutputStructure(Primal,Dual,[],problem,infostr,solverinput,solveroutput,solvertime);
+
 
 function [F_struc,K] = deblock(F_struc,K);
 X = any(F_struc(end-K.s(end)^2+1:end,:),2);

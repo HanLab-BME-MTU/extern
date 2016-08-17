@@ -102,9 +102,9 @@ if ~any(model.variabletype(usedinObjective)) & any(model.Q)
     end
 end
 
-solvertime = clock;
+solvertime = tic;
 [xout,info] = ipopt(model.x0,funcs,options);
-solvertime = etime(clock,solvertime);
+solvertime = toc(solvertime);
 
 % Duals currently not supported
 lambda = [];

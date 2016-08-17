@@ -12,26 +12,44 @@ function [Fhull,t,y] = hull(varargin)
 % Note that the convex representation of the convex hull requires a lifting
 % (introduction of auxially variables). Hence, if you have many set of
 % constraints, your problem rapidly grows large.
+%
+% If you intend to use the hull operator in a parameterized fashion in an 
+% optimizer setting, you can declare the parameters in the last argument.
+% These variables will then be considered as if the were constants
+%
+% H = hull(F1,F2,...,Parameters)
 
-if nargin==1
+
+
+% Pull out the parameter if one is given
+ParameterVariables = [];
+if isa(varargin{end},'sdpvar')
+    Parameter = varargin{end};
+    ParameterVariables = getvariables(Parameter);
+    varargin = {varargin{1:end-1}};     
+end
+N = length(varargin);
+
+if N==1
     Fhull = varargin{1};
     t = [];
+    y = [];
 end
+
 % Pre-process to convert convex quadratic constraints to socp constraints.
 % This makes the perspective code easier.
 % We also wexpand all graph-operators etc to find out all involved
 % variables and constraints
-
-for i = 1:nargin
+for i = 1:N
     varargin{i} = convertquadratics(varargin{i});
     varargin{i} = expandmodel(varargin{i},[]);
 end
 
 variables = [];
-for i = 1:nargin
+for i = 1:N
     % quick fix
     if isa(varargin{i},'constraint')
-        varargin{i} = set(varargin{i});
+        varargin{i} = lmi(varargin{i});
     end
     if ~(isa(varargin{i},'lmi') | isa(varargin{i},'socc'))
         error('Hull can only be applied to linear constraints');
@@ -39,9 +57,10 @@ for i = 1:nargin
         error('Hull can only be applied to linear and convex quadratic constraints');
     end
     variables = unique([variables depends(varargin{i})]);
+    variables = setdiff(variables,ParameterVariables);
 end
 
-if nargin == 1
+if N == 1
     Fhull = varargin{1};
     return
 end
@@ -50,27 +69,36 @@ end
 % internally defined variables as auxilliary. YALMIP will then not plot
 % w.r.t these variables
 nInitial = yalmip('nvars');
-y = sdpvar(repmat(length(variables),1,nargin),repmat(1,1,nargin));
-t = sdpvar(nargin,1);
+y = sdpvar(repmat(length(variables),1,N),repmat(1,1,N));
+t = sdpvar(N,1);
 nNow = yalmip('nvars');
 yalmip('addauxvariables',nInitial+1:nNow);
 
-Fhull = set([]);
-for i = 1:nargin
-    Fi = varargin{i};
+Fhull = lmi([]);
+for i = 1:N
+    Fi = flatten(varargin{i});
     tvariable = getvariables(t(i));
-    for j = 1:length(Fi.clauses)
-        local_variables = getvariables(Fi);
+    for j = 1:length(Fi.clauses)       
         Xi = Fi.clauses{j}.data;
+        if ~isempty(ParameterVariables)
+            Xitrue = Xi;
+            Xi = replace(Xi,Parameter,0);
+        end
         local_variables = getvariables(Xi);
         local_index = find(ismember(variables,local_variables));
         new_variables = getvariables(y{i}(local_index));
-        Fi.clauses{j}.data = brutepersp(Fi.clauses{j}.data,tvariable,new_variables);       
+        Xipersp = brutepersp(Xi,tvariable,new_variables); 
+        if ~isempty(ParameterVariables)
+            Fi.clauses{j}.data = Xipersp + t(i)*(Xitrue-Xi);
+        else
+            Fi.clauses{j}.data = Xipersp;
+        end
+        Fi.clauses{j}.handle = ['F(y_' num2str(i) ')'];
     end
     Fhull = Fhull + Fi;
 end
-Fhull = Fhull + set(sum([y{:}],2) == recover(variables));
-Fhull = Fhull + set(sum(t)==1) + set(t>=0);
+Fhull = Fhull + [(sum([y{:}],2) == recover(variables)):'sum y_i == x'];
+Fhull = Fhull + [(sum(t)==1):'Multipliers sum to 1'] + [(t>=0):'Positive multiplier'];
 Fhull = expanded(Fhull,1);
 yalmip('setdependence',[reshape([y{:}],[],1);t(:)],recover(variables));
 %yalmip('setdependence',recover([10 11]),recover(variables));

@@ -1,25 +1,24 @@
 function X=sos(X,r)
 %SOS Declare sum-of-squares structure
 %
-% F = set(sos(p),r)
+% F = sos(p)
 %
 % Input
 %  p : SDPVAR object
-%  r : Desired rank (optional)
 % Output
-%  F : SET object
+%  F : Constraint
 %
 % Example:
 %  Typical usage is
 %
-%   F = set(sos(p))
+%   F = sos(p)
 %
 %  An experimental feature is to search for
 %  low rank decompositions. To search for a 
 %  decomposition using at most 3 terms, use
 %  a second argument
 %
-%   F = set(sos(p,3))
+%   F = sos(p,3)
 %
 %  Note that his feature requires the solver LMIRANK.   
 
@@ -42,12 +41,18 @@ if ~is(X,'symmetric')
         I.type = '()';
         I.subs = {[i]};
         x = subsref(X,I);
-        Z = [Z,sos(x)];
+        if isa(x,'double')
+            if x < 0
+                error('You are trying to enforce a negative constant to be SOS!');
+            end
+        else
+            Z = [Z,sos(x)];
+        end
     end
     X = Z;
 else
     X.typeflag = 11;
     X.extra.sosid = yalmip('sosid');
     X.extra.rank = r;
-    X = set(X);
+    X = lmi(X);
 end

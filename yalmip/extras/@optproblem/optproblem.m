@@ -9,7 +9,7 @@ function sys = optproblem(Constraints,Objective,Options)
 %    The following code creates an optimization problem, and then minimizes
 %    the objective function 
 %
-%    x = sdpvar(1);P = optproblem(x > 0, x^2);minimize(P)
+%    x = sdpvar(1);P = optproblem(x >= 0, x^2);minimize(P)
 
 if nargin < 2
     Objective = [];
@@ -19,7 +19,7 @@ if nargin < 3
 end
 
 if isa(Constraints,'constraint')
-    Constraints = set(Constraints);
+    Constraints = lmi(Constraints);
 end
 sys.Constraints = Constraints;
 sys.Objective = Objective;

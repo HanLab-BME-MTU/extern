@@ -1,8 +1,5 @@
 function output = calllmilab(interfacedata)
 
-% Author Johan Löfberg
-% $Id: calllmilab.m,v 1.4 2005-05-07 13:53:20 joloef Exp $
-
 % Retrieve needed data
 options = interfacedata.options;
 F_struc = interfacedata.F_struc;
@@ -65,13 +62,13 @@ end
 
 % Solve...
 if options.showprogress;showprogress(['Calling ' interfacedata.solver.tag],options.showprogress);end
-solvertime = clock; 
+solvertime = tic;
 if nnz(c)==0
     [copt,x]=feasp(lmisys,ops);
 else
     [copt,x]=mincx(lmisys,full(c),ops);
 end
-solvertime = etime(clock,solvertime);
+solvertime = toc(solvertime);
 
 % No status
 if isempty(x)
@@ -101,11 +98,4 @@ else
 end
 
 % Standard interface 
-output.Primal      = x;
-output.Dual        = D_struc;
-output.Slack       = [];
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
+output = createOutputStructure(x,D_struc,[],problem,infostr,solverinput,solveroutput,solvertime);

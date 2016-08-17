@@ -3,14 +3,13 @@ function varargout = slog(varargin)
 %
 % y = SLOG(x)
 %
-% Computes/declares shifted logarithm log(1+x)
+% Computes/declares concave shifted logarithm log(1+x)
 %
 % Implemented as evalutation based nonlinear operator. Hence, the concavity
 % of this function is exploited to perform convexity analysis and rigorous
 % modelling. Implemented in order to avoid singularities in logarithm
 % evaluation.
 
-% Author Johan Löfberg
 switch class(varargin{1})
     case 'double'
         x = varargin{1};       
@@ -25,7 +24,7 @@ switch class(varargin{1})
     case 'char'
 
         X = varargin{3};
-        F = set(X >= -1+eps);
+        F = (X >= -1+eps);
 
         operator = struct('convexity','concave','monotonicity','increasing','definiteness','none','model','callback');
         operator.convexhull = @convexhull;

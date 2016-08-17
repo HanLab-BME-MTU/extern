@@ -1,16 +1,14 @@
 function [F,changed] = convertlorentz(F)
-%catsdp          Internal function: converts rotated Lorentz to SOCC
-  
-% Author Johan Löfberg 
-% $Id: convertlorentz.m,v 1.4 2005-09-23 13:05:00 joloef Exp $
+%convertlorentz          Internal function: converts rotated Lorentz to SOCC
   
 changed = 0;
-Counter = size(F.clauses,2);
+F = flatten(F);
+Counter = length(F.LMIid);
 for i = 1:Counter
     % Yep, Lorentz
     if  (F.clauses{i}.type==5)
         changed=1;
-        xyz = F.clauses{i}.data;
+        xyz = sdpvar(F.clauses{i}.data);
         x = xyz(1);
         y = xyz(2);
         z = xyz(3:end);
