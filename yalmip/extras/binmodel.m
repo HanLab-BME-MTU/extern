@@ -1,27 +1,42 @@
 function varargout = binmodel(varargin)
 %BINMODEL  Converts nonlinear mixed binary expression to linear model
 %
-% [plinear1,..,plinearN,F] = BINMODEL(p1,...,pN,D) is used to convert
-% nonlinear expressions involving a mixture of continuous and binary
-% variables to the correponding linear model, using auxilliary variables
-% and constraints to model nonlinearities
+% Applied to individual terms p defined on domain D
+% [plinear1,..,plinearN,Cuts] = BINMODEL(p1,...,pN,D) 
 %
-% The input arguments p are polynomial SDPVAR objects. If all involved
-% variables are binary (defined using BINVAR), arbitrary polynomials can be
-% linearized. 
+% Alternative on complete set of constraint
+% F = BINMODEL(F) 
 %
-% If an input p contains continuous variables, the continuous variables
-% may only enter linearly (i.e. degree w.r.t continuous variables should
-% be at most 1). More over, all continuous variables must be explicitly
-% bounded in the constraint object D.
+% binmodel is used to convert nonlinear expressions involving a mixture of
+% continuous and binary variables to the correponding linear model, using
+% auxilliary variables  and constraints to model nonlinearities.
+%
+% The input arguments are polynomial SDPVAR objects, or constraints
+% involving such terms. If all involved variables are binary (defined using
+% BINVAR), arbitrary polynomials can be linearized. 
+%
+% If an input contains continuous variables, the continuous variables
+% may only enter linearly in products with the binary variables (i.e.
+% degree w.r.t continuous variables should be at most 1). More over, all
+% continuous variables must be explicitly bounded. When submitting only the
+% terms, the domain must be explicitly sent as the last argument. When the
+% argument is a set of constraints, it is assumed that the domain is
+% included and can be extracted.
 %
 % Example
 %  binvar a b
 %  sdpvar x y
-%  [plinear1,plinear2,F] = binmodel(a^3+b,a*b);
-%  [plinear1,plinear2,F] = binmodel(a^3*x+b*y,a*b*x, -2 <=[x y] <=2);
+%  [plinear1,plinear2,Cuts] = binmodel(a^3+b,a*b);
+%  [plinear1,plinear2,Cuts] = binmodel(a^3*x+b*y,a*b*x, -2 <=[x y] <=2);
+%
+%  F = binmodel([a^3*x+b*y + a*b*x >= 3, -2 <=[x y] <=2]);
 %
 % See also BINARY, BINVAR, SOLVESDP
+
+if isa(varargin{1},'lmi') || isa(varargin{1},'constraint')
+    varargout{1} = binmodel_constraint(varargin{:});
+    return
+end
 
 all_linear = 1;
 p = [];
@@ -29,10 +44,10 @@ n_var = 0;
 Foriginal = [];
 for i = 1:nargin
     switch class(varargin{i})
-        case 'sdpvar'
-            [n(i),m(i)] = size(varargin{i});
+        case {'sdpvar','ndsdpvar'}
+            dims{i} = size(varargin{i});
             p = [p;varargin{i}(:)];
-            if degree(varargin{i}) > 1
+            if degree(varargin{i}(:)) > 1
                 all_linear = 0;
             end
             n_var = n_var + 1;
@@ -88,6 +103,37 @@ end
 non_binary = setdiff(1:size(mt,2),allbinary);
 if any(sum(mt(vars,non_binary),2) > 1)
     error('Expression has to be linear in the continuous variables')
+    violatingmonoms = find(sum(mt(vars,non_binary),2) > 1);
+    cuts = [];
+    replacelinear = [];
+    for i = 1:length(violatingmonoms)
+      
+            [~,idx,pwr] = find(mt(vars(violatingmonoms(i)),non_binary));
+            % [~,idxb,pwrb] = find(mt(vars(violatingmonoms),allbinary));
+            if isequal(pwr,2)
+                [~,idxb,pwrb] = find(mt(vars(violatingmonoms(i)),allbinary));
+                if isequal(pwrb,1)
+                    w = sdpvar(1);
+                    replacelinear = [replacelinear;getvariables(w)];
+                    cuts = [cuts, recover(non_binary(idx))*recover(allbinary(idxb)) == w];
+                    cuts = [cuts, LU(non_binary(idx),1) <= w <= LU(non_binary(idx),2)];
+                else
+                    error('Expression has to be linear in the continuous variables')
+                end
+            else
+                error('Expression has to be linear in the continuous variables')
+            end
+       
+    end
+    
+    b = getbase(p);
+    v = getvariables(p);
+    v(violatingmonoms) = replacelinear;
+    p = b*[1;recover(v)];
+    varargin{1} = p;
+    varargin{end} = [varargin{end},cuts];
+    [varargout{1:nargout}] = binmodel(varargin{:});
+    return
 end
 
 % These are the original monomials
@@ -183,8 +229,8 @@ plinear = basis*[1;vecvar];
 % And now get the original sizes
 top = 1;
 for i = 1:n_var
-    varargout{i} = reshape(plinear(top:top+n(i)*m(i)-1),n(i),m(i));
-    top = top + n(i)*m(i);
+    varargout{i} = reshape(plinear(top:top+prod(dims{i})-1),dims{i});
+    top = top + prod(dims{i});
 end
 varargout{end+1} = F;
 
@@ -195,5 +241,47 @@ function F = binary_times_cont(d,y, z)
 if infbound
     error('Some of your continuous variables are not explicitly bounded.')
 end
-F = [(1-d)*M >= y - z >= m*(1-d), d*m <= z <= d*M, m <= z <= M];
+F = [(1-d)*M >= y - z >= m*(1-d), d*m <= z <= d*M, min(0,m) <= z <= max(0,M)];
                 
+
+
+function Fnew = binmodel_constraint(F);
+
+F = lmi(F);
+old_x = [];
+for i = 1:length(F)
+    xi = sdpvar(F(i));
+    old_x = [old_x;xi(:)];
+end
+
+[new_x,Cut] = binmodel(old_x,F);
+
+Fnew = [];
+top = 1;
+for i = 1:length(F)
+    m = prod(size(sdpvar(F(i))));
+    xi = new_x(top:top + m-1);
+    xo = old_x(top:top + m-1);
+    top = top + m;
+    if ~isequal(xi,xo)
+        switch settype(F(i))
+            case 'elementwise'
+                Fnew = [Fnew, xi >= 0];
+            case 'equality'
+                Fnew = [Fnew, xi == 0];
+            case 'socc'
+                Fnew = [Fnew, cone(xi)];
+            case 'sdp'
+                Fnew = [Fnew, reshape(xi,sqrt(m),sqrt(m)) >= 0];
+            otherwise
+                error('Type of constraint not supported in binmodel');
+        end
+    else
+        Fnew = [Fnew, subsref(F,struct('type','()','subs',{{i}}))];
+    end
+end
+
+% The internal function merges the original constraints into Cut
+% remove them completely, and then add the original noncomplicating again
+Cut = Cut - F;
+Fnew = [Fnew,Cut];

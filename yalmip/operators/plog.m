@@ -3,17 +3,19 @@ function varargout = plog(varargin)
 %
 % y = PLOG(x)
 %
-% Computes perspective log x(1)*log(x(1)/x(2)) on x>0
+% Computes concave perspective log, x(1)*log(x(2)/x(1)) on x>0
 %
-% Implemented as evalutation based nonlinear operator. Hence, the convexity
+% Implemented as evalutation based nonlinear operator. Hence, the concavity
 % of this function is exploited to perform convexity analysis and rigorous
 % modelling.
 
-% Author Johan Löfberg
-% $Id: plog.m,v 1.1 2008-05-06 18:46:00 joloef Exp $
 switch class(varargin{1})
     
     case 'double'
+        
+        if ~isequal(prod(size(varargin{1})),2)
+            error('PLOG only defined for 2x1 arguments');
+        end
         x = varargin{1};
         % Safe version with defined negative values (helps fmincon when
         % outside feasible region)
@@ -21,13 +23,13 @@ switch class(varargin{1})
         if isequal(x(1),[0])
             varargout{1} = 0;
         else
-            varargout{1} = x(1)*log(x(1)/x(2));
+            varargout{1} = x(1)*log(x(2)/x(1));
         end
 
     case 'sdpvar'
 
-        if max(size(varargin{1}))~=2
-            error('PLOG only defined for scalar arguments');
+        if ~isequal(prod(size(varargin{1})),2)
+            error('PLOG only defined for 2x1 arguments');
         else
             varargout{1} = yalmip('define',mfilename,varargin{1});
         end
@@ -35,16 +37,15 @@ switch class(varargin{1})
     case 'char'
 
         X = varargin{3};
-        F = set(X >= 0);
-
-        operator = struct('convexity','convex','monotonicity','none','definiteness','none','model','callback');
+      
+        operator = struct('convexity','concave','monotonicity','none','definiteness','none','model','callback');
         operator.range = [-inf inf];
         operator.domain = [0 inf];
-        operator.bounds = @bounds;
-        operator.convexhull = @convexhull;
+      %  operator.bounds = @bounds;
+      %  operator.convexhull = @convexhull;
         operator.derivative = @derivative;
 
-        varargout{1} = [];%F;
+        varargout{1} = [];
         varargout{2} = operator;
         varargout{3} = X;
 
@@ -53,7 +54,8 @@ switch class(varargin{1})
 end
 
 function dp = derivative(x)
-dp = [log(x(1)/x(2)) + 1;-x(1)/x(2)];
+z = x(2)/x(1);
+dp = [log(z)-1;1./z];
 
 function [L,U] = bounds(xL,xU)
 xU(isinf(xU)) = 1e12;

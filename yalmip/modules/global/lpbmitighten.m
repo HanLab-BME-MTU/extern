@@ -3,6 +3,22 @@ function [p,feasible,lower] = lpbmitighten(p,lower,upper,lpsolver,xmin,improveth
 if nargin<6
     improvethese = ones(length(p.lb),1);
 end
+
+% Don't use LP to propagate variables which only enter as x + other in one
+% single (in)equality. 
+ind = sum(p.F_struc(1:p.K.f+p.K.l,:) | p.F_struc(1:p.K.f+p.K.l,:),1);
+oneterm = find(ind(2:end) == 1);
+for i = 1:length(oneterm)
+    a = p.F_struc(1:p.K.f+p.K.l,oneterm(i)+1);
+    j = find(a);
+    if j <= p.K.f
+        b = p.F_struc(j,:);
+        if nnz(b(2:end))==2
+            improvethese(oneterm(i))=0;
+        end
+    end
+end
+
 % Construct problem with only linear terms
 % and add cuts from lower/ upper bounds
 
@@ -87,11 +103,10 @@ end
 j = 1;
 while feasible & j<=length(jj)
     i = p_test.linears(jj(j));
-    %if abs(p.ub(i)-p.lb(i)>0.1) & improvethese(i)
     if abs(p.ub(i)-p.lb(i)>p.options.bmibnb.vartol) & improvethese(i)    
-        p_test.c = eyev(length(p_test.c),i);
+        p_test.c = eyev(length(p_test.c),i);        
         output = feval(lpsolver,removenonlinearity(p_test));
-
+        p.counter.lpsolved = p.counter.lpsolved + 1;
         if output.problem == 0 | output.problem == 2 | output.problem == 12
             if output.problem == 0
                 if p_test.lb(i) < output.Primal(i)-1e-5
@@ -99,8 +114,9 @@ while feasible & j<=length(jj)
                     p_test = updateonenonlinearbound(p_test,i);
                 end
             end
-            p_test.c = -p_test.c;
-            output = feval(lpsolver,removenonlinearity(p_test));
+            p_test.c = -p_test.c;          
+            output = feval(lpsolver,removenonlinearity(p_test));   
+            p.counter.lpsolved = p.counter.lpsolved + 1;
             if output.problem == 0
                 if p_test.ub(i) > output.Primal(i)+1e-5
                     p_test.ub(i) = output.Primal(i);

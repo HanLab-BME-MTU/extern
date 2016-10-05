@@ -1,14 +1,16 @@
 function y = minus(X,Y)
 %MINUS (overloaded)
 
-% Author Johan Löfberg
-% $Id: minus.m,v 1.28 2009-08-26 01:46:41 joloef Exp $
+global FACTORTRACKING
 
-X_is_spdvar = isa(X,'sdpvar');
-Y_is_spdvar = isa(Y,'sdpvar');
-
+% Cannot use isa here since blkvar is marked as sdpvar
+X_class = class(X);
+Y_class = class(Y);
+X_is_spdvar = strcmp(X_class,'sdpvar');
+Y_is_spdvar = strcmp(Y_class,'sdpvar');
+  
 % Convert block objects
-if ~X_is_spdvar
+if ~X_is_spdvar && ~strcmp(X_class,'double')
     if isa(X,'blkvar')
         X = sdpvar(X);
         X_is_spdvar = isa(X,'sdpvar');
@@ -20,7 +22,7 @@ if ~X_is_spdvar
     end
 end
 
-if ~Y_is_spdvar
+if ~Y_is_spdvar && ~strcmp(Y_class,'double')
     if isa(Y,'blkvar')
         Y = sdpvar(Y);
         Y_is_spdvar = isa(Y,'sdpvar');
@@ -32,16 +34,24 @@ if ~Y_is_spdvar
     end
 end
 
-if X_is_spdvar%isa(X,'sdpvar') 
-    if X.typeflag == 40%is(X,'gkyp') 
+if X_is_spdvar
+    if X.typeflag == 40
         y = X + uminus(Y);
         return
     end
+else
+    if any(isnan(X))
+        error('Adding NaN to an SDPVAR makes no sense.');
+    end
 end
-if Y_is_spdvar%isa(Y,'sdpvar') 
-    if is(Y,'gkyp') 
+if Y_is_spdvar
+    if Y.typeflag == 40
         y =X + uminus(Y);
         return
+    end
+else
+    if any(isnan(Y))
+        error('Adding NaN to an SDPVAR makes no sense.');
     end
 end
 
@@ -72,7 +82,7 @@ switch 2*X_is_spdvar+Y_is_spdvar
             % Reset info about conic terms
             y.conicinfo = [0 0];
             y.extra.opname='';
-            y = addfactors(y,X,-Y);
+            if FACTORTRACKING, y = addfactors(y,X,-Y);end
             return
         end
 
@@ -92,7 +102,7 @@ switch 2*X_is_spdvar+Y_is_spdvar
         % Reset info about conic terms
         y.conicinfo = [0 0];
         y.extra.opname='';
-        y = addfactors(y,X,-Y);
+        if FACTORTRACKING, y = addfactors(y,X,-Y);end
     case 2
 
         if isempty(Y)
@@ -124,7 +134,7 @@ switch 2*X_is_spdvar+Y_is_spdvar
             % Reset info about conic terms
             y.conicinfo = [0 0];
             y.extra.opname='';
-            y = addfactors(y,X,-Y);
+            if FACTORTRACKING, y = addfactors(y,X,-Y);end
             return
         end
 
@@ -151,7 +161,7 @@ switch 2*X_is_spdvar+Y_is_spdvar
         % else
         y.conicinfo = [0 0];
         y.extra.opname='';
-        y = addfactors(y,X,-Y);
+        if FACTORTRACKING, y = addfactors(y,X,-Y);end
         % end
 
 
@@ -175,34 +185,41 @@ switch 2*X_is_spdvar+Y_is_spdvar
             end
         end
 
-        if Y.lmi_variables(end) < X.lmi_variables(1)
-            all_lmi_variables = [Y.lmi_variables X.lmi_variables];
-        elseif X.lmi_variables(end) < Y.lmi_variables(1)
-            all_lmi_variables = [X.lmi_variables Y.lmi_variables];
+        Xlmi_variables = X.lmi_variables;
+        Ylmi_variables = Y.lmi_variables;
+        yFirst = 0;
+        xFirst = 0;
+        if Ylmi_variables(end) < Xlmi_variables(1)
+            all_lmi_variables = [Ylmi_variables Xlmi_variables];
+            yFirst = 1;
+        elseif Xlmi_variables(end) < Ylmi_variables(1)
+            all_lmi_variables = [Xlmi_variables Ylmi_variables];
+            xFirst = 1;
         else
-            all_lmi_variables = uniquestripped([X.lmi_variables Y.lmi_variables]);
+            all_lmi_variables = uniquestripped([Xlmi_variables Ylmi_variables]);
         end
-        
+              
         y = X;
         %X.basis = []; % Returns memory?
         y.lmi_variables = all_lmi_variables;
         
-        if isequal(all_lmi_variables,X.lmi_variables)
-            in_X_logical = ones(1,length(X.lmi_variables));
-            in_X = 1:length(X.lmi_variables);            
+        if isequal(all_lmi_variables,Xlmi_variables)
+            in_X_logical = ones(1,length(Xlmi_variables));
+            in_X = 1:length(Xlmi_variables);     
         else
-            in_X_logical = ismembcYALMIP(all_lmi_variables,X.lmi_variables);
+            in_X_logical = ismembcYALMIP(all_lmi_variables,Xlmi_variables);
             in_X = find(in_X_logical);
         end
-        if isequal(all_lmi_variables,Y.lmi_variables)
-            in_Y_logical = ones(1,length(Y.lmi_variables));
-            in_Y = 1:length(Y.lmi_variables);
+        
+        if isequal(all_lmi_variables,Ylmi_variables)
+            in_Y_logical = ones(1,length(Ylmi_variables));
+            in_Y = 1:length(Ylmi_variables);
         else
-            in_Y_logical = ismembcYALMIP(all_lmi_variables,Y.lmi_variables);
+            in_Y_logical = ismembcYALMIP(all_lmi_variables,Ylmi_variables);
             in_Y = find(in_Y_logical);
         end
                 
-        if isequal(X.lmi_variables,Y.lmi_variables) && n_Y==n_X && m_Y==m_X
+        if isequal(Xlmi_variables,Ylmi_variables) && n_Y==n_X && m_Y==m_X
             y.basis = y.basis - Y.basis;
             % Super special case f(scalar)-f(scalar)
             if length(X.lmi_variables)==1
@@ -211,24 +228,26 @@ switch 2*X_is_spdvar+Y_is_spdvar
                 else
                     y.conicinfo = [0 0];
                     y.extra.opname='';
-                    y = addfactors(y,X,-Y);
+                    if FACTORTRACKING, y = addfactors(y,X,-Y);end
                 end
                 return
             end
-        elseif max(X.lmi_variables) < min(Y.lmi_variables) &&  n_Y==n_X && m_Y==m_X
+        elseif max(Xlmi_variables) < min(Ylmi_variables) &&  n_Y==n_X && m_Y==m_X
             % Disjoint variables in X - Y
             y.basis = [y.basis(:,1) - Y.basis(:,1) y.basis(:,2:end) -Y.basis(:,2:end)];
-        elseif max(Y.lmi_variables) < min(X.lmi_variables) &&  n_Y==n_X && m_Y==m_X
+        elseif max(Ylmi_variables) < min(Xlmi_variables) &&  n_Y==n_X && m_Y==m_X
             % Disjoint variables in X - Y
             y.basis = [y.basis(:,1) - Y.basis(:,1) -Y.basis(:,2:end) y.basis(:,2:end)];
         else
-            [ix,jx,sx] = find(y.basis);y.basis = [];
-            [iy,jy,sy] = find(Y.basis);%Y.basis = [];
+           % [ix,jx,sx] = find(y.basis);y.basis = [];
+           % [iy,jy,sy] = find(Y.basis);%Y.basis = [];
             mapX = [1 1+in_X];
             mapY = [1 1+in_Y];
-            basis_X = sparse(ix,mapX(jx),sx,n_X*m_X,1+length(all_lmi_variables));ix=[];jx=[];sx=[];
-            basis_Y = sparse(iy,mapY(jy),sy,n_Y*m_Y,1+length(all_lmi_variables));iy=[];jy=[];sy=[];
-
+           % basis_X = sparse(ix,mapX(jx),sx,n_X*m_X,1+length(all_lmi_variables));ix=[];jx=[];sx=[];
+           % basis_Y = sparse(iy,mapY(jy),sy,n_Y*m_Y,1+length(all_lmi_variables));iy=[];jy=[];sy=[];
+            basis_X = X.basis*(sparse(1:length(mapX),mapX,1,size(X.basis,2),length(all_lmi_variables)+1));
+            basis_Y = Y.basis*(sparse(1:length(mapY),mapY,1,size(Y.basis,2),length(all_lmi_variables)+1));
+            
             % Fix addition of matrix+scalar
             if n_X*m_X<n_Y*m_Y
                 y.dim(1) = n_Y;
@@ -256,7 +275,7 @@ switch 2*X_is_spdvar+Y_is_spdvar
 
         y.conicinfo = [0 0];
         y.extra.opname='';
-        y = addfactors(y,X,-Y);
+        if FACTORTRACKING, y = addfactors(y,X,-Y);end
         if nnz(in_Y_logical & in_X_logical)>0
             y = clean(y);
         end

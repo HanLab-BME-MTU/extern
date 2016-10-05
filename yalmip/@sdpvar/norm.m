@@ -7,12 +7,15 @@ function varargout = norm(varargin)
 % operations such as t<=1, max(t,y)<=1, minimize t etc.
 %
 %    For matrices...
-%      NORM(X) models the largest singular value of X, max(svd(X)).
-%      NORM(X,2) is the same as NORM(X).
-%      NORM(X,1) models the 1-norm of X, the largest column sum, max(sum(abs(X))).
-%      NORM(X,inf) models the infinity norm of X, the largest row sum, max(sum(abs(X'))).
+%      NORM(X)       models the largest singular value of X, max(svd(X)).
+%      NORM(X,2)     is the same as NORM(X).
+%      NORM(X,1)     models the 1-norm of X, the largest column sum, max(sum(abs(X))).
+%      NORM(X,inf)   models the infinity norm of X, the largest row sum, max(sum(abs(X'))).
+%      NORM(X,'inf') same as above
 %      NORM(X,'fro') models the Frobenius norm, sqrt(sum(diag(X'*X))).
 %      NORM(X,'nuc') models the Nuclear norm, sum of singular values.
+%      NORM(X,'*')   same as above
+%      NORM(X,'tv')  models the (isotropic) total variation semi-norm 
 %    For vectors...
 %      NORM(V) = norm(V,2) = standard Euclidean norm.
 %      NORM(V,inf) = max(abs(V)).
@@ -41,7 +44,16 @@ switch class(varargin{1})
             switch varargin{2}
                 case {1,2,inf,'inf','fro'}
                     varargout{1} = yalmip('define',mfilename,varargin{:});
-                case 'nuclear'
+                case 'tv'
+                    if ~isreal(varargin{1})
+                        error('Total variation norm not yet implemented for complex arguments');
+                    end
+                    if min(varargin{1}.dim)==1
+                        varargout{1} = norm(diff(varargin{1}),1);
+                        return
+                    end
+                    varargout{1} = yalmip('define','norm_tv',varargin{:});
+                case {'nuclear','*'}
                     if min(size(varargin{1}))==1
                         varargout{1} = norm(varargin{1},1);
                     else
@@ -79,19 +91,21 @@ switch class(varargin{1})
                             if isreal(X)
                                 z = reshape(Z,[],1);
                                 x = reshape(X,[],1);
-                                F = set(-z <= x <= z);
+                                F = (-z <= x <= z);
                             else
-                                F = set([]);
+                                F = ([]);
                                 zvec = reshape(Z,1,[]);
                                 xrevec=reshape(real(X),1,[]);
                                 ximvec=reshape(imag(X),1,[]);
                                 F = [F,cone([zvec;xrevec;ximvec])];
                             end
-                            F = F + set(sum(Z,1) <= t);
+                            F = F + (sum(Z,1) <= t);
                         else
                             if isreal(X)
                                 % Standard definition
-                                % F = set(-t <= X <= t);
+                                % F = (-t <= X <= t);
+                                X = reshape(X,[],1);
+                                Z = reshape(Z,[],1);
                                 Xbase = getbase(X);
                                 Constant = find(~any(Xbase(:,2:end),2));
                                 if ~isempty(Constant)
@@ -103,58 +117,63 @@ switch class(varargin{1})
                                     r2(Constant) = abs(Xbase(Constant,1));
                                     Z = Z.*r1 + r2;
                                 end
-                                F = set(-Z <= X <= Z) + set(sum(Z) <= t);                                                               
+                                F = (-Z <= X <= Z) + (sum(Z) <= t);                                                               
                             else                                                                
-                                F = set(cone([reshape(Z,1,[]);real(reshape(X,1,[]));imag(reshape(X,1,[]))]));                                                              
-                                F = F + set(sum(Z) <= t);
+                                F = (cone([reshape(Z,1,[]);real(reshape(X,1,[]));imag(reshape(X,1,[]))]));                                                              
+                                F = F + (sum(Z) <= t);
                             end
                         end
-                    case 2
-                        Z = sdpvar(size(X,1),size(X,2));
+                    case 2                    
                         if min(size(X))>1
-                            F = set([t*eye(size(X,1)) X;X' t*eye(size(X,2))]);
+                            F = ([t*eye(size(X,1)) X;X' t*eye(size(X,2))])>=0;
                         else
-                            F = set(cone(X(:),t));
+                            F = cone(X(:),t);
                         end
                     case {inf,'inf'}
                         if min(size(X))>1
                             Z = sdpvar(size(X,1),size(X,2),'full');
                             if isreal(X)
-                                F = set(-Z <= X <= Z);
+                                F = (-Z <= X <= Z);
                             else
-                                F = set([]);
+                                F = ([]);
                                 for i = 1:size(X,1)
                                     for j = 1:size(X,2)
                                         xi = extsubsref(X,i,j);
                                         zi = extsubsref(Z,i,j);
-                                        F = F + set(cone([real(xi);imag(xi)],zi));
+                                        F = F + (cone([real(xi);imag(xi)],zi));
                                     end
                                 end
                             end
-                            F = F + set(sum(Z,2) <= t);
+                            F = F + (sum(Z,2) <= t);
                         else
                             if isreal(X)
-                                F = set(-t <= X <= t);
+                                F = (-t <= X <= t);
                                 [M,m,infbound] = derivebounds(X);
                                 if ~infbound
-                                    F = F + set(0 <= t <= max(max(abs([m M]))));
+                                    F = F + (0 <= t <= max(max(abs([m M]))));
                                 end
                             else
-                                F = set([]);
+                                F = ([]);
                                 for i = 1:length(X)
                                     xi = extsubsref(X,i);
-                                    F = F + set(cone([real(xi);imag(xi)],t));
+                                    F = F + (cone([real(xi);imag(xi)],t));
                                 end
                             end
                         end
                     case 'fro'
                         X.dim(1)=X.dim(1)*X.dim(2);
                         X.dim(2)=1;
-                        F = set(cone(X,t));
+                        F = (cone(X,t));
                     case 'nuclear'
                         U = sdpvar(X.dim(2));
                         V = sdpvar(X.dim(1));
                         F = [trace(U)+trace(V) <= 2*t, [U X';X V]>=0];
+                    case 'tv'                        
+                        Dx = [diff(X,1,1);zeros(1,X.dim(2))];
+                        Dy = [diff(X,1,2) zeros(X.dim(1),1)];
+                        T = sdpvar(X.dim(1),X.dim(2),'full');
+                        F = cone([reshape(T,1,[]);reshape(Dx,1,[]);reshape(Dy,1,[])]);
+                        F = [F, sum(sum(T)) <= t];
                     otherwise
                 end
                 varargout{1} = F;
@@ -183,10 +202,10 @@ switch class(varargin{1})
                             % case sign(0)=0...
                             d = ones(length(X),1);
                             d(m<0)=-1;
-                            F = set(t - sum(absX) == 0) + set(absX == d.*X);
+                            F = (t - sum(absX) == 0) + (absX == d.*X);
                         else
                             
-                            F = set([]);
+                            F = ([]);
                             
                             
                             % Some fixes to remove trivial constraints
@@ -218,11 +237,11 @@ switch class(varargin{1})
                             
                             maxABSX = max([abs(m) abs(M)],[],2);
                             % d==0  ---> X<0 and absX = -X
-                            F = F + set(X <= M.*d)     + set(0 <= absX+X <= 2*maxABSX.*d);
+                            F = F + (X <= M.*d)     + (0 <= absX+X <= 2*maxABSX.*d);
                             % d==1  ---> X>0 and absX = X
-                            F = F + set(X >= m.*(1-d)) + set(0 <= absX-X <= 2*maxABSX.*(1-d));
+                            F = F + (X >= m.*(1-d)) + (0 <= absX-X <= 2*maxABSX.*(1-d));
                             
-                            F = F + set(t - sum(absX)-addsum == 0);
+                            F = F + (t - sum(absX)-addsum == 0);
                         end
                         
                     else                        
@@ -243,8 +262,8 @@ function F = findmax(F,M,m,X,t)
 
 n = length(X);
 d = binvar(n,1);
-F = F + set(sum(d)==1);
-F = F + set(-(max(M)-min(m))*(1-d) <= t-X <= (max(M)-min(m))*(1-d));
+F = F + (sum(d)==1);
+F = F + (-(max(M)-min(m))*(1-d) <= t-X <= (max(M)-min(m))*(1-d));
 kk = [];
 ii = [];
 for i = 1:n
@@ -256,4 +275,4 @@ end
 xii = extsubsref(X,ii);
 dii = extsubsref(d,ii);
 xkk = extsubsref(X,kk);
-F = F + set(xkk <= xii+(M(kk)-m(ii)).*(1-dii));
+F = F + (xkk <= xii+(M(kk)-m(ii)).*(1-dii));

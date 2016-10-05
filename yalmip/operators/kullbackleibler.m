@@ -3,9 +3,11 @@ function varargout = kullbackleibler(varargin)
 %
 % y = KULLBACKLEIBLER(x,y)
 %
-% Computes/declares Kullback-Leibler divergence sum(x.*log(x./y))
+% Computes/declares the convex Kullback-Leibler divergence sum(x.*log(x./y))
+% Alternatively -sum(x.*log(y/x)), i.e., negated perspectives of log(y)
+%
+% See also ENTROPY, CROSSENTROPY
 
-% Author Johan Löfberg
 
 switch class(varargin{1})
 
@@ -24,10 +26,21 @@ switch class(varargin{1})
         l = real(l);
         varargout{1} = sum(x.*l);       
 
-    case 'sdpvar'
+    case {'sdpvar','ndsdpvar'}
 
         varargin{1} = reshape(varargin{1},[],1);
-        varargin{2} = reshape(varargin{2},[],1);     
+        varargin{2} = reshape(varargin{2},[],1);    
+        
+        if length(varargin{1})~=length(varargin{2})
+            if length(varargin{1})==1
+                varargin{1} = repmat(varargin{1},length(varargin{2}),1);
+            elseif  length(varargin{2})==1
+                varargin{2} = repmat(varargin{2},length(varargin{1}),1);
+            else
+                error('Dimension mismatch in kullbackleibler')
+            end
+        end
+        
         varargout{1} = yalmip('define',mfilename,[varargin{1};varargin{2}]);
         
     case 'char'

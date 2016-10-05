@@ -9,8 +9,8 @@ for i = 3:nargin-1
 end
 %X = varargin{3};
 n = length(X);
-if isequal(getbase(X),[zeros(n,1) eye(n)])
-    F = set([]);
+if isequal(getbase(X),[spalloc(n,1,0) speye(n)])
+    F = lmi([]);
 else
     dX = double(X);
     if ~all(isnan(dX))

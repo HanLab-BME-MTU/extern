@@ -5,11 +5,8 @@ function varargout = nnz(varargin)
 %
 % The NNZ operator is implemented using the concept of nonlinear operators
 % in YALMIP. NNZ(X) creates a new so called derived variable that can be
-% treated as any other variable in YALMIP. When SOLVESDP is issued,
+% treated as any other variable in YALMIP. When OPTIMIZE is issued,
 % logic constraints are added to the problem to model the NNZ operator.
-
-% Author Johan Löfberg
-% $Id: nnz.m,v 1.15 2007-08-02 19:17:36 joloef Exp $
 
 switch class(varargin{1})
 

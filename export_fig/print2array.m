@@ -164,7 +164,6 @@ function [A, bcol] = print2array(fig, res, renderer, gs_options)
             end
         end
     else
-        % Assaf patch to initiate renderer to OpenGL
         if nargin < 3
             renderer = '-opengl';
         end
@@ -181,8 +180,7 @@ function [A, bcol] = print2array(fig, res, renderer, gs_options)
             % Fix issue #83: use numeric handles in HG1
             if ~using_hg2(fig),  fig = double(fig);  end
             % Print to tiff file
-            print(fig, renderer, res_str, '-dtiff', tmp_nam);            
-            %end
+            print(fig, renderer, res_str, '-dtiff', tmp_nam);
             % Read in the printed file
             A = imread(tmp_nam);
             % Delete the temporary file

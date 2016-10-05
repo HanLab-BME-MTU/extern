@@ -3,14 +3,12 @@ function F = projection(F,x,method)
 %
 % Freduced  = reduce(F)
 %
-% F  :  Polytopic SET object
+% F  :  Polytopic constraint object
 %
 % See also POLYTOPE, PROJECTION
 
-% Author Johan Löfberg
-% $Id: reduce.m,v 1.3 2005-02-04 10:10:27 johanl Exp $
-
 f = [];
+F = flatten(F);
 for i = 1:length(F)
     if  F.clauses{i}.type==2
         fi =  F.clauses{i}.data;
@@ -33,4 +31,4 @@ x = recover(x_vars);
 H = get(P,'H');
 K = get(P,'K');
 
-F = set(H*x < K);
+F = (H*x <= K);

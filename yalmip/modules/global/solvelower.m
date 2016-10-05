@@ -40,13 +40,7 @@ else
     
     if p.solver.lowersolver.objective.quadratic.convex
         % Setup quadratic
-        for i = 1:size(p.bilinears,1)
-            if p_cut.c(p.bilinears(i,1))
-                p_cut.Q(p.bilinears(i,2),p.bilinears(i,3)) = p_cut.c(p.bilinears(i,1))/2;
-                p_cut.Q(p.bilinears(i,3),p.bilinears(i,2)) = p_cut.Q(p.bilinears(i,3),p.bilinears(i,2))+p_cut.c(p.bilinears(i,1))/2;
-                p_cut.c(p.bilinears(i,1)) = 0;
-            end
-        end
+        [p_cut.Q,p_cut.c] = compileQuadratic(p.c,p);
         
         if nonconvexQuadratic(p_cut.Q);
             p_cut.Q = p.Q;
@@ -159,6 +153,7 @@ else
             
             tstart = tic;                                             
             output = feval(lowersolver,removenonlinearity(p_cut));
+            psave.counter.lowersolved = psave.counter.lowersolved + 1;
             timing.lowersolve = timing.lowersolve + toc(tstart);
             cost = output.Primal'*p_cut.Q*output.Primal + p_cut.c'*output.Primal + p.f;
             % Minor clean-up
@@ -220,6 +215,7 @@ else
                 % No objective and no constraints
                 if all(p_cut.lb <= p_cut.ub)
                     output.Primal = (p_cut.lb + p_cut.ub)/2;
+                    output.Primal(isinf(p_cut.lb) & isinf(p_cut.ub))=0;
                     output.problem = 0;
                 else
                     output.Primal = zeros(length(p_cut.lb),1);
@@ -229,6 +225,7 @@ else
                 try
                     tstart = tic;
                     output = feval(lowersolver,removenonlinearity(p_cut));
+                    psave.counter.lowersolved = psave.counter.lowersolved + 1;
                     timing.lowersolve = timing.lowersolve + toc(tstart);
                 catch
                     1

@@ -1,21 +1,32 @@
 function y = power(x,d)
 %POWER (overloaded)
 
-% Author Johan Löfberg 
-% $Id: power.m,v 1.13 2009-10-14 07:28:42 joloef Exp $   
-
-
 % Vectorize x if d is vector
 if numel(x)==1 & (numel(d)>1)
     x = x.*ones(size(d));
 end
+% Vectorize if x is a vector
+if numel(d)==1 & (numel(x)>1)
+    d = d.*ones(size(x));
+end
+if ~isequal(size(d),size(x))
+    error('Dimension mismatch in power');
+end
 
-x = flush(x);
+if isa(x,'sdpvar')
+    x = flush(x);
+end
 
 % Reuse code
-if prod(size(x))==1 & (prod(size(d))==1)
+if numel(x)==1 && numel(d)==1
     y = mpower(x,d);
     return 
+end
+
+if isa(d,'sdpvar')
+    % Call helper which vectorizes the elements
+    y = powerinternalhelper(d,x);
+    return
 end
 
 % Sanity Check
@@ -116,13 +127,11 @@ function y = vectorizedUnitPower(x,d)
 d = d(1);
 [mt,variabletype,hashM,hash] = yalmip('monomtable');
 var = getvariables(x);
-%  hash = randn(size(mt,2),1);
-%  hashM = mt*hash;
 
 usedmt = mt(var,:);
-hashV = (usedmt*d)*hash;
-if ~any(ismember(hashV,hashM))
-    newmt =  usedmt*d;
+newmt = usedmt*d;
+hashV = newmt*hash;
+if ~any(ismember(hashV,hashM))      
     variabletype = [variabletype newvariabletypegen(newmt)];
     y = size(mt,1) + (1:length(var));
     mt = [mt;newmt];
@@ -134,12 +143,8 @@ else
     for i = 1:length(hashV)
         previous_var = find(abs(hashM - hashV(i)) < 1e-20);
         if isempty(previous_var)
-            newmt =  usedmt(i,:)*d;
-            %newmt =  mt(var(i),:)*d;
-            %allnewmt = [allnewmt;newmt];
-            %mt(end+1,:) = newmt;
+            newmt =  usedmt(i,:)*d;           
             variabletype = [variabletype newvariabletypegen(newmt)];
-            %yalmip('setmonomtable',mt,[variabletype newvariabletypegen(newmt)]);
             newvariables = newvariables + 1;
             keep(i) = 1;
             y = [y size(mt,1)+newvariables];
@@ -149,7 +154,6 @@ else
     end
     mt = [mt;usedmt(find(keep),:)*d];
 end
-%mt = [mt;allnewmt];
 yalmip('setmonomtable',mt,variabletype);
 y = reshape(recover(y),x.dim);
 

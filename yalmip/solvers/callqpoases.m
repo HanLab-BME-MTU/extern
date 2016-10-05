@@ -8,52 +8,42 @@ if options.savedebug
 end
 
 if options.showprogress;showprogress(['Calling ' interfacedata.solver.tag],options.showprogress);end
-solvertime = clock;
+solvertime = tic;
 solution = callsolver(model,options);
-if interfacedata.getsolvertime solvertime = etime(clock,solvertime);else solvertime = 0;end
-
-% Save all data sent to solver?
-if ~options.savesolverinput
-    model = [];
-end
-
-% Save all data from the solver?
-if ~options.savesolveroutput
-    solveroutput = [];
-end
+solvertime = toc(solvertime);
 
 switch solution.exitflag
     case 0
-        solution.problem = 0;
+        problem = 0;
     case 1
-        solution.problem = 3;
+        problem = 3;
     case -2
-        solution.problem = 1;
+        problem = 1;
     case -3
-        solution.problem = 2;
+        problem = 2;
     case -1
-        solution.problem = 11;
+        problem = 11;
     otherwise
-        solution.problem = -1;
+        problem = -1;
 end
 
 % Standard interface
-output.Primal      = solution.x(:);
-output.Dual        = solution.lambda(:);
-output.Slack       = [];
-output.problem     = solution.problem;
-output.infostr     = yalmiperror(solution.problem,interfacedata.solver.tag);
-output.solvertime  = solvertime;
+Primal      = solution.x(:);
+Dual        = solution.lambda(:);
+infostr     = yalmiperror(problem,interfacedata.solver.tag);
 if ~options.savesolverinput
-    output.solverinput = [];
+    solverinput = [];
 else
-    output.solverinput = model;
+    solverinput = model;
 end
 if ~options.savesolveroutput
-    output.solveroutput = [];
+    solveroutput = [];
 else
-    output.solveroutput = solution;
+    solveroutput = solution;
 end
+% Standard interface 
+output = createOutputStructure(Primal,Dual,[],problem,infostr,solverinput,solveroutput,solvertime);
+
 
 function solveroutput = callsolver(model,options)
 x = [];
@@ -61,17 +51,20 @@ fval = [];
 exitflag = [];
 iter = [];
 lambda = [];
-lbA = [model.beq;-inf(length(model.b),1)];
-ubA = [model.beq;model.b];
+lbA = full([model.beq;-inf(length(model.b),1)]);
+ubA = full([model.beq;model.b]);
 A = [model.Aeq;model.A];
-options.qpoases.printLevel = -1;
-[x,fval,exitflag,iter,lambda] = qpOASES(model.Q, model.c, A, model.lb,model.ub,lbA,ubA,options.qpoases);
+if nnz(model.Q) == 0
+    options.qpoases.enableRegularisation=1;
+end
+options.qpoases.printLevel = options.verbose+1;
+[x,fval,exitflag,iter,lambda] = qpOASES(model.Q, model.c, A, model.lb,model.ub,lbA,ubA,options.qpoases,qpOASES_auxInput());
 solveroutput.x = x;
 solveroutput.fval = fval;
 solveroutput.exitflag = exitflag;
 solveroutput.iter = iter;
 if ~isempty(lambda)
-solveroutput.lambda = -lambda(1+length(model.lb):end);
+    solveroutput.lambda = -lambda(1+length(model.lb):end);
 else
     solveroutput.lambda=[];
 end

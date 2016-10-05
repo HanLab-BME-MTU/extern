@@ -16,9 +16,9 @@ if options.savedebug
     save dsdpdebug model
 end
 
-solvertime = clock; 
+solvertime = tic;
 [y,fvals,exitflag,stats,X] = dsdp(model.f,model.A,model.b,model.lb,model.ub,model.sdcone,model.y0,model.ops);
-solvertime = etime(clock,solvertime);
+solvertime = toc(solvertime);
 
 % Create dual variable in internal format
 if options.saveduals  
@@ -86,11 +86,4 @@ else
 end
 
 % Standard interface 
-output.Primal      = x;
-output.Dual        = D_struc;
-output.Slack       = [];
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
+output = createOutputStructure(x,D_struc,[],problem,infostr,solverinput,solveroutput,solvertime);

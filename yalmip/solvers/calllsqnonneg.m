@@ -1,8 +1,5 @@
 function output = calllsqnonneg(interfacedata)
 
-% Author Johan Löfberg
-% $Id: calllsqnonneg.m,v 1.17 2007-08-02 11:39:36 joloef Exp $
-
 K = interfacedata.K;
 c = interfacedata.c;
 CA = interfacedata.F_struc;
@@ -87,17 +84,17 @@ if options.savedebug
 end
 
 if options.showprogress;showprogress(['Calling ' interfacedata.solver.tag],options.showprogress);end
-solvertime = clock;
+solvertime = tic;
 try
     [X,RESNORM,RESIDUAL,EXITFLAG] = lsqnonneg(model.C,model.d,model.options);
 catch
     [X,RESNORM,RESIDUAL,EXITFLAG] = lsqnonneg(model.C,model.d,model.x0,model.options);
 end
+solvertime = toc(solvertime);
 solveroutput.X = X;
 solveroutput.RESNORM = RESNORM;
 solveroutput.RESIDUAL = RESIDUAL;
 solveroutput.EXITFLAG = EXITFLAG;
-if interfacedata.getsolvertime solvertime = etime(clock,solvertime);else solvertime = 0;end
 
 solution.x = [X;RESNORM];
 solution.D_struc = [];
@@ -121,23 +118,20 @@ if ~options.savesolveroutput
     solveroutput = [];
 end
 
-% Standard interface
-output.Primal      = solution.x(:);
-output.Dual        = solution.D_struc;
-output.Slack       = [];
-output.problem     = solution.problem;
-output.infostr     = yalmiperror(solution.problem,interfacedata.solver.tag);
-output.solvertime  = solvertime;
 if ~options.savesolverinput
-    output.solverinput = [];
+    solverinput = [];
 else
-    output.solverinput = model;
+    solverinput = model;
 end
 if ~options.savesolveroutput
-    output.solveroutput = [];
+    solveroutput = [];
 else
-    output.solveroutput = solveroutput;
+    solveroutput = solveroutput;
 end
+
+% Standard interface 
+output = createOutputStructure(solution.x(:),solution.D_struc,[],solution.problem,yalmiperror(solution.problem,interfacedata.solver.tag),solverinput,solveroutput,solvertime);
+
 
 
 function output = error_output(e)

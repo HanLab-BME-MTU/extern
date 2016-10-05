@@ -1,67 +1,23 @@
 function diagnostic = solvesdp(varargin)
-%SOLVESDP Computes solution to optimization problem
-%
-%   DIAGNOSTIC = SOLVESDP(F,h,options) is the common command to
-%   solve optimization problems of the following kind
-%
-%    min        h
-%    subject to
-%            F >=(<=,==) 0
-%
-%   NOTES
-%    Despite the name, SOLVESDP is the interface for solving all
-%    supported problem classes (LP, QP, SOCP, SDP, BMI, MILP, MIQP,...)
-%
-%    To obtain solution for a variable, use DOUBLE.
-%
-%    To obtain dual variable for a constraint, use DUAL.
-%
-%    See YALMIPERROR for error codes returned in output.
-%
-%   OUTPUT
-%     diagnostic : Diagnostic information
-%
-%   INPUT
-%     F          : Object describing the constraints. Can be [].
-%     h          : SDPVAR object describing the objective h(x). Can be [].
-%     options    : Options structure. See SDPSETTINGS. Can be [].
-%
-%   EXAMPLE
-%    A = randn(15,5);b = rand(15,1)*5;c = randn(5,1);
-%    x = sdpvar(5,1);
-%    solvesdp(set(A*x<=b),c'*x);double(x)
-%
-%   See also DUAL, @SDPVAR/DOUBLE, SDPSETTINGS, YALMIPERROR
-
-% Author Johan Löfberg
-% $Id: solvesdp.m,v 1.75 2010-04-06 06:32:49 joloef Exp $
+%SOLVESDP Obsolete command, please use OPTIMIZE
 
 yalmiptime = clock; % Let us see how much time we spend
 
-% Avoid warning
-if length(varargin)>=2
+% *********************************
+% CHECK INPUT
+% *********************************
+nargin = length(varargin);
+
+% First check of objective for early transfer to multiple solves
+if nargin>=2
     if isa(varargin{2},'double')
         varargin{2} = [];
-    end
-end
-
-if length(varargin)>=2
-    if isa(varargin{2},'sdpvar') && prod(size(varargin{2}))>1
+    elseif isa(varargin{2},'sdpvar') && numel(varargin{2})>1
         % Several objectives
         diagnostic = solvesdp_multiple(varargin{:});
         return
     end
 end
-
-% Arrrgh, new format with logdet much better, but we have to
-% take care of old code, requires some testing...
-varargin = combatible({varargin{:}});
-nargin = length(varargin);
-
-% *********************************
-% CHECK INPUT
-% *********************************
-
 
 if nargin<1
     help solvesdp
@@ -69,7 +25,10 @@ if nargin<1
 else
     F = varargin{1};
     if isa(F,'constraint')
-        F = set(F);
+        F = lmi(F);
+    end
+    if isa(F,'lmi')
+        F = flatten(F);
     end
     
     if isa(F,'sdpvar')
@@ -94,7 +53,7 @@ else
                 Fnew = nan;
                 break
             end
-            Fnew = Fnew + set(true(F(i)));
+            Fnew = Fnew + (true(F(i)));
         end
         if isnan(Fnew)
             error('First argument (F) should be a constraint object.');
@@ -102,7 +61,7 @@ else
             F = Fnew;
         end
     elseif isempty(F)
-        F = set([]);
+        F = lmi([]);
     elseif ~isa(F,'lmi')
         error('First argument (F) should be a constraint object.');      
     end
@@ -114,22 +73,18 @@ if nargin>=2
         h = [];
     end
     if ~(isempty(h) | isa(h,'sdpvar') | isa(h,'logdet') |  isa(h,'ncvar'))
-        error('Second argument (the objective function h) should be an sdpvar or logdet object (or empty).');
+        if isa(h,'struct')
+            error('Second argument (the objective function h) should be an sdpvar or logdet object (or empty). It appears as if you sent an options structure in the second argument.');
+        else
+            error('Second argument (the objective function h) should be an sdpvar or logdet object (or empty).');
+        end
     end
     if isa(h,'logdet')
         logdetStruct.P     = getP(h);
         logdetStruct.gain  = getgain(h);
-%         if any(logdetStruct.gain>0)
-%             warning('Nonconvex terms! Perhaps you mean -logdet(P)...')
-%             diagnostic.yalmiptime = etime(clock,yalmiptime);
-%             diagnostic.solvertime = 0;
-%             diagnostic.info = yalmiperror(-2,'YALMIP');
-%             diagnostic.problem = -2;
-%             return
-%         end
         h = getcx(h);
         if isempty(F)
-            F = set([]);
+            F = ([]);
         end
     else
         logdetStruct = [];
@@ -237,7 +192,6 @@ if options.dualize == 1
             n = size(complexInfo.replaced{i},1);
             re = 2*double(complexInfo.new{i}(1:n,1:n));            
             im = 2*double(complexInfo.new{i}(1:n,n+1:end));
-            %im = im-diag(diag(im));
             im=triu((im-im')/2)-(triu((im-im')/2))';
             assign(complexInfo.replaced{i},re + sqrt(-1)*im);
         end
@@ -301,22 +255,6 @@ if strfind(solver.tag,'STRUL')
     return
 end
 
-% ******************************************
-% DID WE SELECT THE BMILIN SOLVER (obsolete)
-% ******************************************
-if strcmpi(solver.tag,'bmilin')
-    diagnostic = callbmilin(F,h,options);
-    return
-end
-
-% ******************************************
-% DID WE SELECT THE BMIALT SOLVER (obsolete)
-% ******************************************
-if strcmp(solver.tag,'bmialt')
-    diagnostic = callbmialt(F,h,options);
-    return
-end
-
 %******************************************
 % DID WE SELECT THE MPT solver (backwards comb)
 %******************************************
@@ -352,6 +290,44 @@ if isfield(options,'pureexport')
     return
 end
 
+if strcmpi(solver.version,'geometric')
+    % Actual linear user variables
+    if options.assertgpnonnegativity
+        check = find(interfacedata.variabletype==0);
+        check = setdiff(check,interfacedata.aux_variables);
+        check = setdiff(check,interfacedata.evalVariables);
+        check = setdiff(check,interfacedata.extended_variables);
+        [lb,ub] = findulb(interfacedata.F_struc,interfacedata.K);
+        if ~all(lb(check)>=0)
+            % User appears to have explictly selected a GP solver
+            if ~isempty(strfind(options.solver,'geometric')) || ~isempty(strfind(options.solver,'mosek')) || ~isempty(strfind(options.solver,'gpposy'))
+                % There are missing non-negativity bounds
+                output = createOutputStructure(zeros(length(interfacedata.c),1)+NaN,[],[],18,yalmiperror(18,''),[],[],nan);
+                diagnostic.yalmiptime = etime(clock,yalmiptime);
+                diagnostic.solvertime = output.solvertime;
+                try
+                    diagnostic.info = output.infostr;
+                catch
+                    diagnostic.info = yalmiperror(output.problem,solver.tag);
+                end
+                diagnostic.problem = output.problem;
+                if options.dimacs
+                    diagnostic.dimacs = dimacs;
+                end
+                return
+            else
+                % YALMIP selected solver and picked a GP solver. As this is
+                % no GP, we call again, but this time explicitly tell
+                % YALMIP that it isn't a GP
+                options.thisisnotagp = 1;
+                varargin{3} = options;
+                diagnostic = solvesdp(varargin{:});
+                return
+            end
+        end
+    end
+end
+
 % *************************************************************************
 % TRY TO SOLVE PROBLEM
 % *************************************************************************
@@ -361,14 +337,7 @@ else
     try
         eval(['output = ' solver.call '(interfacedata);']);
     catch
-        output.Primal = zeros(length(interfacedata.c),1)+NaN;
-        output.Dual  = [];
-        output.Slack = [];
-        output.solvertime   = nan;
-        output.solverinput  = [];
-        output.solveroutput = [];
-        output.problem = 9;
-        output.infostr = yalmiperror(output.problem,lasterr);
+        output = createOutputStructure(zeros(length(interfacedata.c),1)+NaN,[],[],9,yalmiperror(9,lasterr),[],[],nan);        
     end
 end
 
@@ -465,7 +434,7 @@ if ~isempty(output.Primal)
         yalmip('setsolution',solution_internal);
     end
 end
-if interfacedata.options.saveduals & solver.dual
+if interfacedata.options.saveduals & solver.dual 
     if isempty(interfacedata.Fremoved) | (nnz(interfacedata.Q)>0)
         try
             setduals(F,output.Dual,interfacedata.K);
@@ -492,74 +461,22 @@ end
 if strcmp(solver.tag,'GUROBI-GUROBI')
     if length(ForiginalQuadratics) > 0
         if isfield(output,'qcDual')
-            if length(output.qcDual) == length(ForiginalQuadratics)
-                Ktemp.l = length(output.qcDual);
-                Ktemp.f = 0;
-                Ktemp.q = 0;
-                Ktemp.s = 0;
-                Ktemp.r = 0;
-                setduals(ForiginalQuadratics,-output.qcDual,Ktemp);
+            if length(output.qcDual) == length(ForiginalQuadratics)               
+             %   Ktemp.l = length(output.qcDual);
+             %   Ktemp.f = 0;
+             %   Ktemp.q = 0;
+             %   Ktemp.s = 0;
+             %   Ktemp.r = 0;
+                Ftemp = F + ForiginalQuadratics;
+                K = interfacedata.K;
+                Ktemp = K;
+                Ktemp.l = Ktemp.l + length(ForiginalQuadratics);
+                tempdual = output.Dual;
+                tempdual = [tempdual(1:K.f + K.l);-output.qcDual;tempdual(1+K.f+K.l:end)];
+                setduals(Ftemp,tempdual,Ktemp);
+%                setduals(ForiginalQuadratics,-output.qcDual,Ktemp);
             end
         end
-    end
-end
-
-function newinputformat = combatible(varargin)
-
-varargin = varargin{1};
-
-classification = 0;
-% 0 : Ambigious
-% 1 : Old
-% 2 : New
-
-% Try some fast methods to determine...
-m = length(varargin);
-if m==1
-    classification = 2;
-elseif m>=3 && isstruct(varargin{3})
-    classification = 2;
-elseif m>=4 && isstruct(varargin{4})
-    classification = 1;
-elseif m>=2 && isa(varargin{2},'lmi')
-    classification = 1;
-elseif m>=3 && isa(varargin{3},'sdpvar')
-    classification = 1;
-elseif m>=2 && isa(varargin{2},'sdpvar') & min(size(varargin{2}))==1
-    classification = 2;
-elseif m>=2 && isa(varargin{2},'sdpvar') & prod(size(varargin{2}))>=1
-    classification = 1;
-elseif m>=2 && isa(varargin{2},'logdet')
-    classification = 2;
-elseif m==2 && isempty(varargin{2})
-    classification = 2;
-end
-
-if classification==0
-    warning('I might have interpreted this problem wrong due to the new input format in version 3. To get rid of this warning, use an options structure');
-    classification = 2;
-end
-
-if classification==2
-    newinputformat = varargin;
-else
-    newinputformat = varargin;
-    P = varargin{2};
-    % 99.9% of the cases....
-    if isempty(P)
-        newinputformat = {newinputformat{[1 3:end]}};
-    else
-        if isa(P,'lmi')
-            P = sdpvar(P);
-        end
-        if m>=3
-            cxP = newinputformat{3}-logdet(P);
-            newinputformat{3}=cxP;
-        else
-            cxP = -logdet(P);
-            newinputformat{3}=cxP;
-        end
-        newinputformat = {newinputformat{[1 3:end]}};
     end
 end
 

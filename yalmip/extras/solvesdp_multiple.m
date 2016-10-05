@@ -5,7 +5,11 @@ h = varargin{2};
 varargin{2} = sum(recover(depends(h)));
 
 if ~is(h,'linear')
-    error('Your objective is not a scalar (multiple solutions can currently only be obtained for linear objectives)');
+    error('Parts of your matrix objective is not linear (multiple solutions can currently only be obtained for linear objectives)');
+end
+
+if is(h,'complex')
+    error('Parts of your matrix objective is complex-valued (which makes no sense since complex numbers have no natural ordering');
 end
 
 if nargin<3

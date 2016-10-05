@@ -1,7 +1,4 @@
 function output = callipqp(varargin)
-% Author Johan Löfberg 
-% $Id: callipqp.m,v 1.2 2004-06-30 07:37:03 johanl Exp $
-
 
 % Retrieve needed data
 interfacedata = varargin{1};
@@ -42,9 +39,9 @@ if ~isempty(lb)
     d = [d;-lb];
 end
 
-solvertime = clock; 
+solvertime = tic;
 [x,problem] = ipqp(2*Q,c,C,d,A,b);
-solvertime = etime(clock,solvertime);
+solvertime = toc(solvertime);
 
 % Internal format for duals
 D_struc = [];
@@ -86,13 +83,5 @@ else
     solveroutput = [];
 end
 
-
-
 % Standard interface 
-output.x           = x;
-output.problem     = problem;
-output.infostr     = infostr;
-output.solverinput = solverinput;
-output.solveroutput= solveroutput;
-output.solvertime  = solvertime;
-output.D_struc = D_struc;
+output = createOutputStructure(x,D_struc,[],problem,infostr,solverinput,solveroutput,solvertime);

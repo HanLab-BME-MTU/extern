@@ -1,12 +1,7 @@
 function varargout = asec(varargin)
-%ACOT (overloaded)
+%ASEC (overloaded)
 
-% Author Johan Löfberg
-% $Id: asec.m,v 1.4 2007-08-02 18:16:26 joloef Exp $
 switch class(varargin{1})
-
-    case 'double'
-        error('Overloaded SDPVAR/ACOT CALLED WITH DOUBLE. Report error')
 
     case 'sdpvar'
         varargout{1} = InstantiateElementWise(mfilename,varargin{:});
@@ -18,19 +13,25 @@ switch class(varargin{1})
         operator.bounds = @bounds;
         operator.derivative = @(x)(1./(x.*(x.^2-1).^0.5));
 
-        varargout{1} = [];
+        varargout{1} = [varargin{3}.^2 >= 1]; % Disconnected domain
         varargout{2} = operator;
         varargout{3} = varargin{3};
 
     otherwise
-        error('SDPVAR/ACOT called with CHAR argument?');
+        error('SDPVAR/ASEC called with CHAR argument?');
 end
 
 function [L,U] = bounds(xL,xU)
-if xL<=-1 & xU >=1
-    L = -inf;
-    U = inf;
+if xU <= -1 || xL >= 1
+    L = asec(xL);
+    U = asec(xU);
+elseif xL < 0 & xU > 0
+    L = 0;
+    U = pi;
+elseif xU < 0 || xL > 0
+    L = real(asec(xL));
+    U = real(asec(xU));
 else
-    L = asec(xU);
-    U = asec(xL);
+    L = 0;
+    U = pi;
 end
