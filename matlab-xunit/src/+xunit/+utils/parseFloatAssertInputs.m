@@ -9,7 +9,8 @@ function params = parseFloatAssertInputs(varargin)
 %   Steven L. Eddins
 %   Copyright 2008-2009 The MathWorks, Inc.
 
-error(nargchk(2, 6, nargin, 'struct'));
+% Changed by mkitti December 5th, 2016 since nargchk is deprecated
+narginchk(2, 6);
 
 params = struct('A', {[]}, 'B', {[]}, 'ToleranceType', {[]}, ...
     'Tolerance', {[]}, 'FloorTolerance', {[]}, 'Message', {''});
