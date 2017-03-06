@@ -1,6 +1,35 @@
 Version history
 ===============
 
+5.3.4 (2017 February 21)
+------------------------
+
+Bug fixes:
+
+* ImageJ
+   - fix for a NullPointerException when exporting images that were not opened via 
+     the Bio-Formats importer, and thus do not have a complete OMEXMLMetadata store
+
+* Java 1.9
+   - fix compile and runtime errors to enable building with Java 1.9
+
+* ECAT7
+   - update to add support for different versions of ECAT7 files (thanks to Torsten Stöter)
+
+Updated build system:
+
+* updated dependency for `ome-model <https://github.com/ome/ome-model>`_ in the POM to 
+  version 5.4.0. This allows for improved ROI handling by enabling support for Shape 
+  objects with Transform attributes. OME-XML schema version remains unchanged as 
+  :model_doc:`OME schema 2016-06 <schemas/june-2016-2.html>`
+
+Documentation improvements:
+
+* new public sample files added for ECAT7 (thanks to Torsten Stöter)
+* new public sample files added for Leica LIF (thanks to Michael Goelzer)
+* new specification document (Version 3.2) for Leica LIF
+* updated links to OMERO documentation as a result of decoupling
+
 5.3.3 (2017 February 2)
 -----------------------
 
@@ -31,11 +60,11 @@ File format fixes:
 * Leica LIF
    - added support for timestamps of LIF files created with LAS AF 3.1 or 
      newer. In the case of a halted acquisition only non-null timestamps are 
-     stored in the OME metadata
+     stored in the OME metadata (thanks to Michael Goelzer)
    - the physical pixel height and width were incorrectly calculated by 
      dividing by the number of pixels. This has now been corrected to match 
      the official Leica LIF specification documents by dividing by the number 
-     of pixels minus one
+     of pixels minus one (thanks to Michael Goelzer)
    - for backwards compatibility an option to preserve pre-5.3.3 physical sizes 
      has been added. This can be set either via command line tools, through 
      the API with the ``loci.formats.in.DynamicMetadataOptions`` class, or in the Bio-Formats 
