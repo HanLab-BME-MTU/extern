@@ -1,4 +1,4 @@
-function progressbar(fractiondone, position)
+function progressbar(fractiondone, position, description_in)
 % Description:
 %   progressbar(fractiondone,position) provides an indication of the progress of
 % some task using graphics and text. Calling progressbar repeatedly will update
@@ -89,6 +89,10 @@ if nargin < 1
 end
 if nargin < 2
     position = 0;
+end
+
+if nargin < 3
+description_in = '';
 end
 
 try
@@ -208,7 +212,7 @@ else
     runtime = etime(clock,starttime);
     timeleft = runtime/fractiondone - runtime;
     timeleftstr = sec2timestr(timeleft);
-    titlebarstr = sprintf('%2d%%    %s remaining',percentdone,timeleftstr);
+    titlebarstr = sprintf('%2d%%  %s remaining %s',percentdone,timeleftstr,description_in);
 end
 set(progfig,'Name',titlebarstr)
 
