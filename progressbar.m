@@ -180,8 +180,7 @@ if isempty(progfig)
         'xtick',            [] );
     progpatch = patch(...
         'XData',            [0 0 0 0],...
-        'YData',            [0 0 1 1],...
-        'EraseMode',        'none' );
+        'YData',            [0 0 1 1]);
     set(progfig,  'ButtonDownFcn',{@changecolor,progpatch});
     set(progaxes, 'ButtonDownFcn',{@changecolor,progpatch});
     set(progpatch,'ButtonDownFcn',{@changecolor,progpatch});
@@ -253,19 +252,19 @@ if d > 0
     if d > 9
         timestr = sprintf('%d day',d);
     else
-        timestr = sprintf('%d day, %d hr',d,h);
+        timestr = sprintf('%d day, %d h',d,h);
     end
 elseif h > 0
     if h > 9
         timestr = sprintf('%d hr',h);
     else
-        timestr = sprintf('%d hr, %d min',h,m);
+        timestr = sprintf('%d hr, %d m',h,m);
     end
 elseif m > 0
     if m > 9
         timestr = sprintf('%d min',m);
     else
-        timestr = sprintf('%d min, %d sec',m,s);
+        timestr = sprintf('%d min, %d s',m,s);
     end
 else
     timestr = sprintf('%d sec',s);
