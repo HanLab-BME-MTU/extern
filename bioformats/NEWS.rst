@@ -1,35 +1,76 @@
 Version history
 ===============
 
+5.4.1 (2017 April 13)
+---------------------
+
+File format improvements:
+
+* MIAS (Maia Scientific)
+   - added a fix for a possible exception when image files are not found under 
+     channel-specific subdirectories
+* BD Pathway
+   - added fix to check if ``Experiment.exp`` is a directory or an experiment file
+* Imspector OBF
+   - enabled forward compatibility for future versions, as the OBF format is backwards 
+     compatible (thanks to Bjoern Thiel)
+
+Documentation improvements:
+
+* updated external homepage link for FocalPoint
+* removed Imago from list of visualization and analysis applications as it is no
+  longer available from the Mayachitra website
+* added links to public sample files for Hamamatsu NDPI and Hamamatsu VMS
+* listed OpenSlide as available software for supported formats
+* added a new developer page detailing in-memory reading and writing
+* updated the Bio-Formats API versioning policy, which now follows strict 
+  semantic versioning
+* a new options page has been added, detailing the usage of configurable format-specific 
+  options for readers and writers. Links to the available options are also included under 
+  the relevant supported formats
+
 5.4.0 (2017 March 21)
 ---------------------
 
 File format improvements:
 
 * DICOM
-   - added support for DICOMDIR files, which allow multiple DICOM files in a single 
-     directory to be opened as a single dataset
+   - added support for DICOMDIR files, which allow multiple DICOM files in a 
+     single directory to be opened as a single dataset
    - plane position values for values X, Y and Z are now being set in OME-XML
    - correctly read the physical size X and Y values based on the available 
      `specification <http://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_10.7.html#sect_10.7.1.3>`_
 * Nikon NIS-Elements ND2
-   - performance improvements based on reading chunkmap. Processing of the chunkmap 
-     can be disabled via the MetadataOptions API using the boolean option 
-     ``nativend2.chunkmap``. For ImageJ users this option can be accessed via a checkbox 
-     in the Nikon ND2 section of the Bio-Formats configuration dialog 
+   - performance improvements based on reading chunkmap. Processing of the
+     chunkmap can be disabled via the MetadataOptions API using the boolean
+     option ``nativend2.chunkmap``. For ImageJ users this option can be
+     accessed via a checkbox in the Nikon ND2 section of the Bio-Formats
+     configuration dialog
      :menuselection:`Plugins --> Bio-Formats --> Bio-Formats Plugins Configuration` (thanks to Christian Sachs)
 * OME-TIFF
-   - added an option to save an OME-TIFF dataset as a binary TIFF and companion XML. 
-     This can be used via the bfconvert command line tool by setting the value of 
-     option ``ometiff.companion`` to the name of the companion file to use. For example 
-     ``bfconvert -option ometiff.companion outputFile.companion.ome inputFile.tiff outputFile.ome.tiff``
+   - added an option to save an OME-TIFF dataset as a binary TIFF and
+     companion XML. This can be used via the bfconvert command line tool by
+     setting the value of option ``ometiff.companion`` to the name of the
+     companion file to use. For example ``bfconvert -option ometiff.companion
+     outputFile.companion.ome inputFile.tiff outputFile.ome.tiff``
 * CellVoyager
-   - metadata fixes specifically the naming of plates. Additional refactoring of 
-     the reader for general maintainability
+   - metadata fixes specifically the naming of plates. Additional refactoring
+     of the reader for general maintainability
 * Gatan Digital Micrograph
    - previously missing Image-Instrument reference has been added to OME-XML
 * TiffSaver
    - ensure open resources are closed under all possible scenarios
+* Zeiss CZI
+   - improved performance of large uncompressed images. When tiles from a
+     large uncompressed image with no internal tiling are requested, only the
+     specific tile specified in the call to ``openBytes`` is read from disk,
+     instead of the entire image being read and then copied
+* Zeiss AxioVision ZVI (Zeiss Vision Image)
+   - ensure that the ``bitsPerPixel`` field is always set to match the final
+     pixel type, and populate any channel colors that were parsed in the
+     metadata. The bits per pixel update should only affect ``uint16`` or 
+     ``int16`` files where the acquisition bit depth is not a multiple of 8, 
+     and the RGB channel count is greater than 1
 
 Updated build system:
 
