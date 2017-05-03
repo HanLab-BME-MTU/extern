@@ -1,4 +1,4 @@
-function progressbar(fractiondone, position)
+function progressbar(fractiondone, position, description_in)
 % Description:
 %   progressbar(fractiondone,position) provides an indication of the progress of
 % some task using graphics and text. Calling progressbar repeatedly will update
@@ -91,6 +91,10 @@ if nargin < 2
     position = 0;
 end
 
+if nargin < 3
+description_in = '';
+end
+
 try
     % Access progfig to see if it exists ('try' will fail if it doesn't)
     dummy = get(progfig,'UserData');
@@ -176,8 +180,7 @@ if isempty(progfig)
         'xtick',            [] );
     progpatch = patch(...
         'XData',            [0 0 0 0],...
-        'YData',            [0 0 1 1],...
-        'EraseMode',        'none' );
+        'YData',            [0 0 1 1]);
     set(progfig,  'ButtonDownFcn',{@changecolor,progpatch});
     set(progaxes, 'ButtonDownFcn',{@changecolor,progpatch});
     set(progpatch,'ButtonDownFcn',{@changecolor,progpatch});
@@ -208,7 +211,7 @@ else
     runtime = etime(clock,starttime);
     timeleft = runtime/fractiondone - runtime;
     timeleftstr = sec2timestr(timeleft);
-    titlebarstr = sprintf('%2d%%    %s remaining',percentdone,timeleftstr);
+    titlebarstr = sprintf('%2d%%  %s remaining %s',percentdone,timeleftstr,description_in);
 end
 set(progfig,'Name',titlebarstr)
 
@@ -249,19 +252,19 @@ if d > 0
     if d > 9
         timestr = sprintf('%d day',d);
     else
-        timestr = sprintf('%d day, %d hr',d,h);
+        timestr = sprintf('%d day, %d h',d,h);
     end
 elseif h > 0
     if h > 9
         timestr = sprintf('%d hr',h);
     else
-        timestr = sprintf('%d hr, %d min',h,m);
+        timestr = sprintf('%d hr, %d m',h,m);
     end
 elseif m > 0
     if m > 9
         timestr = sprintf('%d min',m);
     else
-        timestr = sprintf('%d min, %d sec',m,s);
+        timestr = sprintf('%d min, %d s',m,s);
     end
 else
     timestr = sprintf('%d sec',s);
