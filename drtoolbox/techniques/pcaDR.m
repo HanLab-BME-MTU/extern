@@ -1,4 +1,4 @@
-function [mappedX, mapping] = pca(X, no_dims)
+function [mappedX, mapping] = pcaDR(X, no_dims)
 %PCA Perform the PCA algorithm
 %
 %   [mappedX, mapping] = pca(X, no_dims)
