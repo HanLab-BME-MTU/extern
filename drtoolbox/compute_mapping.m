@@ -125,7 +125,7 @@ function [mappedA, mapping] = compute_mapping(A, type, no_dims, varargin)
 % (C) Laurens van der Maaten, Delft University of Technology
 
 
-    welcome;
+%     welcome;
     
     % Check inputs
     if nargin < 2
@@ -375,7 +375,7 @@ function [mappedA, mapping] = compute_mapping(A, type, no_dims, varargin)
             
         case {'PCA', 'KLM'}
             % Compute PCA mapping
-			[mappedA, mapping] = pca(A, no_dims);
+			[mappedA, mapping] = pcaDR(A, no_dims);
             mapping.name = 'PCA';
             
         case {'SPCA', 'SimplePCA'}
