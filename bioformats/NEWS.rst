@@ -1,6 +1,71 @@
 Version history
 ===============
 
+5.5.1 (2017 May 25)
+-------------------
+
+File format improvements:
+
+* CellH5
+   - fix for ``HDF5SymbolTableException`` when recycling an IFormatReader to reopen 
+     another CellH5 file
+   - bug fix related to opening of subsets of CellH5 files, namely 
+     ``openBytes(r, no, x, y, w, h)`` for y>0
+* Zeiss CZI
+   - fix pyramid resolution indexing for pyramids of different depths
+   - fix for incorrect channel names and colors
+* Zeiss AxioVision ZVI
+   - correct parsing of epoch for Zeiss TIFF and Zeiss ZVI
+
+Bug fixes:
+
+* Command line tools 
+   - fix for ``java.lang. NegativeArraySizeException`` caused by incorrect dimensions 
+     when using showinf via command line with options set to autoscale and crop
+* Format tools 
+   - fix for ``java.lang. IndexOutOfBoundsException`` when using ``getFilename`` with an 
+     image containing multiple samples per pixel channels and a single effective channel
+
+Updated build system:
+
+* Autogen jobs
+   - fix for ``gen-meta-support`` to locate available ``org.openmicroscopy:ome-xml`` 
+     sources from the Maven repository following the decoupling of the model components
+* FileHandleTest
+   - exclude JHDF5 native libraries from ``FileHandleTest`` to enable CellH5 files to be 
+     included in daily tests
+
+Documentation improvements:
+
+* added a new example file for reading and writing of XZ and YZ orthogonal planes
+
+5.5.0 (2017 May 8)
+------------------
+
+New file formats:
+
+* Olympus OIR
+   - added support for :doc:`Olympus .oir </formats/olympus-oir>` data  (funded by a 
+     partnership between Glencoe Software and OLYMPUS EUROPA SE & Co. KG)
+* PerkinElmer Columbus
+   - added support for :doc:`PerkinElmer Columbus </formats/perkinelmer-columbus>` data
+
+File format improvements:
+
+* Andor Bio-Imaging Division (ABD) TIFF
+   - fixed acquisition date format from ``MM/dd/yyyy`` to ``dd/MM/yyyy``
+* Nikon NIS-Elements ND2
+   - corrected logic used to determined ``PixelType`` by parsing uiBpc tags
+* Hamamatsu ndpi
+   - improved handling of channels in  NDPIS datasets (thanks to Manuel Stritt)
+* Imspector OBF
+   - fix for ``SAXParseException`` when description field in metadata is empty
+
+Documentation improvements:
+
+* added links to public sample files for Cellomics
+* added links to public sample files for InCell 3000
+
 5.4.1 (2017 April 13)
 ---------------------
 
