@@ -321,7 +321,7 @@ function [mappedA, mapping] = compute_mapping(A, type, no_dims, varargin)
         case {'tSNE', 't-SNE'}
             % Compute t-SNE mapping
 			if isempty(varargin), mappedA = tsne(A, [], no_dims);
-            else mappedA = tsne(A, [], no_dims, varargin{1}); end
+            else mappedA = tsne_LvM(A, [], no_dims, [],varargin{1}); end
             mapping.name = 't-SNE';
             
         case {'AutoEncoder', 'Autoencoder'}
