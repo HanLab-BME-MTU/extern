@@ -34,15 +34,16 @@ ha=axes;
 set(ha,'units','normalized');
 set(ha,'position',[0.1 0.1 0.8 0.7]);
 if islb && size(data, 1) == numel(labels)
-    hs=scatter3(data(:,1),data(:,2),data(:,3),5,labels,'parent',ha);
+    hs=scatter3(data(:,1),data(:,2),data(:,3),15,labels,'filled','parent',ha);
 else
-    hs=scatter3(data(:,1),data(:,2),data(:,3),5,'parent',ha);
+    hs=scatter3(data(:,1),data(:,2),data(:,3),15,'filled','parent',ha);
 end
-if size(data, 1) ~= numel(labels)
+if islb && size(data, 1) ~= numel(labels)
     warning('The GUI cannot yet deal properly with disconnected parts in the neighborhood graph.');
 end
 
 set(hs,'UserData',data); % memorize data in userdata of plot
+hs.Tag = '120';
 
 % title as text contol:
 xc=0.5;
@@ -108,8 +109,11 @@ for cc=1:3
            'fontunits','normalized',...
            'Position', [xt yc-dy/2 dx1 dy],...
            'backgroundcolor',[1 1 1]);
-       
-    set(he,'callback',['ded(' num2str(cc) ',' num2str(hs,'%20.20f') ',' num2str(he,'%20.20f') ')']);
+    he.Tag = [num2str(cc)];   
+%     set(he,'callback',['ded(' num2str(cc) ',' num2str(hs,'%20.20f') ',' num2str(he,'%20.20f') ')']);
+    
+set(he,'callback',['ded(' num2str(cc) ',' num2str(hs.Tag) ',' he.Tag ')']);
+%     set(he, 'callback', @ded1);
        
     xt=xt+dx1+0.005;
     
@@ -134,4 +138,5 @@ ylabel(ha,'Y');
 zlabel(ha,'Z');
 
 set(hf,'Toolbar','figure');
+end
 

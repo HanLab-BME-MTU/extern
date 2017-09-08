@@ -1,4 +1,5 @@
-function ded(cc,hs,he)
+% function ded(cc,hs,he)
+function ded(cc,hs_tag,he_tag)
 % cc - edit number
 % hs - handle to plot
 % he - handle to edit
@@ -11,7 +12,8 @@ function ded(cc,hs,he)
 %
 % (C) Laurens van der Maaten, 2010
 % University California, San Diego / Delft University of Technology
-
+hs = findobj('Tag', num2str(hs_tag))
+he = findobj('Tag', num2str(he_tag))
 data=get(hs,'UserData');
 ld=length(data(1,:));
 
