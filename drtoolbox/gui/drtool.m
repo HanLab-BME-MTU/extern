@@ -1130,9 +1130,9 @@ if handles.mcd
         hf=figure;
         set(hf,'name','Result of dimensionality reduction','NumberTitle','off');
         if handles.islb && size(handles.mX, 1) == numel(handles.labels)
-            scatter(handles.mX(:,1),handles.mX(:,2),5,handles.labels);
+            scatter(handles.mX(:,1),handles.mX(:,2),15,handles.labels,'filled');
         else
-            scatter(handles.mX(:,1),handles.mX(:,2),5);
+            scatter(handles.mX(:,1),handles.mX(:,2),15,'filled');
         end
         title('Result of dimensionality reduction');
         if size(handles.mX, 1) ~= numel(handles.labels)
