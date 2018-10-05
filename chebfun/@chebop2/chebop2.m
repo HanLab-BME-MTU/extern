@@ -41,7 +41,7 @@ classdef chebop2
 % publicly advertised.  Chebop2 cannot do nonlinear problems as more 
 % algorithmic advances are needed. 
 
-% Copyright 2016 by The University of Oxford and The Chebfun2 Developers.
+% Copyright 2017 by The University of Oxford and The Chebfun2 Developers.
 % See http://www.chebfun.org/ for Chebfun information.
     
     %% PROPERTIES.
@@ -257,6 +257,12 @@ classdef chebop2
         % This is used to discretize the linear constrains:
         [bcrow, bcvalue] = constructBC(bcArg, bcpos,...
             een, bcn, dom, scl, order);
+        
+        % Recover coefficient functions of a linear operator:
+        p = recoverCoeffs(L);
+        
+        % Checks the type of the boundary conditions:
+        [bctype, g] = checkBC(N, m, n);
         
         % This is used to discretize the PDE:
         [CC, rhs, bb, gg, Px, Py, xsplit, ysplit] =...

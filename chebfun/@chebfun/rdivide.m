@@ -6,7 +6,7 @@ function h = rdivide(f, g, pref)
 %
 % See also MRDIVIDE, TIMES.
 
-% Copyright 2016 by The University of Oxford and The Chebfun Developers. 
+% Copyright 2017 by The University of Oxford and The Chebfun Developers. 
 % See http://www.chebfun.org/ for Chebfun information.
 
 % Trivial empty case:
@@ -30,8 +30,21 @@ if ( isa(f,'chebfun') && isa(g, 'chebfun') )
 
     % Check the number of columns match:
     if ( numColumns(f) ~= numColumns(g) )
-        error('CHEBFUN:CHEBFUN:rdivide:quasi', ...
-            'Chebfun quasimatrix dimensions must agree.')
+        if ( numColumns(f) == 1 )
+            h = g;
+            for k = 1:numColumns(g)
+                h(k) = rdivide(f, g(k));
+            end
+        elseif ( numColumns(g) == 1 )
+            h = f;
+            for k = 1:numColumns(f)
+                h(k) = rdivide(f(k), g);
+            end
+        else
+            error('CHEBFUN:CHEBFUN:rdivide:quasi', ...
+                'Chebfun quasimatrix dimensions must agree.')
+        end
+        return
     end
     
     if ( numel(f) == 1 && numel(g) == 1 )

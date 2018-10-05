@@ -7,11 +7,16 @@ function f = cancelExponents(f)
 %
 % See also EXTRACTBOUNDARYROOTS.
 
-% Copyright 2016 by The University of Oxford and The Chebfun Developers.
+% Copyright 2017 by The University of Oxford and The Chebfun Developers.
 % See http://www.chebfun.org/ for Chebfun information.
 
 % Grab the exponents:
 exps = get(f, 'exponents');
+
+if ( size(f, 2) > 2 )
+    error('CHEBFUN:SINGFUN:cancelExponent:arrayvalued', ...
+        'SINGFUN dfoes not support array-valued techs.')
+end
 
 % Grab boundary values:
 boundaryVals = [lval(f.smoothPart),  rval(f.smoothPart)];

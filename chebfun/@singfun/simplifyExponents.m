@@ -6,14 +6,25 @@ function f = simplifyExponents(f)
 %
 % See also EXTRACTBOUNDARYROOTS.
 
-% Copyright 2016 by The University of Oxford and The Chebfun Developers.
+% Copyright 2017 by The University of Oxford and The Chebfun Developers.
 % See http://www.chebfun.org/ for Chebfun information.
 
 % Grab the exponents:
 exps = get(f, 'exponents');
 
+% Tolerance:
+tol = 100*eps*vscale(f.smoothPart);
+
+% Set nearly zeros exponents to zero:
+exps(abs(exps) < tol) = 0;
+f.exponents = exps;
+
+% Set nearly integer exponents to zero:
+idx = abs(round(exps)-exps) < tol;
+exps(idx) = round(exps(idx));
+
 % Grab the indice for exponents larger or equal to 1:
-ind = ( exps >= 1 );
+ind = ( exps >= 1-tol );
 
 % Both exponents are less than 1:
 if ( ~any( ind ) )

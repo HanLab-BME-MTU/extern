@@ -18,7 +18,7 @@ classdef linopConstraint
 %
 % See also LINOP, LINOP.ADDBC.
 
-%  Copyright 2016 by The University of Oxford and The Chebfun Developers.
+%  Copyright 2017 by The University of Oxford and The Chebfun Developers.
 %  See http://www.chebfun.org/ for Chebfun information.
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -65,6 +65,11 @@ classdef linopConstraint
         %APPEND    Insert an additional constraint.
         %   C = APPEND(C, FUNC, VAL) appends the constraint FUNC*u=VAL to the
         %   current list. If VAL is omitted, it defaults to zero.
+        
+            % Appending empty does nothing:
+            if ( isempty(func) )
+                return
+            end                
             
             % Check if func is of an allowed class.
             validateattributes(func, {'linBlock', 'chebmatrix'}, {})

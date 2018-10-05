@@ -10,7 +10,7 @@ function plotEigenmodes(handles, selection, h1, h2)
 %   H1:         A handle to the top plot of the CHEBGUI figure.
 %   H2:         A handle to the bottom plot of the CHEBGUI figure.
 
-% Copyright 2016 by The University of Oxford and The Chebfun Developers. 
+% Copyright 2017 by The University of Oxford and The Chebfun Developers. 
 % See http://www.chebfun.org/ for Chebfun information.
 
 % No recent solution available
@@ -40,7 +40,15 @@ end
 C = get(0, 'DefaultAxesColorOrder');
 C = repmat(C, ceil(length(D)/size(C, 1)), 1);
 
-% Number of unknown variables in the problem
+% Usually, we end up solving for more than 1 eigenfunctions/values, which means
+% that the solution V is a CHEBMATRIX, rather than a simple CHEBFUN. The
+% plotting below assumes we're working with a CHEBMATRIX for various
+% functionality, so cast a single CHEBFUN to a CHEBMATRIX:
+if ( ~isa(V, 'chebmatrix') )
+    V = chebmatrix(V);
+end
+
+% Number of unknown variables in the problem:
 numVar = size(V, 1);
 
 % Need to trim the data we are plotting if user has made a selection

@@ -9,7 +9,7 @@ function f = fracDiff(f, mu, type)
 %   Currently this only supports the situation where F is smooth (i.e., it has
 %   no breakpoints or endpoint singularities) and on a finite domain.
 
-% Copyright 2016 by The University of Oxford and The Chebfun Developers.
+% Copyright 2017 by The University of Oxford and The Chebfun Developers.
 % See http://www.chebfun.org/ for Chebfun information.
 
 % Default to Riemann-Liouville:
@@ -25,11 +25,27 @@ if ( n == mu )
     return
 end
 
+if ( numel(f) > 0 )
+    f = quasimatrix(f);
+    for k = 1:numel(f)
+        f(k) = fracDiffcol(f(k), mu, type);
+    end
+else
+    f = fracDiffcol(f, mu, type);
+end
+
+end
+
+function f = fracDiffcol(f, mu, type)
+
 % No piecewise support yet:
-if ( numel(f.funs) > 1 )
+if ( numel(f(1).funs) > 1 )
     error('CHEBFUN:CHEBFUN:fracDiff:breakpoints', ...
         'FRACDIFF does not currently support piecewise functions.');
 end
+
+% Extract the fractional part:
+n = ceil(mu);
 
 if ( strcmpi(type, 'Caputo') )
     % Caputo:

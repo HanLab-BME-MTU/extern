@@ -9,7 +9,7 @@ function c_jac = cheb2jac( c_cheb, alpha, beta )
 %
 % See also JAC2CHEB, JAC2JAC.
 
-% Copyright 2016 by The University of Oxford and The Chebfun Developers. 
+% Copyright 2017 by The University of Oxford and The Chebfun Developers. 
 % See http://www.chebfun.org/ for Chebfun information.
 
 %%%%%%%%% For developers %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -25,7 +25,7 @@ N = size(c_cheb, 1);    % Length of coefficients.
 if ( alpha == 0 && beta == 0 ) 
    % Use cheb2leg for alpha = beta = 0:
     
-    c_jac = cheb2leg_new( c_cheb ); 
+    c_jac = cheb2leg( c_cheb ); 
     
 elseif ( alpha == -.5 && beta == -.5 ) 
     % Undo scaling: 
